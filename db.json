@@ -1,0 +1,308 @@
+{
+	"artworks": [
+		{
+			"id": 1,
+			"title": "Starry Night",
+			"artist_id": 1,
+			"creation_date": 1889,
+			"artwork_type": "Painting",
+			"material": "Oil on canvas",
+			"description": "A famous painting by Vincent van Gogh.",
+			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1920px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
+			"exhibition_id": 1,
+			"curated_by_employee_id": 2,
+			"acquisition_date": "2020-05-10",
+			"is_on_display": true
+		},
+		{
+			"id": 2,
+			"title": "The Thinker",
+			"artist_id": 2,
+			"creation_date": 1904,
+			"artwork_type": "Sculpture",
+			"material": "Bronze",
+			"description": "A bronze sculpture by Auguste Rodin.",
+			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Le_Penseur_by_Rodin_%28Kunsthalle_Bielefeld%29_2014-04-10.JPG",
+			"exhibition_id": 2,
+			"curated_by_employee_id": 3,
+			"acquisition_date": "2018-11-22",
+			"is_on_display": true
+		},
+		{
+			"id": 3,
+			"title": "Mona Lisa",
+			"artist_id": 3,
+			"creation_date": 1503,
+			"artwork_type": "Painting",
+			"material": "Oil on poplar",
+			"description": "A portrait painting by Leonardo da Vinci.",
+			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/960px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg",
+			"exhibition_id": 1,
+			"curated_by_employee_id": 2,
+			"acquisition_date": "2015-07-15",
+			"is_on_display": true
+		},
+		{
+			"id": 4,
+			"title": "The Persistence of Memory",
+			"artist_id": 4,
+			"creation_date": 1931,
+			"artwork_type": "Painting",
+			"material": "Oil on canvas",
+			"description": "A surreal painting by Salvador Dalí.",
+			"picture_url": "https://uploads1.wikiart.org/00475/images/salvador-dali/w1siziisijm4njq3mcjdlfsiccisimnvbnzlcnqilcitcxvhbgl0esa5mcatcmvzaxplidiwmdb4mjawmfx1mdazzsjdxq.jpg!Large.jpg",
+			"exhibition_id": 3,
+			"curated_by_employee_id": 4,
+			"acquisition_date": "2019-03-18",
+			"is_on_display": false
+		},
+		{
+			"id": 5,
+			"title": "Girl with a Pearl Earring",
+			"artist_id": 5,
+			"creation_date": 1665,
+			"artwork_type": "Painting",
+			"material": "Oil on canvas",
+			"description": "A painting by Johannes Vermeer.",
+			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/330px-1665_Girl_with_a_Pearl_Earring.jpg",
+			"exhibition_id": 2,
+			"curated_by_employee_id": 3,
+			"acquisition_date": "2017-09-30",
+			"is_on_display": true
+		}
+	],
+	"artists": [
+				{
+					"id": 1,
+					"name": "Vincent van Gogh",
+					"nationality": "Dutch",
+					"birth_year": 1853,
+					"death_year": 1890,
+					"artist_biography": "Post-Impressionist painter known for expressive use of color and brushwork."
+				},
+				{
+					"id": 2,
+					"name": "Auguste Rodin",
+					"nationality": "French",
+					"birth_year": 1840,
+					"death_year": 1917,
+					"artist_biography": "Renowned sculptor, creator of The Thinker."
+				},
+				{
+					"id": 3,
+					"name": "Leonardo da Vinci",
+					"nationality": "Italian",
+					"birth_year": 1452,
+					"death_year": 1519,
+					"artist_biography": "Renaissance polymath, painter of the Mona Lisa."
+				},
+				{
+					"id": 4,
+					"name": "Salvador Dalí",
+					"nationality": "Spanish",
+					"birth_year": 1904,
+					"death_year": 1989,
+					"artist_biography": "Surrealist artist known for dreamlike imagery."
+				},
+				{
+					"id": 5,
+					"name": "Johannes Vermeer",
+					"nationality": "Dutch",
+					"birth_year": 1632,
+					"death_year": 1675,
+					"artist_biography": "Baroque painter famous for Girl with a Pearl Earring."
+				}
+			],
+			"exhibitions": [
+				{
+					"id": 1,
+					"exhibition_name": "Masterpieces of the World",
+					"exhibition_type": "Permanent",
+					"location": "Main Hall",
+					"description": "A collection of world-renowned artworks.",
+					"start_date": "2022-01-01",
+					"end_date": null,
+					"is_active": true
+				},
+				{
+					"id": 2,
+					"exhibition_name": "Sculpture Showcase",
+					"exhibition_type": "Temporary",
+					"location": "Gallery B",
+					"description": "A showcase of famous sculptures.",
+					"start_date": "2023-03-15",
+					"end_date": "2023-09-15",
+					"is_active": false
+				},
+				{
+					"id": 3,
+					"exhibition_name": "Surrealism Unveiled",
+					"exhibition_type": "Temporary",
+					"location": "Gallery C",
+					"description": "Exploring surrealist art and its impact.",
+					"start_date": "2024-05-01",
+					"end_date": "2024-10-01",
+					"is_active": true
+				}
+			],
+			"employees": [
+				{
+					"id": 2,
+					"name": "Alice Curator",
+					"role": "Curator",
+					"hire_date": "2018-06-01",
+					"salary": 65000,
+					"is_active": true
+				},
+				{
+					"id": 3,
+					"name": "Bob Manager",
+					"role": "Manager",
+					"hire_date": "2015-03-15",
+					"salary": 80000,
+					"is_active": true
+				},
+				{
+					"id": 4,
+					"name": "Carol Guide",
+					"role": "Guide",
+					"hire_date": "2020-09-10",
+					"salary": 40000,
+					"is_active": true
+				}
+			],
+			"users": [
+				{
+					"id": 1,
+					"first_name": "John",
+					"last_name": "Doe",
+					"email": "john.doe@example.com",
+					"birthdate": "1990-04-15",
+					"sex": "M"
+				},
+				{
+					"id": 2,
+					"first_name": "Jane",
+					"last_name": "Smith",
+					"email": "jane.smith@example.com",
+					"birthdate": "1985-11-22",
+					"sex": "F"
+				}
+			],
+			"ticket_types": [
+				{
+					"id": 1,
+					"ticket_name": "Adult",
+					"base_price": 20.00,
+					"description": "General admission for adults.",
+					"is_available": true
+				},
+				{
+					"id": 2,
+					"ticket_name": "Child",
+					"base_price": 10.00,
+					"description": "Admission for children under 12.",
+					"is_available": true
+				}
+			],
+			"gift_shop_items": [
+				{
+					"id": 1,
+					"item_name": "Starry Night Poster",
+					"category": "Posters",
+					"price": 15.99,
+					"stock_quantity": 50,
+					"description": "Poster of Van Gogh's Starry Night.",
+					"artist_id": 1,
+					"is_available": true
+				},
+				{
+					"id": 2,
+					"item_name": "Art Book",
+					"category": "Books",
+					"price": 29.99,
+					"stock_quantity": 20,
+					"description": "A book featuring famous artworks.",
+					"artist_id": null,
+					"is_available": true
+				}
+			],
+			"cafeteria_items": [
+				{
+					"id": 1,
+					"item_name": "Cappuccino",
+					"category": "Hot Beverages",
+					"price": 4.50,
+					"is_available": true,
+					"is_vegetarian": true,
+					"is_vegan": false
+				},
+				{
+					"id": 2,
+					"item_name": "Veggie Sandwich",
+					"category": "Sandwiches",
+					"price": 7.00,
+					"is_available": true,
+					"is_vegetarian": true,
+					"is_vegan": true
+				}
+			],
+			"benefits": [
+				{
+					"membership_type": "Standard",
+					"unlimited_visits": false,
+					"priority_entry": false,
+					"guest_passes": 0,
+					"access_to_member_events": false,
+					"discount_percentage": 5,
+					"annual_fee": 50.00
+				},
+				{
+					"membership_type": "Premium",
+					"unlimited_visits": true,
+					"priority_entry": true,
+					"guest_passes": 2,
+					"access_to_member_events": true,
+					"discount_percentage": 15,
+					"annual_fee": 120.00
+				}
+			],
+			"membership": [
+				{
+					"id": 1,
+					"user_id": 1,
+					"membership_type": "Premium",
+					"start_date": "2025-01-01",
+					"expiration_date": "2026-01-01",
+					"is_active": true
+				}
+			],
+			"events": [
+				{
+					"id": 1,
+					"event_name": "Art Gala",
+					"event_type": "Gala",
+					"event_date": "2025-11-10",
+					"event_time": "18:00",
+					"duration_minutes": 120,
+					"location": "Main Hall",
+					"description": "Annual art gala with live music and food.",
+					"exhibition_id": 1,
+					"max_capacity": 200,
+					"current_attendees": 150,
+					"is_members_only": false,
+					"is_cancelled": false
+				}
+			],
+			"transactions": [
+				{
+					"id": 1,
+					"user_id": 1,
+					"transaction_date": "2025-10-15T14:30:00",
+					"total_price": 40.00,
+					"total_items": 2,
+					"payment_method": "Credit Card",
+					"transaction_status": "Completed"
+				}
+				]
+}
