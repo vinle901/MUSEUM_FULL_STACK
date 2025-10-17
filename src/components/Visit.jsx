@@ -1,7 +1,25 @@
-import React from 'react';
-import './Visit.css';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 function Visit() {
+  const [ticketTypes, setTicketTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTicketTypes = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/ticket_types');
+        setTicketTypes(response.data);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching ticket types:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchTicketTypes();
+  }, []);
+
   return (
     <div className="visit-page">
       <h1 className="section-title">Plan Your Visit</h1>
@@ -53,34 +71,18 @@ function Visit() {
       <div className="ticket-section">
         <table className="ticket-table">
           <tbody>
-            <tr>
-              <td>Adults</td>
-              <td>$25</td>
-            </tr>
-            <tr>
-              <td>Seniors (65+)</td>
-              <td>$20</td>
-            </tr>
-            <tr>
-              <td>Students (with ID)</td>
-              <td>$15</td>
-            </tr>
-            <tr>
-              <td>Veterans</td>
-              <td>$10</td>
-            </tr>
-            <tr>
-              <td>Childrens (6-13)</td>
-              <td>$10</td>
-            </tr>
-            <tr>
-              <td>Child (under 6)</td>
-              <td>Free</td>
-            </tr>
-            <tr>
-              <td>Members</td>
-              <td>Free</td>
-            </tr>
+            {loading ? (
+              <tr>
+                <td colSpan="2">Loading ticket prices...</td>
+              </tr>
+            ) : (
+              ticketTypes.map((ticket) => (
+                <tr key={ticket.id}>
+                  <td>{ticket.ticket_name}</td>
+                  <td>{ticket.base_price === 0 ? 'Free' : `$${ticket.base_price.toFixed(2)}`}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
         

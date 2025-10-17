@@ -7,7 +7,7 @@
 			"creation_date": 1889,
 			"artwork_type": "Painting",
 			"material": "Oil on canvas",
-			"description": "A famous painting by Vincent van Gogh.",
+			"description": "This moderately abstract landscape painting depicts a night sky swirling with chromatic blue and yellow clouds over a small hillside village. Van Gogh painted this view from his asylum room in Saint-Rémy-de-Provence, though he added the village from memory. The cypress tree in the foreground and the rolling hills create a sense of movement that echoes the turbulent sky above.",
 			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1920px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
 			"exhibition_id": 1,
 			"curated_by_employee_id": 2,
@@ -21,7 +21,7 @@
 			"creation_date": 1904,
 			"artwork_type": "Sculpture",
 			"material": "Bronze",
-			"description": "A bronze sculpture by Auguste Rodin.",
+			"description": "Originally titled 'The Poet', this bronze sculpture depicts a nude male figure seated on a rock with his chin resting on one hand in deep contemplation. The muscular figure was originally conceived as part of Rodin's monumental Gates of Hell, representing Dante pondering his great poem. The work has become one of the most recognizable sculptures in Western art, symbolizing philosophy and intellectual activity.",
 			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Le_Penseur_by_Rodin_%28Kunsthalle_Bielefeld%29_2014-04-10.JPG",
 			"exhibition_id": 2,
 			"curated_by_employee_id": 3,
@@ -35,7 +35,7 @@
 			"creation_date": 1503,
 			"artwork_type": "Painting",
 			"material": "Oil on poplar",
-			"description": "A portrait painting by Leonardo da Vinci.",
+			"description": "This iconic half-length portrait depicts a woman whose mysterious smile and enigmatic expression have fascinated viewers for centuries. The painting showcases Leonardo da Vinci's mastery of sfumato, a technique of soft, almost imperceptible transitions between colors. The subject, believed to be Lisa Gherardini, is portrayed against a distant landscape, and her gaze seems to follow viewers around the room. The work represents the pinnacle of Renaissance portraiture.",
 			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/960px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg",
 			"exhibition_id": 1,
 			"curated_by_employee_id": 2,
@@ -49,260 +49,1177 @@
 			"creation_date": 1931,
 			"artwork_type": "Painting",
 			"material": "Oil on canvas",
-			"description": "A surreal painting by Salvador Dalí.",
-			"picture_url": "https://uploads1.wikiart.org/00475/images/salvador-dali/w1siziisijm4njq3mcjdlfsiccisimnvbnzlcnqilcitcxvhbgl0esa5mcatcmvzaxplidiwmdb4mjawmfx1mdazzsjdxq.jpg!Large.jpg",
+			"description": "This surrealist masterpiece features melting pocket watches draped over a barren landscape, challenging our perception of time and reality. The distorted timepieces suggest the irrelevance of time during sleep and dreams. A mysterious fleshy creature lies in the center, while ants swarm over one of the watches, symbolizing decay. The background depicts the cliffs of Catalonia, Spain. This work has become one of the most recognizable images in modern art.",
+			"picture_url": "https://uploads0.wikiart.org/images/salvador-dali/the-persistence-of-memory-1931.jpg",
 			"exhibition_id": 3,
 			"curated_by_employee_id": 4,
 			"acquisition_date": "2019-03-18",
 			"is_on_display": false
 		},
-		{
-			"id": 5,
-			"title": "Girl with a Pearl Earring",
-			"artist_id": 5,
-			"creation_date": 1665,
-			"artwork_type": "Painting",
-			"material": "Oil on canvas",
-			"description": "A painting by Johannes Vermeer.",
-			"picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/330px-1665_Girl_with_a_Pearl_Earring.jpg",
-			"exhibition_id": 2,
-			"curated_by_employee_id": 3,
-			"acquisition_date": "2017-09-30",
-			"is_on_display": true
-		}
+    {
+      "id": 5,
+      "title": "Girl with a Pearl Earring",
+      "artist_id": 5,
+      "creation_date": 1665,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "Often called the 'Mona Lisa of the North', this captivating portrait features a young woman in exotic dress, wearing a luminous pearl earring, against a dark background. The subject turns to gaze at the viewer with parted lips, creating an intimate moment frozen in time. Vermeer's masterful use of light and his ability to capture the delicate play of light on the pearl earring demonstrate his unparalleled skill. The identity of the subject remains a mystery, adding to the painting's allure.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/1665_Girl_with_a_Pearl_Earring.jpg/330px-1665_Girl_with_a_Pearl_Earring.jpg",
+      "exhibition_id": 2,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2017-09-30",
+      "is_on_display": true
+    },
+    {
+      "id": 6,
+      "title": "David",
+      "artist_id": 3,
+      "creation_date": 1504,
+      "artwork_type": "Sculpture",
+      "material": "Marble",
+      "description": "This colossal 17-foot marble statue depicts the biblical hero David at the moment of decision, just before his battle with Goliath. Unlike earlier representations showing David after his victory, Michelangelo captured the tension and concentration in David's face and the taut muscles of his body as he prepares for combat. The sculpture was originally commissioned to stand along the roofline of Florence Cathedral but was instead placed in the Piazza della Signoria. It represents the pinnacle of High Renaissance sculpture and an ideal of human beauty.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/%27David%27_by_Michelangelo_Fir_JBU004.jpg/500px-%27David%27_by_Michelangelo_Fir_JBU004.jpg",
+      "exhibition_id": 3,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2021-06-15",
+      "is_on_display": true
+    },
+    {
+      "id": 7,
+      "title": "Campbell's Soup Cans",
+      "artist_id": 7,
+      "creation_date": 1962,
+      "artwork_type": "Pop Art",
+      "material": "Synthetic polymer paint on canvas",
+      "description": "This iconic work consists of thirty-two canvases, each depicting a different variety of Campbell's Soup. Warhol's mechanical reproduction technique and commercial subject matter challenged traditional concepts of fine art. The work reflects American consumer culture and mass production, elevating everyday objects to high art. Warhol chose soup cans because he ate Campbell's soup for lunch every day for twenty years. This piece became a defining work of the Pop Art movement.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Campbell%27s_Soup_Cans_by_Andy_Warhol.jpg/960px-Campbell%27s_Soup_Cans_by_Andy_Warhol.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2016-02-20",
+      "is_on_display": true
+    },
+    {
+      "id": 8,
+      "title": "The Great Wave off Kanagawa",
+      "artist_id": 8,
+      "creation_date": 1831,
+      "artwork_type": "Print",
+      "material": "Woodblock print",
+      "description": "This iconic woodblock print depicts an enormous wave threatening boats off the coast of Kanagawa, with Mount Fuji visible in the background. The dramatic composition shows the power of nature with three boats about to be engulfed by a towering wave topped with claw-like foam. Created during Japan's Edo period, this print is the first in Hokusai's series 'Thirty-Six Views of Mount Fuji' and has become one of the most recognized works of Japanese art worldwide, influencing Western artists and popular culture.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/a/a5/Tsunami_by_hokusai_19th_century.jpg",
+      "exhibition_id": 2,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2018-08-10",
+      "is_on_display": true
+    },
+    {
+      "id": 9,
+      "title": "Untitled (Skull)",
+      "artist_id": 9,
+      "creation_date": 1981,
+      "artwork_type": "Neo-Expressionism",
+      "material": "Acrylic and oilstick on canvas",
+      "description": "This powerful neo-expressionist work features a haunting skull rendered in Basquiat's signature raw, graffiti-inspired style. The painting combines text, symbols, and gestural marks with the central skull motif, exploring themes of mortality, identity, and the human condition. Created during Basquiat's most prolific period, the work exemplifies his ability to merge street art aesthetics with fine art tradition. The skull becomes a meditation on life and death, reflecting both African and Haitian cultural influences alongside contemporary urban culture.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/1/11/Untitled-Head-Jean-Michel_Basquiat-1981.jpg",
+      "exhibition_id": 3,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2022-03-05",
+      "is_on_display": false
+    },
+    {
+      "id": 10,
+      "title": "Balloon Dog",
+      "artist_id": 10,
+      "creation_date": 1994,
+      "artwork_type": "Contemporary Sculpture",
+      "material": "Stainless steel with transparent color coating",
+      "description": "This monumental sculpture recreates the form of a twisted balloon animal in highly polished, mirror-finish stainless steel with a transparent color coating. Standing over 10 feet tall, the work transforms a cheap, ephemeral party favor into a precious art object. The reflective surface interacts with its surroundings, creating an ever-changing visual experience. Part of Koons' 'Celebration' series, this work exemplifies his exploration of kitsch, consumerism, and childhood nostalgia while showcasing extraordinary technical achievement in fabrication.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/6/65/Balloon_Dog_%28Blue%29_by_Jeff_Koons%2C_The_Broad.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2019-11-11",
+      "is_on_display": true
+    },
+    {
+      "id": 11,
+      "title": "The Scream",
+      "artist_id": 11,
+      "creation_date": 1893,
+      "artwork_type": "Painting",
+      "material": "Oil, tempera, pastel and crayon on cardboard",
+      "description": "This iconic expressionist work depicts an agonized figure against a tumultuous orange sky. The figure's face is contorted in an expression of pure anxiety and existential dread. The wavy lines of the landscape and sky create a sense of psychological turmoil. Munch created several versions of this composition, which has become one of the most recognizable images in art history and a universal symbol of human anxiety.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Edvard_Munch%2C_1893%2C_The_Scream%2C_oil%2C_tempera_and_pastel_on_cardboard%2C_91_x_73_cm%2C_National_Gallery_of_Norway.jpg/440px-Edvard_Munch%2C_1893%2C_The_Scream%2C_oil%2C_tempera_and_pastel_on_cardboard%2C_91_x_73_cm%2C_National_Gallery_of_Norway.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2023-01-15",
+      "is_on_display": true
+    },
+    {
+      "id": 12,
+      "title": "American Gothic",
+      "artist_id": 12,
+      "creation_date": 1930,
+      "artwork_type": "Painting",
+      "material": "Oil on beaverboard",
+      "description": "This painting depicts a farmer standing beside his daughter in front of a house built in the Carpenter Gothic style. Grant Wood's sister and dentist served as models. The work has become an iconic image of American culture, often interpreted as a depiction of the steadfast American pioneer spirit. The stern expressions and upright pitchfork have made this one of the most parodied images in American art.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Grant_Wood_-_American_Gothic_-_Google_Art_Project.jpg/460px-Grant_Wood_-_American_Gothic_-_Google_Art_Project.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2023-02-20",
+      "is_on_display": true
+    },
+    {
+      "id": 13,
+      "title": "The Birth of Venus",
+      "artist_id": 13,
+      "creation_date": 1485,
+      "artwork_type": "Painting",
+      "material": "Tempera on canvas",
+      "description": "This masterpiece of the Early Renaissance depicts the goddess Venus emerging from the sea upon a shell, blown towards shore by wind gods while a nymph rushes to clothe her. The painting exemplifies the Renaissance revival of classical mythology and idealized beauty. Botticelli's graceful lines and ethereal quality make this one of the most celebrated works of the Italian Renaissance.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg/800px-Sandro_Botticelli_-_La_nascita_di_Venere_-_Google_Art_Project_-_edited.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2022-08-10",
+      "is_on_display": true
+    },
+    {
+      "id": 14,
+      "title": "Guernica",
+      "artist_id": 14,
+      "creation_date": 1937,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This powerful anti-war painting was created in response to the bombing of Guernica during the Spanish Civil War. The monumental black, white, and grey canvas depicts the suffering of people and animals, with fragmented bodies and anguished faces. Picasso's cubist style amplifies the chaos and horror of war. The work has become an international symbol of the tragedies of war and the suffering it inflicts upon individuals.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/thumb/7/74/PicassoGuernica.jpg/1200px-PicassoGuernica.jpg",
+      "exhibition_id": 5,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2023-04-05",
+      "is_on_display": true
+    },
+    {
+      "id": 15,
+      "title": "The Last Supper",
+      "artist_id": 3,
+      "creation_date": 1498,
+      "artwork_type": "Painting",
+      "material": "Tempera on gesso, pitch and mastic",
+      "description": "This iconic mural painting depicts the dramatic moment when Jesus announces that one of his apostles will betray him. Leonardo da Vinci's masterful composition captures the varied emotional reactions of the twelve apostles. The use of perspective creates depth, drawing the viewer's eye to Christ at the center. Despite its deteriorated state, it remains one of the most studied and reproduced religious paintings in history.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/%C3%9Altima_Cena_-_Da_Vinci_5.jpg/1200px-%C3%9Altima_Cena_-_Da_Vinci_5.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2022-11-30",
+      "is_on_display": true
+    },
+    {
+      "id": 16,
+      "title": "The Night Watch",
+      "artist_id": 15,
+      "creation_date": 1642,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This massive group portrait depicts a city militia company led by Captain Frans Banning Cocq. Rembrandt transformed what could have been a static group portrait into a dynamic scene full of movement and drama. The dramatic use of light and shadow, and the sense of motion as the militia prepares to march, revolutionized the group portrait genre. It remains Rembrandt's most famous work.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/The_Night_Watch_-_HD.jpg/1200px-The_Night_Watch_-_HD.jpg",
+      "exhibition_id": 5,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2023-05-18",
+      "is_on_display": true
+    },
+    {
+      "id": 17,
+      "title": "Water Lilies",
+      "artist_id": 16,
+      "creation_date": 1919,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "Part of Monet's celebrated series of approximately 250 oil paintings depicting his flower garden at Giverny. This work captures the play of light on water with loose, broken brushstrokes that dissolve form into color and light. The painting shows water lilies floating on a pond, with reflections of sky and foliage creating an almost abstract composition. These works influenced the development of abstract expressionism.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Claude_Monet_-_Water_Lilies_-_1906%2C_Ryerson.jpg/1200px-Claude_Monet_-_Water_Lilies_-_1906%2C_Ryerson.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2022-07-22",
+      "is_on_display": true
+    },
+    {
+      "id": 18,
+      "title": "The Kiss",
+      "artist_id": 17,
+      "creation_date": 1908,
+      "artwork_type": "Painting",
+      "material": "Oil and gold leaf on canvas",
+      "description": "This iconic Art Nouveau painting depicts a couple embracing, their bodies entwined in elaborate robes decorated with geometric patterns. Klimt's lavish use of gold leaf and intricate ornamentation creates a shimmering, decorative surface. The work represents the apex of Klimt's 'Golden Phase' and symbolizes the unity of lovers through the merging of masculine and feminine forms in a golden embrace.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Gustav_Klimt_016.jpg/460px-Gustav_Klimt_016.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2023-03-12",
+      "is_on_display": true
+    },
+    {
+      "id": 19,
+      "title": "The Creation of Adam",
+      "artist_id": 6,
+      "creation_date": 1512,
+      "artwork_type": "Painting",
+      "material": "Fresco",
+      "description": "This fresco painting forms part of the Sistine Chapel's ceiling. It illustrates the Biblical creation narrative from the Book of Genesis in which God gives life to Adam, the first man. The nearly touching hands of God and Adam have become one of the most iconic images in art history. The composition's dynamism and the idealized human forms showcase the pinnacle of High Renaissance art.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Michelangelo_-_Creation_of_Adam_%28cropped%29.jpg/1200px-Michelangelo_-_Creation_of_Adam_%28cropped%29.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2022-09-15",
+      "is_on_display": true
+    },
+    {
+      "id": 20,
+      "title": "A Sunday Afternoon on the Island of La Grande Jatte",
+      "artist_id": 18,
+      "creation_date": 1886,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This masterpiece of pointillism depicts Parisians relaxing in a suburban park. Seurat spent two years creating this large canvas using tiny dots of pure color that blend optically when viewed from a distance. The figures appear frozen in time, creating a sense of timeless tranquility. The painting showcases Seurat's scientific approach to color theory and his revolutionary pointillist technique.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg/1200px-A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg",
+      "exhibition_id": 5,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2023-06-08",
+      "is_on_display": false
+    },
+    {
+      "id": 21,
+      "title": "Migrant Mother",
+      "artist_id": 19,
+      "creation_date": 1936,
+      "artwork_type": "Photography",
+      "material": "Gelatin silver print",
+      "description": "This iconic photograph captures a destitute mother during the Great Depression, her face etched with worry as she contemplates an uncertain future with her children. Dorothea Lange's powerful image became the face of the Depression era and demonstrates photography's ability to document human suffering and inspire social change. The photograph was taken as part of the Farm Security Administration project.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Lange-MigrantMother02.jpg/460px-Lange-MigrantMother02.jpg",
+      "exhibition_id": 6,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2023-08-15",
+      "is_on_display": true
+    },
+    {
+      "id": 22,
+      "title": "Les Demoiselles d'Avignon",
+      "artist_id": 14,
+      "creation_date": 1907,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This radical painting depicts five nude female figures composed of flat, splintered planes. The work marked a revolutionary break from traditional European painting and is considered a precursor to Cubism. The angular bodies and mask-like faces, influenced by African art, shocked the art world and changed the course of modern art forever.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Les_Demoiselles_d%27Avignon.jpg/540px-Les_Demoiselles_d%27Avignon.jpg",
+      "exhibition_id": 5,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2023-09-20",
+      "is_on_display": true
+    },
+    {
+      "id": 23,
+      "title": "Everydays: The First 5000 Days",
+      "artist_id": 20,
+      "creation_date": 2021,
+      "artwork_type": "Digital Art",
+      "material": "NFT (Non-fungible token)",
+      "description": "This groundbreaking digital artwork is a collage of 5,000 individual images created daily over thirteen years. As one of the most expensive NFTs ever sold, it represents a pivotal moment in digital art history. The work showcases the evolution of Beeple's artistic style and commentary on technology, politics, and popular culture.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/d/d4/Everydays%2C_the_First_5000_Days.jpg",
+      "exhibition_id": 7,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2023-10-12",
+      "is_on_display": true
+    },
+    {
+      "id": 24,
+      "title": "The Treachery of Images (This is Not a Pipe)",
+      "artist_id": 21,
+      "creation_date": 1929,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This surrealist painting features a realistic pipe with the French text 'Ceci n'est pas une pipe' (This is not a pipe) written below it. Magritte challenges viewers to distinguish between reality and representation, highlighting that the painting is merely an image of a pipe, not an actual pipe. This philosophical work questions the relationship between words, images, and objects.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b9/MagrittePipe.jpg/440px-MagrittePipe.jpg",
+      "exhibition_id": 3,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2023-07-08",
+      "is_on_display": true
+    },
+    {
+      "id": 25,
+      "title": "Rain Room",
+      "artist_id": 22,
+      "creation_date": 2012,
+      "artwork_type": "Installation",
+      "material": "Water, sensors, lights, sound",
+      "description": "This immersive installation creates a controlled downpour where visitors can walk through rain without getting wet. Motion sensors detect human presence and stop the water in that area. The work explores themes of control, nature, and technology while providing a unique sensory experience that challenges our relationship with natural phenomena.",
+      "picture_url": "https://www-images.lacma.org/s3fs-public/styles/exhibition_image/public/primary_image/2019-02/RRLA_1043B.jpg?itok=KORam4TO",
+      "exhibition_id": 7,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2024-01-20",
+      "is_on_display": true
+    },
+    {
+      "id": 26,
+      "title": "Composition with Red, Blue and Yellow",
+      "artist_id": 23,
+      "creation_date": 1930,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This iconic work of abstract art features a grid of black lines creating rectangles filled with primary colors and white. Mondrian's neo-plastic style reduces painting to its most fundamental elements: straight lines, right angles, and primary colors. The work represents his search for universal beauty and spiritual harmony through geometric abstraction.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Piet_Mondriaan%2C_1930_-_Mondrian_Composition_II_in_Red%2C_Blue%2C_and_Yellow.jpg/440px-Piet_Mondriaan%2C_1930_-_Mondrian_Composition_II_in_Red%2C_Blue%2C_and_Yellow.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2024-02-14",
+      "is_on_display": true
+    },
+    {
+      "id": 27,
+      "title": "Nighthawks",
+      "artist_id": 24,
+      "creation_date": 1942,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This painting depicts people in a downtown diner late at night as viewed through the diner's large glass window. The scene captures urban isolation and loneliness in modern American life. Hopper's use of light and shadow, along with the composition's stark geometry, creates a sense of alienation despite the presence of multiple figures. It has become one of the most recognizable images of 20th-century American art.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Nighthawks_by_Edward_Hopper_1942.jpg/1200px-Nighthawks_by_Edward_Hopper_1942.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2024-03-10",
+      "is_on_display": true
+    },
+    {
+      "id": 28,
+      "title": "The Arnolfini Portrait",
+      "artist_id": 25,
+      "creation_date": 1434,
+      "artwork_type": "Painting",
+      "material": "Oil on oak panel",
+      "description": "This masterpiece of Northern Renaissance art is a double portrait believed to depict Italian merchant Giovanni di Nicolao Arnolfini and his wife. The painting is renowned for its intricate symbolism, complex iconography, and remarkable attention to detail. The convex mirror in the background reflects the entire room, including two figures in the doorway, demonstrating van Eyck's technical brilliance and use of perspective.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Van_Eyck_-_Arnolfini_Portrait.jpg/440px-Van_Eyck_-_Arnolfini_Portrait.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2024-04-05",
+      "is_on_display": true
+    },
+    {
+      "id": 29,
+      "title": "No. 5, 1948",
+      "artist_id": 26,
+      "creation_date": 1948,
+      "artwork_type": "Abstract Expressionism",
+      "material": "Oil on fiberboard",
+      "description": "This masterpiece of abstract expressionism features dense layers of yellow, brown, and grey paint dripped and poured onto the canvas. Pollock's revolutionary 'drip' technique involved laying the canvas on the floor and moving around it, dripping and splashing paint in a spontaneous yet controlled manner. The work represents pure energy and emotion, embodying the principles of action painting.",
+      "picture_url": "https://www.singulart.com/blog/wp-content/uploads/2019/08/number-5.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2024-05-18",
+      "is_on_display": false
+    },
+    {
+      "id": 30,
+      "title": "Afghan Girl",
+      "artist_id": 27,
+      "creation_date": 1984,
+      "artwork_type": "Photography",
+      "material": "Color photograph",
+      "description": "This iconic portrait captures a young Afghan refugee girl with piercing green eyes. The photograph became one of National Geographic's most recognized images. The subject's intense gaze and the vibrant colors convey both vulnerability and strength, bringing global attention to the refugee crisis. The photograph exemplifies the power of portrait photography to humanize distant conflicts.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/b/b4/Sharbat_Gula.jpg",
+      "exhibition_id": 6,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2024-06-20",
+      "is_on_display": true
+    },
+    {
+      "id": 31,
+      "title": "The Wounded Deer",
+      "artist_id": 28,
+      "creation_date": 1946,
+      "artwork_type": "Painting",
+      "material": "Oil on masonite",
+      "description": "This surrealist self-portrait depicts Kahlo's head on the body of a wounded deer pierced by nine arrows. The painting expresses her physical and emotional pain following a failed spinal surgery. The deer stands in a forest, trapped and injured, symbolizing Kahlo's feelings of helplessness. The work is a powerful testament to her resilience and her ability to transform suffering into art.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/9/92/The_Wounded_Deer_1946.jpg",
+      "exhibition_id": 3,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2024-07-12",
+      "is_on_display": true
+    },
+    {
+      "id": 32,
+      "title": "Cloud Gate",
+      "artist_id": 29,
+      "creation_date": 2006,
+      "artwork_type": "Public Sculpture",
+      "material": "Stainless steel",
+      "description": "Known colloquially as 'The Bean', this monumental sculpture is composed of 168 highly polished stainless steel plates. Its mirror-like surface reflects the Chicago skyline and clouds above, creating a dynamic interaction between the artwork and its urban environment. Visitors can walk beneath the 12-foot-high arch, experiencing distorted reflections. The work has become an iconic symbol of Chicago.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/c/c1/Cloud_Gate_%28The_Bean%29_from_east%27.jpg",
+      "exhibition_id": 7,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2024-08-15",
+      "is_on_display": true
+    },
+    {
+      "id": 33,
+      "title": "Impression, Sunrise",
+      "artist_id": 16,
+      "creation_date": 1872,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This painting gave the Impressionist movement its name. It depicts the port of Le Havre at sunrise, with loose brushstrokes suggesting rather than defining the scene. The orange sun and its reflection on the water create a focal point amid the misty blue harbor. Monet's revolutionary technique captured the fleeting effects of light and atmosphere, challenging traditional academic painting.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Monet_-_Impression%2C_Sunrise.jpg/1200px-Monet_-_Impression%2C_Sunrise.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2024-09-08",
+      "is_on_display": true
+    },
+    {
+      "id": 34,
+      "title": "The Son of Man",
+      "artist_id": 21,
+      "creation_date": 1964,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This surrealist painting depicts a man in a bowler hat with his face obscured by a hovering green apple. The work plays with visible and hidden elements, creating mystery and inviting multiple interpretations. Magritte stated that everything we see hides something else, and we always want to see what is hidden. The painting has become an icon of surrealism and is one of Magritte's most famous works.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/en/e/e5/Magritte_TheSonOfMan.jpg",
+      "exhibition_id": 3,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2024-10-01",
+      "is_on_display": true
+    },
+    {
+      "id": 35,
+      "title": "Terracotta Army (Warrior Statue)",
+      "artist_id": 30,
+      "creation_date": -210,
+      "artwork_type": "Sculpture",
+      "material": "Terracotta clay",
+      "description": "Part of the famous Terracotta Army, this life-sized clay soldier was buried with China's first emperor, Qin Shi Huang, to protect him in the afterlife. Each figure was individually crafted with unique facial features and expressions. The army consists of over 8,000 soldiers, 130 chariots, and 670 horses, representing one of the most significant archaeological discoveries of the 20th century.",
+      "picture_url": "https://ucarecdn.com/240d3891-d97a-458e-9d15-30002d8a7476/-/crop/1920x1007/0,36/-/resize/1200x630/",
+      "exhibition_id": 8,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2024-11-10",
+      "is_on_display": true
+    },
+    {
+      "id": 36,
+      "title": "Wheat Field with Cypresses",
+      "artist_id": 1,
+      "creation_date": 1889,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "Painted during van Gogh's stay at the asylum in Saint-Rémy, this landscape features swirling cypress trees against a turbulent sky. The dramatic brushstrokes create a sense of movement throughout the composition. The wheat field, cypresses, and mountains are rendered with van Gogh's characteristic bold colors and expressive technique, capturing both the beauty and energy of the Provençal landscape.",
+      "picture_url": "https://uploads1.wikiart.org/images/vincent-van-gogh/wheat-field-with-cypresses-1889.jpg!Large.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2024-12-05",
+      "is_on_display": true
+    },
+    {
+      "id": 37,
+      "title": "Spiral Jetty",
+      "artist_id": 31,
+      "creation_date": 1970,
+      "artwork_type": "Land Art",
+      "material": "Mud, salt crystals, basalt rocks, earth",
+      "description": "This massive earthwork sculpture is a 1,500-foot-long spiral-shaped jetty extending into the Great Salt Lake in Utah. Constructed from mud, salt crystals, and basalt rocks, the work interacts with natural elements and changes appearance based on water levels. It represents a seminal work of Land Art, challenging traditional notions of sculpture and the gallery space by creating art in the landscape itself.",
+      "picture_url": "https://holtsmithsonfoundation.org/sites/default/files/styles/fullscreen_2048_x_y_/public/2020-02/Smithson-Spiral_Jetty-Gorgoni-02-2048w.jpg?itok=EUzx8Fb8",  
+      "exhibition_id": 7,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2025-01-15",
+      "is_on_display": false
+    },
+    {
+      "id": 38,
+      "title": "The Fighting Temeraire",
+      "artist_id": 32,
+      "creation_date": 1839,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This romantic painting depicts the HMS Temeraire, a veteran warship from the Battle of Trafalgar, being towed to her last berth to be broken up. The ghostly white ship is contrasted against a glorious sunset, symbolizing the end of an era. Turner's masterful use of light and color creates an atmospheric scene that mourns the passing of the age of sail and celebrates its former glory.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/The_Fighting_Temeraire%2C_JMW_Turner%2C_National_Gallery.jpg/1200px-The_Fighting_Temeraire%2C_JMW_Turner%2C_National_Gallery.jpg",
+      "exhibition_id": 5,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2025-02-20",
+      "is_on_display": true
+    },
+    {
+      "id": 39,
+      "title": "Broadway Boogie Woogie",
+      "artist_id": 23,
+      "creation_date": 1943,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This vibrant abstract painting was inspired by the grid layout of Manhattan and the energetic rhythm of boogie-woogie music. Small blocks of bright primary colors create a sense of movement and syncopation. Painted after Mondrian moved to New York, it represents the culmination of his artistic exploration and his response to the dynamism of American urban life and jazz culture.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/3/30/Piet_Mondrian%2C_1942_-_Broadway_Boogie_Woogie.jpg",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2025-03-12",
+      "is_on_display": true
+    },
+    {
+      "id": 40,
+      "title": "Infinity Mirror Room - The Souls of Millions of Light Years Away",
+      "artist_id": 33,
+      "creation_date": 2013,
+      "artwork_type": "Installation",
+      "material": "Wood, metal, mirrors, LED lights, water",
+      "description": "This immersive installation creates the illusion of infinite space through mirrors and LED lights suspended at various heights. Visitors enter a darkened room where colored lights appear to extend infinitely in all directions. Kusama's work explores themes of infinity, self-obliteration, and cosmic wonder, creating a mesmerizing experience that transforms viewers' perception of space.",
+      "picture_url": "https://www.thebroad.org/sites/default/files/styles/webp_convert_only/public/art/kusama_the_souls_of_millions_1.jpg.webp?itok=HbMUpAqp",
+      "exhibition_id": 7,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2025-04-08",
+      "is_on_display": true
+    },
+    {
+      "id": 41,
+      "title": "Christina's World",
+      "artist_id": 34,
+      "creation_date": 1948,
+      "artwork_type": "Painting",
+      "material": "Tempera on panel",
+      "description": "This haunting painting depicts a woman lying in a field, gazing at a distant farmhouse. The subject, Christina Olson, was partially paralyzed and the painting captures her determination as she drags herself across the field. Wyeth's meticulous realism and the painting's emotional depth create a powerful meditation on isolation, longing, and the human spirit's resilience in the face of physical limitations.",
+      "picture_url": "https://www.moma.org/media/W1siZiIsIjE2NTQ1NyJdLFsicCIsImNvbnZlcnQiLCItcXVhbGl0eSA5MCAtcmVzaXplIDIwMDB4MjAwMFx1MDAzZSJdXQ.jpg?sha=64fb4feaaa506f2b",
+      "exhibition_id": 4,
+      "curated_by_employee_id": 3,
+      "acquisition_date": "2025-05-15",
+      "is_on_display": true
+    },
+    {
+      "id": 42,
+      "title": "The Garden of Earthly Delights",
+      "artist_id": 35,
+      "creation_date": 1515,
+      "artwork_type": "Painting",
+      "material": "Oil on oak panels",
+      "description": "This intricate triptych depicts paradise, earthly pleasures, and hell in three panels. The left panel shows the Garden of Eden, the center depicts humanity engaged in various earthly pleasures, and the right shows the torments of hell. Bosch's fantastical imagery, filled with strange hybrid creatures and bizarre scenarios, has fascinated viewers for centuries. The work offers complex allegorical and moral interpretations.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/The_Garden_of_earthly_delights.jpg/1200px-The_Garden_of_earthly_delights.jpg",
+      "exhibition_id": 1,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2025-06-20",
+      "is_on_display": true
+    },
+    {
+      "id": 43,
+      "title": "Les Glaneuses (The Gleaners)",
+      "artist_id": 38,
+      "creation_date": 1857,
+      "artwork_type": "Painting",
+      "material": "Oil on canvas",
+      "description": "This iconic realist painting depicts three peasant women gleaning a field of stray stalks of wheat after the harvest. Millet's dignified portrayal of rural laborers was revolutionary for its time, elevating the working class to a subject worthy of fine art. The painting's social commentary and masterful use of light and composition made it both controversial and celebrated, becoming a symbol of social realism.",
+      "picture_url": "https://lh3.googleusercontent.com/ci/AL18g_QyI2Z202E--AW7I8F7mj1ht2BBCFXDLcIixsclbWCi4apb6aYYiLVS4ZOPs2b55RpakwOhMZE",
+      "exhibition_id": 5,
+      "curated_by_employee_id": 4,
+      "acquisition_date": "2025-07-10",
+      "is_on_display": true
+    },
+    {
+      "id": 44,
+      "title": "Olmec Colossal Head",
+      "artist_id": 36,
+      "creation_date": -900,
+      "artwork_type": "Sculpture",
+      "material": "Basalt stone",
+      "description": "This massive stone head is one of seventeen discovered from the ancient Olmec civilization. Carved from single basalt boulders, some weighing up to 50 tons, these heads likely represent Olmec rulers. The detailed facial features and elaborate headdresses demonstrate the Olmecs' advanced sculptural skills. These heads are among the most iconic artifacts of Mesoamerican art.",
+      "picture_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Cabeza_olmeca%2C_Pabell%C3%B3n_de_M%C3%A9xico_%28Exposici%C3%B3n_Universal_de_Sevilla_de_1992%29.jpg/800px-Cabeza_olmeca%2C_Pabell%C3%B3n_de_M%C3%A9xico_%28Exposici%C3%B3n_Universal_de_Sevilla_de_1992%29.jpg",
+      "exhibition_id": 8,
+      "curated_by_employee_id": 2,
+      "acquisition_date": "2025-08-05",
+      "is_on_display": true
+    },
+    {
+      "id": 45,
+      "title": "Untitled (Perfect Lovers)",
+      "artist_id": 37,
+      "creation_date": 1991,
+      "artwork_type": "Installation",
+      "material": "Two synchronized clocks",
+      "description": "This minimalist installation consists of two identical battery-operated clocks hung side by side, their seconds hands moving in perfect synchrony. The work serves as a poignant metaphor for love and mortality, as the clocks will eventually fall out of sync when their batteries run down at different rates. Created as the artist was dying from AIDS, it's a meditation on love, time, and loss.",
+      "picture_url": "https://publicdelivery.org/wp-content/uploads/2019/12/Felix-Gonzalez-Torres-Untitled-Perfect-Lovers-1991-clocks-paint-on-wall-overall-35.6-x-71.2-x-7-cm-scaled.jpg",
+      "exhibition_id": 7,
+      "curated_by_employee_id": 5,
+      "acquisition_date": "2025-09-18",
+      "is_on_display": true
+    }
 	],
 	"artists": [
-				{
-					"id": 1,
-					"name": "Vincent van Gogh",
-					"nationality": "Dutch",
-					"birth_year": 1853,
-					"death_year": 1890,
-					"artist_biography": "Post-Impressionist painter known for expressive use of color and brushwork."
-				},
-				{
-					"id": 2,
-					"name": "Auguste Rodin",
-					"nationality": "French",
-					"birth_year": 1840,
-					"death_year": 1917,
-					"artist_biography": "Renowned sculptor, creator of The Thinker."
-				},
-				{
-					"id": 3,
-					"name": "Leonardo da Vinci",
-					"nationality": "Italian",
-					"birth_year": 1452,
-					"death_year": 1519,
-					"artist_biography": "Renaissance polymath, painter of the Mona Lisa."
-				},
-				{
-					"id": 4,
-					"name": "Salvador Dalí",
-					"nationality": "Spanish",
-					"birth_year": 1904,
-					"death_year": 1989,
-					"artist_biography": "Surrealist artist known for dreamlike imagery."
-				},
-				{
-					"id": 5,
-					"name": "Johannes Vermeer",
-					"nationality": "Dutch",
-					"birth_year": 1632,
-					"death_year": 1675,
-					"artist_biography": "Baroque painter famous for Girl with a Pearl Earring."
-				}
+    {
+      "id": 1,
+      "name": "Vincent van Gogh",
+      "nationality": "Dutch",
+      "birth_year": 1853,
+      "death_year": 1890,
+      "artist_biography": "Post-Impressionist painter known for expressive use of color and brushwork."
+    },
+    {
+      "id": 2,
+      "name": "Auguste Rodin",
+      "nationality": "French",
+      "birth_year": 1840,
+      "death_year": 1917,
+      "artist_biography": "Renowned sculptor, creator of The Thinker."
+    },
+    {
+      "id": 3,
+      "name": "Leonardo da Vinci",
+      "nationality": "Italian",
+      "birth_year": 1452,
+      "death_year": 1519,
+      "artist_biography": "Renaissance polymath, painter of the Mona Lisa."
+    },
+    {
+      "id": 4,
+      "name": "Salvador Dalí",
+      "nationality": "Spanish",
+      "birth_year": 1904,
+      "death_year": 1989,
+      "artist_biography": "Surrealist artist known for dreamlike imagery."
+    },
+    {
+      "id": 5,
+      "name": "Johannes Vermeer",
+      "nationality": "Dutch",
+      "birth_year": 1632,
+      "death_year": 1675,
+      "artist_biography": "Baroque painter famous for Girl with a Pearl Earring."
+    },
+    {
+        "id": 6,
+        "name": "Michelangelo",
+        "nationality": "Italian",
+        "birth_year": 1475,
+        "death_year": 1564,
+        "artist_biography": "Renaissance sculptor, painter, and architect, creator of David."
+    },
+    {
+        "id": 7,
+        "name": "Andy Warhol",
+        "nationality": "American",
+        "birth_year": 1928,
+        "death_year": 1987,
+        "artist_biography": "Leading figure in pop art, known for Campbell's Soup Cans."
+    },
+    {
+        "id": 8,
+        "name": "Katsushika Hokusai",
+        "nationality": "Japanese",
+        "birth_year": 1760,
+        "death_year": 1849,
+        "artist_biography": "Japanese ukiyo-e artist, creator of The Great Wave off Kanagawa."
+    },
+    {
+        "id": 9,
+        "name": "Jean-Michel Basquiat",
+        "nationality": "American",
+        "birth_year": 1960,
+        "death_year": 1988,
+        "artist_biography": "Neo-expressionist artist known for Untitled (Skull)."
+    },
+    {
+        "id": 10,
+        "name": "Jeff Koons",
+        "nationality": "American",
+        "birth_year": 1955,
+        "death_year": null,
+        "artist_biography": "Contemporary artist famous for Balloon Dog sculptures."
+    },
+    {
+        "id": 11,
+        "name": "Edvard Munch",
+        "nationality": "Norwegian",
+        "birth_year": 1863,
+        "death_year": 1944,
+        "artist_biography": "Expressionist painter known for The Scream, exploring psychological themes of anxiety and human emotion."
+    },
+    {
+        "id": 12,
+        "name": "Grant Wood",
+        "nationality": "American",
+        "birth_year": 1891,
+        "death_year": 1942,
+        "artist_biography": "American regionalist painter best known for American Gothic, depicting rural American life."
+    },
+    {
+        "id": 13,
+        "name": "Sandro Botticelli",
+        "nationality": "Italian",
+        "birth_year": 1445,
+        "death_year": 1510,
+        "artist_biography": "Early Renaissance painter known for The Birth of Venus and mythological masterpieces."
+    },
+    {
+        "id": 14,
+        "name": "Pablo Picasso",
+        "nationality": "Spanish",
+        "birth_year": 1881,
+        "death_year": 1973,
+        "artist_biography": "Co-founder of Cubism and one of the most influential artists of the 20th century."
+    },
+    {
+        "id": 15,
+        "name": "Rembrandt van Rijn",
+        "nationality": "Dutch",
+        "birth_year": 1606,
+        "death_year": 1669,
+        "artist_biography": "Dutch Golden Age master known for dramatic use of light and shadow in paintings and etchings."
+    },
+    {
+        "id": 16,
+        "name": "Claude Monet",
+        "nationality": "French",
+        "birth_year": 1840,
+        "death_year": 1926,
+        "artist_biography": "Founder of French Impressionism, renowned for his Water Lilies series and studies of light."
+    },
+    {
+        "id": 17,
+        "name": "Gustav Klimt",
+        "nationality": "Austrian",
+        "birth_year": 1862,
+        "death_year": 1918,
+        "artist_biography": "Symbolist painter known for decorative style and use of gold leaf in works like The Kiss."
+    },
+    {
+        "id": 18,
+        "name": "Georges Seurat",
+        "nationality": "French",
+        "birth_year": 1859,
+        "death_year": 1891,
+        "artist_biography": "Post-Impressionist painter who developed the pointillist technique of painting with tiny dots of color."
+    },
+    {
+        "id": 19,
+        "name": "Dorothea Lange",
+        "nationality": "American",
+        "birth_year": 1895,
+        "death_year": 1965,
+        "artist_biography": "Documentary photographer and photojournalist best known for her Depression-era work, including Migrant Mother."
+    },
+    {
+        "id": 20,
+        "name": "Beeple (Mike Winkelmann)",
+        "nationality": "American",
+        "birth_year": 1981,
+        "death_year": null,
+        "artist_biography": "Digital artist known for creating and selling NFT art, particularly the record-breaking 'Everydays' series."
+    },
+    {
+        "id": 21,
+        "name": "René Magritte",
+        "nationality": "Belgian",
+        "birth_year": 1898,
+        "death_year": 1967,
+        "artist_biography": "Surrealist artist known for witty and thought-provoking images that challenge observers' preconditioned perceptions of reality."
+    },
+    {
+        "id": 22,
+        "name": "Random International",
+        "nationality": "British-German",
+        "birth_year": 2005,
+        "death_year": null,
+        "artist_biography": "Contemporary art collective founded by Hannes Koch and Florian Ortkrass, known for interactive installations like Rain Room."
+    },
+    {
+        "id": 23,
+        "name": "Piet Mondrian",
+        "nationality": "Dutch",
+        "birth_year": 1872,
+        "death_year": 1944,
+        "artist_biography": "Pioneer of abstract art who developed a non-representational form using straight lines and primary colors."
+    },
+    {
+        "id": 24,
+        "name": "Edward Hopper",
+        "nationality": "American",
+        "birth_year": 1882,
+        "death_year": 1967,
+        "artist_biography": "Realist painter known for depicting isolation and loneliness in contemporary American life."
+    },
+    {
+        "id": 25,
+        "name": "Jan van Eyck",
+        "nationality": "Flemish",
+        "birth_year": 1390,
+        "death_year": 1441,
+        "artist_biography": "Early Netherlandish painter known for pioneering oil painting techniques and meticulous attention to detail."
+    },
+    {
+        "id": 26,
+        "name": "Jackson Pollock",
+        "nationality": "American",
+        "birth_year": 1912,
+        "death_year": 1956,
+        "artist_biography": "Abstract expressionist painter famous for his unique drip painting technique and contributions to action painting."
+    },
+    {
+        "id": 27,
+        "name": "Steve McCurry",
+        "nationality": "American",
+        "birth_year": 1950,
+        "death_year": null,
+        "artist_biography": "Photojournalist best known for his photograph 'Afghan Girl' featured on the cover of National Geographic."
+    },
+    {
+        "id": 28,
+        "name": "Frida Kahlo",
+        "nationality": "Mexican",
+        "birth_year": 1907,
+        "death_year": 1954,
+        "artist_biography": "Painter known for her surrealist self-portraits exploring identity, postcolonialism, gender, class, and race."
+    },
+    {
+        "id": 29,
+        "name": "Anish Kapoor",
+        "nationality": "British-Indian",
+        "birth_year": 1954,
+        "death_year": null,
+        "artist_biography": "Contemporary sculptor known for large-scale public installations including Cloud Gate ('The Bean') in Chicago."
+    },
+    {
+        "id": 30,
+        "name": "Qin Dynasty Artisans",
+        "nationality": "Chinese",
+        "birth_year": -250,
+        "death_year": -200,
+        "artist_biography": "Ancient Chinese craftsmen who created the Terracotta Army for Emperor Qin Shi Huang's mausoleum."
+    },
+    {
+        "id": 31,
+        "name": "Robert Smithson",
+        "nationality": "American",
+        "birth_year": 1938,
+        "death_year": 1973,
+        "artist_biography": "Pioneer of Land Art movement, best known for his earthwork sculpture Spiral Jetty in the Great Salt Lake."
+    },
+    {
+        "id": 32,
+        "name": "J.M.W. Turner",
+        "nationality": "British",
+        "birth_year": 1775,
+        "death_year": 1851,
+        "artist_biography": "Romantic painter known as 'the painter of light' for his expressive use of color and atmospheric effects."
+    },
+    {
+        "id": 33,
+        "name": "Yayoi Kusama",
+        "nationality": "Japanese",
+        "birth_year": 1929,
+        "death_year": null,
+        "artist_biography": "Contemporary artist known for her infinity rooms, polka dot patterns, and immersive installations."
+    },
+    {
+        "id": 34,
+        "name": "Andrew Wyeth",
+        "nationality": "American",
+        "birth_year": 1917,
+        "death_year": 2009,
+        "artist_biography": "Realist painter known for his detailed depictions of rural American landscapes and interiors."
+    },
+    {
+        "id": 35,
+        "name": "Hieronymus Bosch",
+        "nationality": "Dutch",
+        "birth_year": 1450,
+        "death_year": 1516,
+        "artist_biography": "Early Netherlandish painter known for fantastical imagery, detailed landscapes, and depictions of religious concepts."
+    },
+    {
+        "id": 36,
+        "name": "Olmec Civilization Artists",
+        "nationality": "Mesoamerican",
+        "birth_year": -1500,
+        "death_year": -400,
+        "artist_biography": "Ancient Mesoamerican civilization known for colossal stone head sculptures and influencing later cultures."
+    },
+    {
+        "id": 37,
+        "name": "Felix Gonzalez-Torres",
+        "nationality": "American-Cuban",
+        "birth_year": 1957,
+        "death_year": 1996,
+        "artist_biography": "Conceptual artist known for minimal installations addressing themes of love, loss, and the AIDS crisis."
+    },
+    {
+        "id": 38,
+        "name": "Jean-François Millet",
+        "nationality": "French",
+        "birth_year": 1814,
+        "death_year": 1875,
+        "artist_biography": "Realist painter known for depicting peasant farmers and rural life, co-founder of the Barbizon school."
+    }
 			],
-			"exhibitions": [
-				{
-					"id": 1,
-					"exhibition_name": "Masterpieces of the World",
-					"exhibition_type": "Permanent",
-					"location": "Main Hall",
-					"description": "A collection of world-renowned artworks.",
-					"start_date": "2022-01-01",
-					"end_date": null,
-					"is_active": true
-				},
-				{
-					"id": 2,
-					"exhibition_name": "Sculpture Showcase",
-					"exhibition_type": "Temporary",
-					"location": "Gallery B",
-					"description": "A showcase of famous sculptures.",
-					"start_date": "2023-03-15",
-					"end_date": "2023-09-15",
-					"is_active": false
-				},
-				{
-					"id": 3,
-					"exhibition_name": "Surrealism Unveiled",
-					"exhibition_type": "Temporary",
-					"location": "Gallery C",
-					"description": "Exploring surrealist art and its impact.",
-					"start_date": "2024-05-01",
-					"end_date": "2024-10-01",
-					"is_active": true
-				}
+	"exhibitions": [
+    {
+      "id": 1,
+      "exhibition_name": "Masterpieces of the World",
+      "exhibition_type": "Permanent",
+      "location": "Main Hall",
+      "description": "A collection of world-renowned artworks.",
+      "start_date": "2022-01-01",
+      "end_date": null,
+      "is_active": true
+    },
+    {
+      "id": 2,
+      "exhibition_name": "Sculpture Showcase",
+      "exhibition_type": "Temporary",
+      "location": "Gallery B",
+      "description": "A showcase of famous sculptures.",
+      "start_date": "2023-03-15",
+      "end_date": "2023-09-15",
+      "is_active": false
+    },
+    {
+      "id": 3,
+      "exhibition_name": "Surrealism Unveiled",
+      "exhibition_type": "Temporary",
+      "location": "Gallery C",
+      "description": "Exploring surrealist art and its impact.",
+      "start_date": "2024-05-01",
+      "end_date": "2024-10-01",
+      "is_active": true
+    },
+    {
+      "id": 4,
+      "exhibition_name": "Modern Masters",
+      "exhibition_type": "Permanent",
+      "location": "West Wing",
+      "description": "A collection of influential modern art from the late 19th and early 20th centuries.",
+      "start_date": "2022-06-01",
+      "end_date": null,
+      "is_active": true
+    },
+    {
+      "id": 5,
+      "exhibition_name": "Power and Protest",
+      "exhibition_type": "Temporary",
+      "location": "Gallery D",
+      "description": "Art as a medium of social commentary and political expression throughout history.",
+      "start_date": "2023-03-01",
+      "end_date": "2025-12-31",
+      "is_active": true
+    },
+    {
+      "id": 6,
+      "exhibition_name": "Through the Lens",
+      "exhibition_type": "Temporary",
+      "location": "Photography Wing",
+      "description": "A comprehensive exhibition of groundbreaking photography from the 20th and 21st centuries.",
+      "start_date": "2023-08-01",
+      "end_date": "2025-11-30",
+      "is_active": true
+    },
+    {
+      "id": 7,
+      "exhibition_name": "Contemporary Visions",
+      "exhibition_type": "Permanent",
+      "location": "Modern Art Hall",
+      "description": "Cutting-edge contemporary art including digital art, installations, and interactive experiences.",
+      "start_date": "2023-01-01",
+      "end_date": null,
+      "is_active": true
+    },
+    {
+      "id": 8,
+      "exhibition_name": "Ancient Civilizations",
+      "exhibition_type": "Permanent",
+      "location": "Antiquities Wing",
+      "description": "Artifacts and artworks from ancient cultures around the world.",
+      "start_date": "2022-01-01",
+      "end_date": null,
+      "is_active": true
+    }
 			],
-			"employees": [
-				{
-					"id": 2,
-					"name": "Alice Curator",
-					"role": "Curator",
-					"hire_date": "2018-06-01",
-					"salary": 65000,
-					"is_active": true
-				},
-				{
-					"id": 3,
-					"name": "Bob Manager",
-					"role": "Manager",
-					"hire_date": "2015-03-15",
-					"salary": 80000,
-					"is_active": true
-				},
-				{
-					"id": 4,
-					"name": "Carol Guide",
-					"role": "Guide",
-					"hire_date": "2020-09-10",
-					"salary": 40000,
-					"is_active": true
-				}
-			],
-			"users": [
-				{
-					"id": 1,
-					"first_name": "John",
-					"last_name": "Doe",
-					"email": "john.doe@example.com",
-					"birthdate": "1990-04-15",
-					"sex": "M"
-				},
-				{
-					"id": 2,
-					"first_name": "Jane",
-					"last_name": "Smith",
-					"email": "jane.smith@example.com",
-					"birthdate": "1985-11-22",
-					"sex": "F"
-				}
-			],
-			"ticket_types": [
-				{
-					"id": 1,
-					"ticket_name": "Adult",
-					"base_price": 20.00,
-					"description": "General admission for adults.",
-					"is_available": true
-				},
-				{
-					"id": 2,
-					"ticket_name": "Child",
-					"base_price": 10.00,
-					"description": "Admission for children under 12.",
-					"is_available": true
-				}
-			],
-			"gift_shop_items": [
-				{
-					"id": 1,
-					"item_name": "Starry Night Poster",
-					"category": "Posters",
-					"price": 15.99,
-					"stock_quantity": 50,
-					"description": "Poster of Van Gogh's Starry Night.",
-					"artist_id": 1,
-					"is_available": true
-				},
-				{
-					"id": 2,
-					"item_name": "Art Book",
-					"category": "Books",
-					"price": 29.99,
-					"stock_quantity": 20,
-					"description": "A book featuring famous artworks.",
-					"artist_id": null,
-					"is_available": true
-				}
-			],
-			"cafeteria_items": [
-				{
-					"id": 1,
-					"item_name": "Cappuccino",
-					"category": "Hot Beverages",
-					"price": 4.50,
-					"is_available": true,
-					"is_vegetarian": true,
-					"is_vegan": false
-				},
-				{
-					"id": 2,
-					"item_name": "Veggie Sandwich",
-					"category": "Sandwiches",
-					"price": 7.00,
-					"is_available": true,
-					"is_vegetarian": true,
-					"is_vegan": true
-				}
-			],
-			"benefits": [
-				{
-					"membership_type": "Standard",
-					"unlimited_visits": false,
-					"priority_entry": false,
-					"guest_passes": 0,
-					"access_to_member_events": false,
-					"discount_percentage": 5,
-					"annual_fee": 50.00
-				},
-				{
-					"membership_type": "Premium",
-					"unlimited_visits": true,
-					"priority_entry": true,
-					"guest_passes": 2,
-					"access_to_member_events": true,
-					"discount_percentage": 15,
-					"annual_fee": 120.00
-				}
-			],
-			"membership": [
-				{
-					"id": 1,
-					"user_id": 1,
-					"membership_type": "Premium",
-					"start_date": "2025-01-01",
-					"expiration_date": "2026-01-01",
-					"is_active": true
-				}
-			],
-			"events": [
-				{
-					"id": 1,
-					"event_name": "Art Gala",
-					"event_type": "Gala",
-					"event_date": "2025-11-10",
-					"event_time": "18:00",
-					"duration_minutes": 120,
-					"location": "Main Hall",
-					"description": "Annual art gala with live music and food.",
-					"exhibition_id": 1,
-					"max_capacity": 200,
-					"current_attendees": 150,
-					"is_members_only": false,
-					"is_cancelled": false
-				}
-			],
-			"transactions": [
-				{
-					"id": 1,
-					"user_id": 1,
-					"transaction_date": "2025-10-15T14:30:00",
-					"total_price": 40.00,
-					"total_items": 2,
-					"payment_method": "Credit Card",
-					"transaction_status": "Completed"
-				}
-				]
+  "employees": [
+    {
+      "id": 2,
+      "name": "Alice Curator",
+      "role": "Curator",
+      "hire_date": "2018-06-01",
+      "salary": 65000,
+      "is_active": true
+    },
+    {
+      "id": 3,
+      "name": "Bob Manager",
+      "role": "Manager",
+      "hire_date": "2015-03-15",
+      "salary": 80000,
+      "is_active": true
+    },
+    {
+      "id": 4,
+      "name": "Carol Guide",
+      "role": "Guide",
+      "hire_date": "2020-09-10",
+      "salary": 40000,
+      "is_active": true
+    },
+    {
+      "id": 5,
+      "name": "David Thompson",
+      "role": "Senior Curator",
+      "hire_date": "2017-02-20",
+      "salary": 72000,
+      "is_active": true
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john.doe@example.com",
+      "birthdate": "1990-04-15",
+      "sex": "M"
+    },
+    {
+      "id": 2,
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "email": "jane.smith@example.com",
+      "birthdate": "1985-11-22",
+      "sex": "F"
+    }
+  ],
+  "ticket_types": [
+    {
+      "id": 1,
+      "ticket_name": "Adults",
+      "base_price": 25.00,
+      "description": "General admission for adults.",
+      "is_available": true
+    },
+    {
+      "id": 2,
+      "ticket_name": "Seniors (65+)",
+      "base_price": 20.00,
+      "description": "Admission for seniors aged 65 and over.",
+      "is_available": true
+    },
+    {
+      "id": 3,
+      "ticket_name": "Students (with ID)",
+      "base_price": 15.00,
+      "description": "Admission for students with valid student ID.",
+      "is_available": true
+    },
+    {
+      "id": 4,
+      "ticket_name": "Veterans",
+      "base_price": 10.00,
+      "description": "Admission for military veterans.",
+      "is_available": true
+    },
+    {
+      "id": 5,
+      "ticket_name": "Children (6-13)",
+      "base_price": 10.00,
+      "description": "Admission for children aged 6 to 13.",
+      "is_available": true
+    },
+    {
+      "id": 6,
+      "ticket_name": "Child (under 6)",
+      "base_price": 0.00,
+      "description": "Free admission for children under 6 years old.",
+      "is_available": true
+    },
+    {
+      "id": 7,
+      "ticket_name": "Members",
+      "base_price": 0.00,
+      "description": "Free admission for museum members.",
+      "is_available": true
+    }
+  ],
+  "gift_shop_items": [
+    {
+      "id": 1,
+      "item_name": "Starry Night Poster",
+      "category": "Posters",
+      "price": 15.99,
+      "stock_quantity": 50,
+      "description": "Poster of Van Gogh's Starry Night.",
+      "artist_id": 1,
+      "is_available": true
+    },
+    {
+      "id": 2,
+      "item_name": "Art Book",
+      "category": "Books",
+      "price": 29.99,
+      "stock_quantity": 20,
+      "description": "A book featuring famous artworks.",
+      "artist_id": null,
+      "is_available": true
+    }
+  ],
+  "cafeteria_items": [
+    {
+      "id": 1,
+      "item_name": "Cappuccino",
+      "category": "Hot Beverages",
+      "price": 4.50,
+      "is_available": true,
+      "is_vegetarian": true,
+      "is_vegan": false
+    },
+    {
+      "id": 2,
+      "item_name": "Veggie Sandwich",
+      "category": "Sandwiches",
+      "price": 7.00,
+      "is_available": true,
+      "is_vegetarian": true,
+      "is_vegan": true
+    }
+  ],
+  "benefits": [
+    {
+      "membership_type": "Standard",
+      "unlimited_visits": false,
+      "priority_entry": false,
+      "guest_passes": 0,
+      "access_to_member_events": false,
+      "discount_percentage": 5,
+      "annual_fee": 50.00
+    },
+    {
+      "membership_type": "Premium",
+      "unlimited_visits": true,
+      "priority_entry": true,
+      "guest_passes": 2,
+      "access_to_member_events": true,
+      "discount_percentage": 15,
+      "annual_fee": 120.00
+    }
+  ],
+  "membership": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "membership_type": "Premium",
+      "start_date": "2025-01-01",
+      "expiration_date": "2026-01-01",
+      "is_active": true
+    }
+  ],
+  "events": [
+    {
+      "id": 1,
+      "event_name": "Art Gala",
+      "event_type": "Gala",
+      "event_date": "2025-11-10",
+      "event_time": "18:00",
+      "duration_minutes": 120,
+      "location": "Main Hall",
+      "description": "Annual art gala with live music and food.",
+      "exhibition_id": 1,
+      "max_capacity": 200,
+      "current_attendees": 150,
+      "is_members_only": false,
+      "is_cancelled": false
+    }
+  ],
+  "transactions": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "transaction_date": "2025-10-15T14:30:00",
+      "total_price": 40.00,
+      "total_items": 2,
+      "payment_method": "Credit Card",
+      "transaction_status": "Completed"
+    }
+    ]
 }
