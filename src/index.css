@@ -1,3 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-3xl: 120rem;
+}
 
+body {
+  background-color: #ffffff;
+  color: #111827;
+}
