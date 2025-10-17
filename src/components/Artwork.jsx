@@ -75,7 +75,7 @@ const Artwork = () => {
           <div className="mb-8">
             <Link
               to="/artworks"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-300 text-black font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-brand text-black font-semibold rounded-lg hover:bg-brand hover:text-white transition-all"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -86,7 +86,7 @@ const Artwork = () => {
         )}
 
         {/* Section Title */}
-        <h1 className="text-3xl font-bold text-black mb-8">
+        <h1 className="text-3xl font-bold text-black mb-8 pb-3 border-b-4 border-brand">
           {sectionTitle}
         </h1>
 
@@ -109,10 +109,7 @@ const Artwork = () => {
               onClick={handleShowMore}
               className="relative px-6 py-3 border-2 border-gray-300 font-semibold rounded-lg overflow-hidden group"
             >
-              <span
-                className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-out"
-                style={{ backgroundColor: '#181A1B' }}
-              ></span>
+              <span className="absolute inset-0 bg-brand translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500 ease-out"></span>
               <span className="relative z-10 text-black group-hover:text-white transition-colors duration-300">
                 Show More Artworks +
               </span>

@@ -30,7 +30,7 @@ const TypeCarousel = ({ artworkTypes }) => {
   }
 
   return (
-    <div className="mt-16 pt-12 border-t-2 border-gray-200">
+    <div className="mt-16 pt-12 border-t-4 border-brand">
       <h2 className="text-3xl font-bold text-black mb-6">Explore by Type</h2>
 
       <div className="relative">
@@ -39,7 +39,7 @@ const TypeCarousel = ({ artworkTypes }) => {
           <button
             onClick={handlePrev}
             disabled={carouselIndex === 0}
-            className="p-2 rounded-lg border-2 border-gray-300 hover:border-black disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-lg border-2 border-brand hover:bg-brand hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-black transition-all"
             aria-label="Previous types"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,14 +47,14 @@ const TypeCarousel = ({ artworkTypes }) => {
             </svg>
           </button>
 
-          <div className="text-lg font-semibold text-black">
+          <div className="text-lg font-semibold text-brand">
             {carouselIndex + 1} of {totalPages}
           </div>
 
           <button
             onClick={handleNext}
             disabled={carouselIndex === totalPages - 1}
-            className="p-2 rounded-lg border-2 border-gray-300 hover:border-black disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="p-2 rounded-lg border-2 border-brand hover:bg-brand hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-black transition-all"
             aria-label="Next types"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

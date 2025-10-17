@@ -2,10 +2,10 @@ const ArtworkCard = ({ artwork, artistName, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer group break-inside-avoid mb-6 relative"
+      className="bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer group break-inside-avoid mb-6 relative"
     >
       {/* Shimmer effect */}
-      <div className="absolute inset-0 bg-gradient-to-r from-gray-500/0 via-gray-500/40 to-gray-500/0 translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out z-10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-brand/0 via-brand/30 to-brand/0 translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out z-10 pointer-events-none"></div>
 
       {/* Image section */}
       <div className="relative overflow-hidden bg-gray-100 z-0">

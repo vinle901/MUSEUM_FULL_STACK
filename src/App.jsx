@@ -9,7 +9,6 @@ import Visit from './components/Visit'
 function App() {
   return (
     <div className="min-h-screen bg-white">
-      <h1 className="text-gray-900">Museum To Be Continued</h1>
       <NavBar />
       <Routes>
         <Route path="/" element={<Home />} />

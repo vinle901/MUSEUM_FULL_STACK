@@ -99,7 +99,7 @@ const ArtworkPreview = ({ artwork, onClose }) => {
           <div className="flex gap-3">
             <Link
               to={`/artworks/${artwork.id}`}
-              className="flex-1 bg-black hover:bg-gray-800 text-white font-semibold py-2 px-4 rounded transition-colors text-center"
+              className="flex-1 bg-brand hover:bg-brand-dark text-white font-semibold py-2 px-4 rounded transition-colors text-center"
             >
               View Full Details
             </Link>

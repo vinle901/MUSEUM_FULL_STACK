@@ -2,9 +2,241 @@
 
 @theme {
   --breakpoint-3xl: 120rem;
+
+  /* Brand Colors */
+  --color-brand: #19667C;
+  --color-brand-dark: #145261;
+  --color-brand-darker: #08323E;
 }
 
 body {
   background-color: #ffffff;
   color: #111827;
+}
+
+/* Navbar Styles */
+.navbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem 2.5rem;
+  background-color: rgb(25, 102, 124);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  border-bottom: 2px solid rgb(8, 50, 62);
+}
+
+.navbar-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: white;
+  text-decoration: none;
+  letter-spacing: 2px;
+}
+
+.navbar-links {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 2rem;
+}
+
+.navbar-links li a {
+  font-family: 'Montserrat', sans-serif;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  transition: color 0.3s ease;
+}
+
+.login-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1.5px solid #777777;
+  border-radius: 4px;
+  color: white;
+  text-decoration: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.login-button:hover {
+  background-color: #444444;
+  color: lightcyan;
+}
+
+.login-icon {
+  font-size: 1.2rem;
+}
+
+/* Visit Page Styles */
+.visit-page {
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.location-hours {
+  display: flex;
+  gap: 3rem;
+  align-items: flex-start;
+  margin: 2rem 0;
+  justify-content: space-between;
+}
+
+.museum-image {
+  width: 55%;
+  height: auto;
+}
+
+.hours-table {
+  width: 40%;
+  border-collapse: collapse;
+  background-color: white;
+  margin-top: 2rem;
+}
+
+.hours-table td {
+  padding: 0.6rem 2rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.8rem;
+}
+
+.hours-table td:last-child {
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+.hours-table tr:nth-child(even) {
+  background-color: #f8f8f8;
+}
+
+.hours-table tr:nth-child(odd) {
+  background-color: white;
+}
+
+.hours-table tr:last-child td {
+  border-bottom: none;
+}
+
+.section-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 1.5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+}
+
+.section-subtitle {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 0.5rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.museum-address {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 1.2rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.ticket-table {
+  width: 35%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+  background-color: white;
+}
+
+.ticket-table td {
+  padding: 0.5rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+}
+
+.ticket-table tr:nth-child(even) {
+  background-color: #f8f8f8;
+}
+.ticket-table tr:nth-child(odd) {
+  background-color: white;
+}
+.ticket-table tr:last-child td {
+  border-bottom: none;
+}
+.ticket-table td:last-child {
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+.ticket-section {
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+.membership-info {
+  flex: 2;
+  padding: 1.2rem 0 1.5rem 3rem;
+  font-size: 1rem;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.membership-info h3 {
+  margin-top: 0;
+  margin-bottom: 0.7rem;
+  font-size: 1.15rem;
+  font-weight: 500;
+  font-family: 'Montserrat', sans-serif;
+}
+.ticket-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.buy-ticket-btn, .become-member-btn {
+  padding: 0.6rem 1.3rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s;
+}
+.buy-ticket-btn {
+  background: rgb(203, 46, 46);
+  color: #fff;
+}
+.buy-ticket-btn:hover {
+  background: darkred;
+}
+.become-member-btn {
+  background: rgb(240, 221, 109);
+  color: #000;
+
+}
+.become-member-btn:hover {
+  background: rgb(213, 163, 38);
+  color: #fff;
 }

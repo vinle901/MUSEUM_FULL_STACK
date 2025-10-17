@@ -43,7 +43,7 @@ const ArtworkDetail = () => {
     <div className="p-5 max-w-7xl mx-auto">
       <button
         onClick={() => navigate('/artworks')}
-        className="mb-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded transition-colors flex items-center gap-2"
+        className="mb-6 px-4 py-2 rounded transition-all flex items-center gap-2 border-2 border-brand font-semibold text-black bg-white hover:bg-brand hover:text-white"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -178,7 +178,7 @@ const ArtworkDetail = () => {
                 navigator.clipboard.writeText(window.location.href)
                 alert('Link copied to clipboard!')
               }}
-              className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-brand hover:bg-brand-dark text-white font-semibold py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />

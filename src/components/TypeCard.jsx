@@ -4,7 +4,7 @@ const TypeCard = ({ type }) => {
   return (
     <Link
       to={`/artworks/type/${type.urlSlug}`}
-      className="group relative bg-white border-2 border-gray-300 rounded-lg overflow-hidden hover:border-black hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+      className="group relative bg-white border-2 border-gray-300 hover:border-brand rounded-lg overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
     >
       {/* Image section */}
       <div className="relative h-48 overflow-hidden bg-gray-100">

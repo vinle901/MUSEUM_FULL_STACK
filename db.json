@@ -1074,16 +1074,51 @@
   "ticket_types": [
     {
       "id": 1,
-      "ticket_name": "Adult",
-      "base_price": 20.00,
+      "ticket_name": "Adults",
+      "base_price": 25.00,
       "description": "General admission for adults.",
       "is_available": true
     },
     {
       "id": 2,
-      "ticket_name": "Child",
+      "ticket_name": "Seniors (65+)",
+      "base_price": 20.00,
+      "description": "Admission for seniors aged 65 and over.",
+      "is_available": true
+    },
+    {
+      "id": 3,
+      "ticket_name": "Students (with ID)",
+      "base_price": 15.00,
+      "description": "Admission for students with valid student ID.",
+      "is_available": true
+    },
+    {
+      "id": 4,
+      "ticket_name": "Veterans",
       "base_price": 10.00,
-      "description": "Admission for children under 12.",
+      "description": "Admission for military veterans.",
+      "is_available": true
+    },
+    {
+      "id": 5,
+      "ticket_name": "Children (6-13)",
+      "base_price": 10.00,
+      "description": "Admission for children aged 6 to 13.",
+      "is_available": true
+    },
+    {
+      "id": 6,
+      "ticket_name": "Child (under 6)",
+      "base_price": 0.00,
+      "description": "Free admission for children under 6 years old.",
+      "is_available": true
+    },
+    {
+      "id": 7,
+      "ticket_name": "Members",
+      "base_price": 0.00,
+      "description": "Free admission for museum members.",
       "is_available": true
     }
   ],
