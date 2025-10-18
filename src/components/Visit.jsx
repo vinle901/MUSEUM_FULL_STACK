@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { ticketService } from '../services/ticketService';
 
 function Visit() {
+  const navigate = useNavigate();
   const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchTicketTypes = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/ticket_types');
-        setTicketTypes(response.data);
+        const data = await ticketService.getTicketTypes();
+        setTicketTypes(data);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching ticket types:', error);

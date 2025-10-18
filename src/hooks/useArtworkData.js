@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-import { API_BASE_URL } from '../utils/artworkConstants'
+import { artworkService } from '../services/artworkService'
+import { artistService } from '../services/artistService'
 
 /**
  * Custom hook to fetch artwork and artist data
@@ -17,12 +17,12 @@ export const useArtworkData = () => {
       try {
         setLoading(true)
         setError(null)
-        const [artworksResponse, artistsResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/artworks`),
-          axios.get(`${API_BASE_URL}/artists`)
+        const [artworksData, artistsData] = await Promise.all([
+          artworkService.getAll(),
+          artistService.getAll()
         ])
-        setArtworks(artworksResponse.data)
-        setArtists(artistsResponse.data)
+        setArtworks(artworksData)
+        setArtists(artistsData)
       } catch (err) {
         console.error('Error fetching data:', err)
         setError(err)

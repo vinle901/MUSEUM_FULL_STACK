@@ -18,7 +18,7 @@ const GiftShop = () => {
       stock_quantity: 50,
       description: "Beautiful reproduction of Van Gogh's masterpiece",
       artist_id: 1,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=500",
       is_available: true
     },
     {
@@ -29,7 +29,7 @@ const GiftShop = () => {
       stock_quantity: 25,
       description: "Comprehensive guide to our collection",
       artist_id: null,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500",
       is_available: true
     },
     {
@@ -40,7 +40,7 @@ const GiftShop = () => {
       stock_quantity: 100,
       description: "Set of 10 postcards featuring famous artworks",
       artist_id: 3,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1606229365485-93a3b8ee0385?w=500",
       is_available: true
     },
     {
@@ -51,7 +51,7 @@ const GiftShop = () => {
       stock_quantity: 15,
       description: "Inspired by Vermeer's painting",
       artist_id: 5,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500",
       is_available: true
     },
     {
@@ -62,7 +62,7 @@ const GiftShop = () => {
       stock_quantity: 75,
       description: "Canvas tote with museum logo",
       artist_id: null,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500",
       is_available: true
     },
     {
@@ -73,7 +73,7 @@ const GiftShop = () => {
       stock_quantity: 30,
       description: "Educational toy set",
       artist_id: null,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=500",
       is_available: true
     },
     {
@@ -84,7 +84,7 @@ const GiftShop = () => {
       stock_quantity: 60,
       description: "Premium quality art journal",
       artist_id: null,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500",
       is_available: true
     },
     {
@@ -95,7 +95,7 @@ const GiftShop = () => {
       stock_quantity: 5,
       description: "Exclusive signed print",
       artist_id: 7,
-      image_url: "",
+      image_url: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=500",
       is_available: true
     }
   ]
