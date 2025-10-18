@@ -1109,7 +1109,7 @@
     },
     {
       "id": 6,
-      "ticket_name": "Child (under 6)",
+      "ticket_name": "Children (under 6)",
       "base_price": 0.00,
       "description": "Free admission for children under 6 years old.",
       "is_available": true
