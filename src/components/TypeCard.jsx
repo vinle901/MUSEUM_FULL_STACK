@@ -13,11 +13,8 @@ const TypeCard = ({ type }) => {
           alt={type.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        {/* Dark overlay on hover for better text contrast */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300"></div>
-
-        {/* Shimmer effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out pointer-events-none"></div>
+        {/* Shimmer effect from left to right with brand color */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand/40 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out pointer-events-none"></div>
       </div>
 
       {/* Text section */}

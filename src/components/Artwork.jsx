@@ -11,7 +11,7 @@ import { getArtistName } from '../utils/artworkHelpers'
 import { INITIAL_DISPLAY_LIMIT, MAX_DISPLAY_LIMIT } from '../utils/artworkConstants'
 
 const Artwork = () => {
-  const { typeName } = useParams()
+  const { typeName } = useParams() 
   const scrollY = useScrollPosition()
   const { artworks, artists, loading } = useArtworkData()
   const { filteredArtworks, actualTypeName, artworkTypes } = useArtworkFilters(artworks, typeName)
@@ -61,7 +61,7 @@ const Artwork = () => {
         description={bannerDescription}
       />
 
-      <div className="px-8 py-8 bg-white relative z-40">
+      <div className="px-8 pt-8 pb-8 bg-white relative z-40">
         {/* Artwork Preview Modal */}
         {previewArtwork && (
           <ArtworkPreview

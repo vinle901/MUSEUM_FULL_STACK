@@ -1,17 +1,25 @@
 import artworkBanner from '/artwork_banner.jpeg'
 
-const HeroBanner = ({ scrollY, title, description }) => {
+const HeroBanner = ({ scrollY, title, description, backgroundImage = artworkBanner }) => {
   return (
     <div className="relative h-[900px] overflow-visible flex items-center bg-white">
       <img
-        src={artworkBanner}
-        alt="Artwork Banner"
+        src={backgroundImage}
+        alt="Banner"
         className="absolute inset-0 w-full h-full object-cover z-0"
         style={{
           transform: `translateY(${scrollY * 0.5}px)`,
           transition: 'transform 0.1s ease-out'
         }}
       />
+
+      {/* Modern dark overlay at the bottom for text visibility */}
+      <div
+        className="absolute inset-0 z-10 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.4) 25%, rgba(0, 0, 0, 0.1) 50%, transparent 70%)'
+        }}
+      ></div>
 
       {/* Sliding white background on scroll */}
       <div
