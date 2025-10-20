@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ticketService } from '../services/ticketService';
+import '../components/Visit.css';
 
 function Visit() {
   const navigate = useNavigate();
