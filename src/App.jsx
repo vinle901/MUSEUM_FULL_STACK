@@ -8,6 +8,7 @@ import Visit from './components/Visit'
 import GiftShop from './components/GiftShop'
 import Cart from './components/Cart'
 import Checkout from './components/Checkout'
+import Support from './components/Support' 
 import { CartProvider } from './context/CartContext'
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           <Route path="/gift-shop" element={<GiftShop />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/support" element={<Support />} />
         </Routes>
         <Footer />
       </div>
