@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
-import api from '../services/api' // Make sure this exists
+import api from '../services/api'
 
 const Checkout = () => {
   const { cart, getCartTotal, clearCart } = useCart()
@@ -101,9 +101,8 @@ const Checkout = () => {
 
     setIsProcessing(true)
 
-    // Prepare transaction data for backend
     const transactionData = {
-      user_id: 1, // Guest user
+      user_id: 1,
       payment_method: formData.paymentMethod,
       total_price: parseFloat(total.toFixed(2)),
       cart_items: cart.map(item => ({
@@ -123,7 +122,6 @@ const Checkout = () => {
     }
 
     try {
-      // Call backend API
       const response = await api.post('/api/transactions/gift-shop-checkout', transactionData)
       
       console.log('Transaction successful:', response.data)
@@ -135,7 +133,6 @@ const Checkout = () => {
       console.error('Transaction failed:', error)
       setIsProcessing(false)
       
-      // Show error message to user
       const errorMessage = error.response?.data?.error || 'Payment processing failed. Please try again.'
       alert(errorMessage)
     }
@@ -159,30 +156,89 @@ const Checkout = () => {
 
   if (orderComplete) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="max-w-2xl w-full bg-white border-2 border-green-500 rounded-lg p-8 text-center">
-          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
+      <div className="min-h-screen bg-white">
+        {/* Header matching site theme */}
+        <div className="bg-brand text-white py-16 px-8">
+          <div className="max-w-7xl mx-auto">
+            <h1 className="text-5xl font-bold">Order Confirmed</h1>
           </div>
-          <h1 className="text-4xl font-bold text-green-600 mb-4">Order Confirmed!</h1>
-          <p className="text-xl text-gray-700 mb-6">
-            Thank you for your purchase. Your order has been successfully processed.
-          </p>
-          <p className="text-lg text-gray-600 mb-8">
-            A confirmation email has been sent to <strong>{formData.email}</strong>
-          </p>
-          <div className="flex gap-4 justify-center">
+        </div>
+
+        <div className="max-w-4xl mx-auto px-8 py-12">
+          {/* Success Icon */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-brand rounded-full mb-6">
+              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-4xl font-bold text-black mb-3">Thank You for Your Purchase!</h2>
+            <p className="text-xl text-gray-600">
+              Your order has been successfully processed.
+            </p>
+          </div>
+
+          {/* Order Details Card */}
+          <div className="bg-white border-2 border-gray-200 rounded-lg p-8 mb-6">
+            <h3 className="text-2xl font-bold mb-6 pb-4 border-b-2 border-gray-200">Order Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Customer</p>
+                <p className="text-lg font-semibold">{formData.firstName} {formData.lastName}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Email</p>
+                <p className="text-lg font-semibold">{formData.email}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Payment Method</p>
+                <p className="text-lg font-semibold">{formData.paymentMethod}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Amount</p>
+                <p className="text-lg font-semibold text-brand">${total.toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 mt-6">
+              <p className="text-sm text-gray-700">
+                <strong>Shipping Address:</strong><br />
+                {formData.address}<br />
+                {formData.city}, {formData.state} {formData.zipCode}
+              </p>
+            </div>
+          </div>
+
+          {/* Information Notice */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-8">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="font-semibold text-blue-900 mb-1">Your order details have been recorded</p>
+                <p className="text-sm text-blue-800">
+                  You can pick up your items at the museum gift shop. Please bring a valid ID and your order reference.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/gift-shop')}
-              className="bg-brand text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-dark"
+              className="bg-brand text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-dark transition-colors"
             >
               Continue Shopping
             </button>
             <button
               onClick={() => navigate('/')}
-              className="bg-gray-200 text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-300"
+              className="bg-white text-black border-2 border-gray-300 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
             >
               Back to Home
             </button>
