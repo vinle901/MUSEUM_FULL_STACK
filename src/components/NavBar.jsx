@@ -14,10 +14,10 @@ function Navbar() {
         <li><Link to="/support">Support</Link></li>
         <li><Link to="/membership">Membership</Link></li>
       </ul>
-      <button className="login-button" type="button">
+      <Link to="/login" className="login-button">
         <FaSignInAlt className="login-icon" />
         <span>Login</span>
-      </button>
+      </Link>
     </nav>
   );
 }
