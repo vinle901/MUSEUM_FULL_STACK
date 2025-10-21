@@ -10,6 +10,9 @@ import Cart from './components/Cart'
 import Checkout from './components/Checkout'
 import Support from './components/Support' 
 import { CartProvider } from './context/CartContext'
+import Login from "./components/Login.jsx";
+import Membership from "./components/Membership.jsx";
+import Membershipinfo from "./components/Membershipinfo";
 
 function App() {
   return (
@@ -26,6 +29,10 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/membership" element={<Membershipinfo />} />
+          <Route path="/membership/join" element={<Membership />} />
+          <Route path="/membership-info" element={<Navigate to="/membership" replace />} />
         </Routes>
         <Footer />
       </div>
