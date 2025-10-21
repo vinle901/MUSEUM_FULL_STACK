@@ -1,6 +1,9 @@
+// File: src/components/Checkout.jsx
+
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import api from '../services/api' // Make sure this exists
 
 const Checkout = () => {
   const { cart, getCartTotal, clearCart } = useCart()
@@ -98,30 +101,44 @@ const Checkout = () => {
 
     setIsProcessing(true)
 
+    // Prepare transaction data for backend
     const transactionData = {
-      user_id: 1,
-      total_price: total,
-      total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
+      user_id: 1, // Guest user
       payment_method: formData.paymentMethod,
-      transaction_status: 'Completed'
+      total_price: parseFloat(total.toFixed(2)),
+      cart_items: cart.map(item => ({
+        item_id: item.item_id,
+        quantity: item.quantity
+      })),
+      customer_info: {
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode
+      }
     }
 
-    const purchaseRecords = cart.map(item => ({
-      gift_item_id: item.item_id,
-      item_name: item.item_name,
-      quantity: item.quantity,
-      unit_price: item.price,
-      line_total: item.price * item.quantity
-    }))
-
-    setTimeout(() => {
-      console.log('Transaction Data:', transactionData)
-      console.log('Purchase Records:', purchaseRecords)
+    try {
+      // Call backend API
+      const response = await api.post('/api/transactions/gift-shop-checkout', transactionData)
+      
+      console.log('Transaction successful:', response.data)
       
       setIsProcessing(false)
       setOrderComplete(true)
       clearCart()
-    }, 2000)
+    } catch (error) {
+      console.error('Transaction failed:', error)
+      setIsProcessing(false)
+      
+      // Show error message to user
+      const errorMessage = error.response?.data?.error || 'Payment processing failed. Please try again.'
+      alert(errorMessage)
+    }
   }
 
   if (cart.length === 0 && !orderComplete) {
@@ -437,16 +454,6 @@ const Checkout = () => {
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand"
                       placeholder="Add a special message to your gift..."
                     />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="newsletterSubscribe"
-                      checked={formData.newsletterSubscribe}
-                      onChange={handleInputChange}
-                      className="w-5 h-5"
-                    />
-                    <label className="text-sm">Subscribe to newsletter for exclusive offers and updates</label>
                   </div>
                 </div>
               </div>

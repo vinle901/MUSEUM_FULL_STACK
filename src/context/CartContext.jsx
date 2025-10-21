@@ -1,3 +1,5 @@
+// File: src/context/CartContext.jsx
+
 import { createContext, useContext, useState } from 'react'
 
 const CartContext = createContext()
@@ -14,19 +16,22 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([])
 
   const addToCart = (item) => {
-      setCart((prevCart) => {
-          const existingItem = prevCart.find((cartItem) => cartItem.item_id === item.item_id)
+    setCart((prevCart) => {
+      const existingItem = prevCart.find((cartItem) => cartItem.item_id === item.item_id)
 
-          if (existingItem) {
-              return prevCart.map((cartItem) =>
-                  cartItem.item_id === item.item_id
-                      ? {...cartItem, quantity: cartItem.quantity + 1}
-                      : cartItem
-              )
-          } else {
-              return [...prevCart, {...item, quantity: 1}]
-          }
-      })
+      // Ensure price is a number
+      const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
+
+      if (existingItem) {
+        return prevCart.map((cartItem) =>
+          cartItem.item_id === item.item_id
+            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            : cartItem
+        )
+      } else {
+        return [...prevCart, { ...item, price, quantity: 1 }]
+      }
+    })
   }
 
   const removeFromCart = (itemId) => {
@@ -53,7 +58,10 @@ export const CartProvider = ({ children }) => {
   }
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0)
+    return cart.reduce((total, item) => {
+      const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
+      return total + (price * item.quantity)
+    }, 0)
   }
 
   const getCartItemCount = () => {

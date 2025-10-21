@@ -7,6 +7,12 @@ const api = axios.create({
   // withCredentials: true,
 })
 
+
+export const processGiftShopCheckout = async (checkoutData) => {
+  const response = await api.post('/api/transactions/gift-shop-checkout', checkoutData)
+  return response.data
+}
+
 // // Add access token to all requests
 // api.interceptors.request.use((config) => {
 //   const token = localStorage.getItem('accessToken')

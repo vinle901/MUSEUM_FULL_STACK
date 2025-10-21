@@ -1,3 +1,5 @@
+// File: backend/app.js
+
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
@@ -57,10 +59,13 @@ app.use('/api/event-hosting', eventHostingRoutes)
 app.use('/api/giftshop', giftShopRoutes)
 app.use('/api/cafeteria', cafeteriaRoutes)
 
+// Transaction routes - gift-shop-checkout is public, others may require auth
+// IMPORTANT: Place BEFORE protected routes to allow guest checkout
+app.use('/api/transactions', transactionRoutes)
+
 // Protected routes - Authentication required for all operations
 app.use('/api/tickets', middleware.requireAuth, ticketRoutes)
 app.use('/api/memberships', middleware.requireAuth, membershipRoutes)
-app.use('/api/transactions', middleware.requireAuth, transactionRoutes)
 
 // Admin/Employee only routes - Role-based access control
 app.use('/api/users', middleware.requireRole('admin', 'employee'), userRoutes)
@@ -73,6 +78,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Museum API is running :V' })
 })
 
+// Error handling middleware - MUST be last
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)
 

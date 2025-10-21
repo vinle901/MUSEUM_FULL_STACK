@@ -1,3 +1,5 @@
+// File: src/components/GiftShopCard.jsx
+
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
 
@@ -5,11 +7,18 @@ const GiftShopCard = ({ item }) => {
   const { addToCart } = useCart()
   const [isAdding, setIsAdding] = useState(false)
 
+  // Defensive: Convert price to number if it's a string (from MySQL DECIMAL)
+  const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
+  const stockQuantity = typeof item.stock_quantity === 'string' 
+    ? parseInt(item.stock_quantity, 10) 
+    : item.stock_quantity
+
   const handleAddToCart = () => {
-    if (!item.is_available || item.stock_quantity < 1) return
+    if (!item.is_available || stockQuantity < 1) return
     
     setIsAdding(true)
-    addToCart(item)
+    // Convert price to number before adding to cart
+    addToCart({ ...item, price })
     
     setTimeout(() => {
       setIsAdding(false)
@@ -34,16 +43,16 @@ const GiftShopCard = ({ item }) => {
         </div>
 
         {/* Stock Badge */}
-        {item.stock_quantity < 10 && item.stock_quantity > 0 && (
+        {stockQuantity < 10 && stockQuantity > 0 && (
           <div className="absolute top-3 right-3">
             <span className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded-full">
-              Only {item.stock_quantity} left
+              Only {stockQuantity} left
             </span>
           </div>
         )}
 
         {/* Out of Stock Overlay */}
-        {(!item.is_available || item.stock_quantity < 1) && (
+        {(!item.is_available || stockQuantity < 1) && (
           <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
             <span className="text-white text-xl font-bold">Out of Stock</span>
           </div>
@@ -62,14 +71,14 @@ const GiftShopCard = ({ item }) => {
 
         <div className="flex items-center justify-between">
           <span className="text-2xl font-bold text-brand">
-            ${item.price.toFixed(2)}
+            ${price.toFixed(2)}
           </span>
 
           <button
             onClick={handleAddToCart}
-            disabled={!item.is_available || item.stock_quantity < 1 || isAdding}
+            disabled={!item.is_available || stockQuantity < 1 || isAdding}
             className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
-              !item.is_available || item.stock_quantity < 1
+              !item.is_available || stockQuantity < 1
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : isAdding
                 ? 'bg-green-500 text-white'

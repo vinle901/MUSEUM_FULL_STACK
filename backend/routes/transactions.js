@@ -1,3 +1,5 @@
+// File: backend/routes/transactions.js
+
 import express from 'express'
 import db from '../config/database.js'
 
@@ -7,13 +9,17 @@ const router = express.Router()
 router.get('/user/:userId', async (req, res) => {
   try {
     // Check if requesting user matches userId OR user is admin
-    if (req.user.id !== parseInt(req.params.userId, 10) && req.user.role !== 'Admin') {
+    if (req.user && req.user.id !== parseInt(req.params.userId, 10) && req.user.role !== 'Admin') {
       return res.status(403).json({ error: 'Forbidden: You can only view your own transactions' })
     }
 
-    const [transactions] = await db.query('SELECT * FROM Transactions WHERE user_id = ? ORDER BY transaction_date DESC', [req.params.userId])
+    const [transactions] = await db.query(
+      'SELECT * FROM Transactions WHERE user_id = ? ORDER BY transaction_date DESC', 
+      [req.params.userId]
+    )
     res.json(transactions)
   } catch (error) {
+    console.error('Get user transactions error:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -21,22 +27,41 @@ router.get('/user/:userId', async (req, res) => {
 // GET transaction by ID with all details
 router.get('/:id', async (req, res) => {
   try {
-    const [transactions] = await db.query('SELECT * FROM Transactions WHERE transaction_id = ?', [req.params.id])
+    const [transactions] = await db.query(
+      'SELECT * FROM Transactions WHERE transaction_id = ?', 
+      [req.params.id]
+    )
+    
     if (transactions.length === 0) {
       return res.status(404).json({ error: 'Transaction not found' })
     }
 
     // Check if requesting user owns this transaction OR is admin
-    if (req.user.id !== transactions[0].user_id && req.user.role !== 'Admin') {
+    if (req.user && req.user.id !== transactions[0].user_id && req.user.role !== 'Admin') {
       return res.status(403).json({ error: 'Forbidden: You can only view your own transactions' })
     }
 
     // Get all purchase details
-    const [tickets] = await db.query('SELECT * FROM Ticket_Purchase WHERE transaction_id = ?', [req.params.id])
-    const [giftItems] = await db.query('SELECT * FROM Gift_Shop_Purchase WHERE transaction_id = ?', [req.params.id])
-    const [cafeteriaItems] = await db.query('SELECT * FROM Cafeteria_Purchase WHERE transaction_id = ?', [req.params.id])
-    const [memberships] = await db.query('SELECT * FROM Membership_Purchase WHERE transaction_id = ?', [req.params.id])
-    const [donations] = await db.query('SELECT * FROM Donation WHERE transaction_id = ?', [req.params.id])
+    const [tickets] = await db.query(
+      'SELECT * FROM Ticket_Purchase WHERE transaction_id = ?', 
+      [req.params.id]
+    )
+    const [giftItems] = await db.query(
+      'SELECT * FROM Gift_Shop_Purchase WHERE transaction_id = ?', 
+      [req.params.id]
+    )
+    const [cafeteriaItems] = await db.query(
+      'SELECT * FROM Cafeteria_Purchase WHERE transaction_id = ?', 
+      [req.params.id]
+    )
+    const [memberships] = await db.query(
+      'SELECT * FROM Membership_Purchase WHERE transaction_id = ?', 
+      [req.params.id]
+    )
+    const [donations] = await db.query(
+      'SELECT * FROM Donation WHERE transaction_id = ?', 
+      [req.params.id]
+    )
 
     res.json({
       transaction: transactions[0],
@@ -47,11 +72,12 @@ router.get('/:id', async (req, res) => {
       donations,
     })
   } catch (error) {
+    console.error('Get transaction details error:', error)
     res.status(500).json({ error: error.message })
   }
 })
 
-// POST create new transaction
+// POST create new transaction (basic - for internal use)
 router.post('/', async (req, res) => {
   try {
     const {
@@ -59,17 +85,212 @@ router.post('/', async (req, res) => {
     } = req.body
 
     // Check if requesting user matches user_id OR is admin
-    if (req.user.id !== user_id && req.user.role !== 'Admin') {
+    if (req.user && req.user.id !== user_id && req.user.role !== 'Admin') {
       return res.status(403).json({ error: 'Forbidden: You can only create transactions for yourself' })
     }
 
     const [result] = await db.query(
       'INSERT INTO Transactions (user_id, total_price, total_items, payment_method, transaction_status) VALUES (?, ?, ?, ?, ?)',
-      [user_id, total_price, total_items, payment_method, transaction_status || 'Completed'],
+      [user_id, total_price, total_items, payment_method, transaction_status || 'Completed']
     )
-    res.status(201).json({ transaction_id: result.insertId, message: 'Transaction created successfully' })
+    
+    res.status(201).json({ 
+      transaction_id: result.insertId, 
+      message: 'Transaction created successfully' 
+    })
   } catch (error) {
+    console.error('Create transaction error:', error)
     res.status(500).json({ error: error.message })
+  }
+})
+
+// POST process gift shop checkout - MAIN ENDPOINT FOR GIFT SHOP
+router.post('/gift-shop-checkout', async (req, res) => {
+  let connection
+  
+  try {
+    // Get connection from pool
+    connection = await db.getConnection()
+    
+    const {
+      user_id,
+      payment_method,
+      total_price,
+      cart_items, // Array of { item_id, quantity }
+      customer_info, // Optional: { email, firstName, lastName, ... }
+    } = req.body
+
+    console.log('Gift shop checkout request:', { user_id, payment_method, total_price, cart_items })
+
+    // Validation
+    if (!user_id || !payment_method || !total_price || !cart_items || cart_items.length === 0) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: user_id, payment_method, total_price, cart_items' 
+      })
+    }
+
+    // Validate payment method matches schema ENUM
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment']
+    if (!validPaymentMethods.includes(payment_method)) {
+      return res.status(400).json({ 
+        error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}` 
+      })
+    }
+
+    // Start database transaction
+    await connection.beginTransaction()
+    console.log('Database transaction started')
+
+    // Step 1: Validate all items exist and get their details
+    const itemIds = cart_items.map(item => item.item_id)
+    const placeholders = itemIds.map(() => '?').join(',')
+    const [dbItems] = await connection.query(
+      `SELECT item_id, item_name, price, stock_quantity, is_available 
+       FROM Gift_Shop_Items 
+       WHERE item_id IN (${placeholders})`,
+      itemIds
+    )
+
+    console.log(`Found ${dbItems.length} items in database`)
+
+    // Check if all items were found
+    if (dbItems.length !== cart_items.length) {
+      await connection.rollback()
+      return res.status(404).json({ 
+        error: 'One or more items not found in database',
+        requested: itemIds,
+        found: dbItems.map(item => item.item_id)
+      })
+    }
+
+    // Create a map for easy lookup and convert price strings to numbers
+    const itemMap = {}
+    dbItems.forEach(item => {
+      itemMap[item.item_id] = {
+        ...item,
+        price: parseFloat(item.price), // Convert DECIMAL string to number
+        stock_quantity: parseInt(item.stock_quantity, 10)
+      }
+    })
+
+    // Step 2: Validate stock availability and item availability
+    for (const cartItem of cart_items) {
+      const dbItem = itemMap[cartItem.item_id]
+      
+      if (!dbItem.is_available) {
+        await connection.rollback()
+        return res.status(400).json({ 
+          error: `Item "${dbItem.item_name}" is not available for purchase` 
+        })
+      }
+
+      // Stock validation
+      if (dbItem.stock_quantity < cartItem.quantity) {
+        await connection.rollback()
+        return res.status(400).json({ 
+          error: `Insufficient stock for item "${dbItem.item_name}". Available: ${dbItem.stock_quantity}, Requested: ${cartItem.quantity}` 
+        })
+      }
+    }
+
+    // Step 3: Calculate total items
+    const total_items = cart_items.reduce((sum, item) => sum + item.quantity, 0)
+    console.log(`Total items: ${total_items}`)
+
+    // Step 4: Insert Transaction record
+    const [transactionResult] = await connection.query(
+      `INSERT INTO Transactions 
+       (user_id, total_price, total_items, payment_method, transaction_status, employee_id) 
+       VALUES (?, ?, ?, ?, 'Completed', NULL)`,
+      [user_id, total_price, total_items, payment_method]
+    )
+
+    const transaction_id = transactionResult.insertId
+    console.log(`Transaction created with ID: ${transaction_id}`)
+
+    // Step 5: Insert Gift_Shop_Purchase records and update stock
+    const purchaseRecords = []
+    
+    for (const cartItem of cart_items) {
+      const dbItem = itemMap[cartItem.item_id]
+      const line_total = parseFloat((dbItem.price * cartItem.quantity).toFixed(2))
+
+      // Insert purchase record
+      const [purchaseResult] = await connection.query(
+        `INSERT INTO Gift_Shop_Purchase 
+         (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          transaction_id,
+          cartItem.item_id,
+          dbItem.item_name,
+          cartItem.quantity,
+          dbItem.price,
+          line_total
+        ]
+      )
+
+      purchaseRecords.push({
+        purchase_id: purchaseResult.insertId,
+        transaction_id: transaction_id,
+        gift_item_id: cartItem.item_id,
+        item_name: dbItem.item_name,
+        quantity: cartItem.quantity,
+        unit_price: dbItem.price,
+        line_total: line_total
+      })
+
+      console.log(`Purchase record created for ${dbItem.item_name}`)
+
+      // Update stock quantity
+      await connection.query(
+        `UPDATE Gift_Shop_Items 
+         SET stock_quantity = stock_quantity - ? 
+         WHERE item_id = ?`,
+        [cartItem.quantity, cartItem.item_id]
+      )
+
+      console.log(`Stock updated for item ${cartItem.item_id}`)
+    }
+
+    // Step 6: Commit transaction
+    await connection.commit()
+    console.log('Database transaction committed successfully')
+
+    // Step 7: Return success response
+    res.status(201).json({
+      success: true,
+      message: 'Gift shop purchase completed successfully',
+      transaction: {
+        transaction_id: transaction_id,
+        user_id: user_id,
+        total_price: parseFloat(total_price),
+        total_items: total_items,
+        payment_method: payment_method,
+        transaction_status: 'Completed'
+      },
+      purchases: purchaseRecords,
+      customer_info: customer_info || null
+    })
+
+  } catch (error) {
+    // Rollback on any error
+    if (connection) {
+      await connection.rollback()
+      console.log('Database transaction rolled back due to error')
+    }
+    console.error('Gift shop checkout error:', error)
+    res.status(500).json({ 
+      error: 'Transaction failed',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  } finally {
+    // Release connection back to pool
+    if (connection) {
+      connection.release()
+      console.log('Database connection released')
+    }
   }
 })
 
@@ -77,23 +298,38 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     // First, get the transaction to check ownership
-    const [transactions] = await db.query('SELECT user_id FROM Transactions WHERE transaction_id = ?', [req.params.id])
+    const [transactions] = await db.query(
+      'SELECT user_id FROM Transactions WHERE transaction_id = ?', 
+      [req.params.id]
+    )
+    
     if (transactions.length === 0) {
       return res.status(404).json({ error: 'Transaction not found' })
     }
 
     // Check if requesting user owns this transaction OR is admin
-    if (req.user.id !== transactions[0].user_id && req.user.role !== 'Admin') {
+    if (req.user && req.user.id !== transactions[0].user_id && req.user.role !== 'Admin') {
       return res.status(403).json({ error: 'Forbidden: You can only update your own transactions' })
     }
 
     const { transaction_status } = req.body
+    
+    // Validate transaction_status matches schema ENUM
+    const validStatuses = ['Pending', 'Completed', 'Cancelled', 'Refunded']
+    if (!validStatuses.includes(transaction_status)) {
+      return res.status(400).json({ 
+        error: `Invalid transaction_status. Must be one of: ${validStatuses.join(', ')}` 
+      })
+    }
+
     await db.query(
       'UPDATE Transactions SET transaction_status = ? WHERE transaction_id = ?',
-      [transaction_status, req.params.id],
+      [transaction_status, req.params.id]
     )
+    
     res.json({ message: 'Transaction updated successfully' })
   } catch (error) {
+    console.error('Update transaction error:', error)
     res.status(500).json({ error: error.message })
   }
 })
