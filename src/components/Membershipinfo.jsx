@@ -126,14 +126,14 @@ export default function MembershipInfo() {
           }}
         >
           {PLANS.map((p) => (
-            <article key={p.key} className="card" style={{ overflow: "hidden" }}>
+            <article key={p.key} className="card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <div
                 style={{
                   height: 160,
                   background: `url(${p.img}) center/cover no-repeat`,
                 }}
               />
-              <div className="card--spacious" style={{ borderRadius: 0 }}>
+              <div className="card--spacious" style={{ borderRadius: 0, display: "flex", flexDirection: "column", flex: 1 }}>
                 <div
                   style={{
                     display: "flex",
@@ -157,7 +157,7 @@ export default function MembershipInfo() {
                   </div>
                 </div>
 
-                <ul style={{ paddingLeft: "1.15rem", marginBottom: 16 }}>
+                <ul style={{ paddingLeft: "1.15rem", marginBottom: 16, flex: 1 }}>
                   {p.perks.map((perk, i) => (
                     <li key={i} style={{ marginBottom: 6 }}>
                       {perk}

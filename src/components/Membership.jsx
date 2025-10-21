@@ -347,7 +347,7 @@ export default function Membership() {
             </div>
 
             {/* Continue button */}
-            <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
               <button type="submit" className="btn btn--brand btn--lg" disabled={submitting}>
                 {submitting ? "Creating your membership..." : "Continue"}
               </button>

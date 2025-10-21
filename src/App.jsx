@@ -1,6 +1,6 @@
 import Artwork from './components/Artwork'
 import ArtworkDetail from './components/ArtworkDetail'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, Navigate } from 'react-router-dom'
 import NavBar from './components/NavBar'
 import Home from './components/Home'
 import Footer from './components/Footer'

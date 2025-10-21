@@ -14,19 +14,19 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([])
 
   const addToCart = (item) => {
-    setCart((prevCart) => {
-      const existingItem = prevCart.find((cartItem) => cartItem.item_id === item.item_id)
-      
-      if (existingItem) {
-        return prevCart.map((cartItem) =>
-          cartItem.item_id === item.item_id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        )
-      } else {
-        return [...prevCart, { ...item, quantity: 1 }]
-      }
-    })
+      setCart((prevCart) => {
+          const existingItem = prevCart.find((cartItem) => cartItem.item_id === item.item_id)
+
+          if (existingItem) {
+              return prevCart.map((cartItem) =>
+                  cartItem.item_id === item.item_id
+                      ? {...cartItem, quantity: cartItem.quantity + 1}
+                      : cartItem
+              )
+          } else {
+              return [...prevCart, {...item, quantity: 1}]
+          }
+      })
   }
 
   const removeFromCart = (itemId) => {
