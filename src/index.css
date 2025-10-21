@@ -82,3 +82,532 @@ body {
 .login-icon {
   font-size: 1.2rem;
 }
+
+.visit-page {
+  padding: 1.5rem 2.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.visit-header {
+  position: relative;
+  width: 100%;
+  height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  background: 
+    linear-gradient(rgba(0,0,0,0.45), 
+    rgba(0,0,0,0.45)), 
+    url(https://d4804za1f1gw.cloudfront.net/wp-content/uploads/sites/78/2020/03/museum_header.jpg) center/cover no-repeat;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+.visit-header-title {
+  color: white;
+  font-size: 4.5rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 2px 4px 16px rgba(0,0,0,0.45);
+  font-family: 'Montserrat', sans-serif;
+  margin: 5rem 0 0 5.5rem;
+}
+
+.navbar-visit {
+  background-color: lightgray; 
+  box-shadow: 0 5px 5px rgba(0,0,0,0.1);
+  padding: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.nav-links {
+  display: flex;
+  list-style: none;
+  gap: 4rem;
+  margin: 0;
+  padding: 0 5rem;
+}
+
+.nav-links li a {
+  text-decoration: none;
+  color: #333;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.nav-links li a:hover {
+  color: #0077cc;
+}
+
+.location-hours {
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+  margin: 2rem 0 5rem 0;
+  justify-content: center;
+}
+
+.museum-image {
+  width: 50%;
+  height: auto;
+}
+
+.hours-table {
+  width: 40%;
+  border-collapse: collapse;
+  background-color: white;
+  margin-top: 4rem;
+  margin-left: 3rem;
+  font-size: 1rem;
+}
+
+.hours-table td {
+  padding: 0.6rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.8rem;
+}
+
+.hours-table td:last-child {
+  text-align: right;
+  padding-right: 1rem;
+}
+
+.hours-table tr:nth-child(even) {
+  background-color: rgb(234, 242, 244);
+}
+
+.hours-table tr:nth-child(odd) {
+  background-color: white;
+}
+
+.hours-table tr:last-child td {
+  border-bottom: none;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 1.5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  margin-left: 1.5rem;
+}
+
+.section-subtitle, .visit-page h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #333;
+  margin-bottom: 1.2rem;
+  font-family: 'Montserrat', sans-serif;
+  margin-left: 1.5rem;
+}
+
+.museum-address {
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #555;
+  margin-bottom: 1.2rem;
+  font-family: 'Montserrat', sans-serif;
+  margin-left: 1.5rem;
+}
+
+.ticket-table {
+  width: 40%;
+  border-collapse: collapse;
+  margin: 1rem 1.5rem 0 1.5rem;
+  background-color: white;
+  font-size: 1rem;
+}
+
+.ticket-table td {
+  padding: 0.5rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+}
+
+.ticket-table tr:nth-child(even) {
+  background-color: rgb(234, 242, 244);
+}
+.ticket-table tr:nth-child(odd) {
+  background-color: white;
+}
+.ticket-table tr:last-child td {
+  border-bottom: none;
+}
+.ticket-table td:last-child {
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+.ticket-section {
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+  margin-bottom: 5rem;
+  justify-content: center;
+}
+
+.membership-info {
+  flex: 2;
+  padding: 1.2rem 0 1.5rem 3rem;
+  font-size: 1.05rem;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.membership-info h2 {
+  margin-top: 0;
+  margin-bottom: 0.7rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+}
+.ticket-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.buy-ticket-btn, .become-member-btn {
+  padding: 0.6rem 1.3rem;
+  font-size: 1rem;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s;
+}
+.buy-ticket-btn {
+  background: green;
+  color: #fff;
+}
+.buy-ticket-btn:hover {
+  background: darkgreen;
+}
+.become-member-btn {
+  background: rgb(240, 221, 109);
+  color: #000;
+
+}
+.become-member-btn:hover {
+  background: rgb(213, 163, 38);
+  color: #fff;
+}
+
+.about-section {
+  display: flex;
+  flex-direction: column; 
+  font-size: 1.25rem;
+  color: #333;
+  font-size: 1.1rem;
+  padding: 0 1.5rem;
+  margin-bottom: 5rem;
+  text-align: left;
+  gap: 1.5rem;
+}
+
+.parking-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin: 2rem 0;
+  justify-content: center;
+}
+.parking-row {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  justify-content: center;
+}
+.parking-text {
+  margin-left: 1.5rem;
+  display: flex;
+  flex-direction: column; 
+  gap: 0.8rem; 
+}
+.parking-map {
+  width: 60%;
+}
+
+.transportation {
+  margin: 0.8rem 0;
+}
+
+.transportation h2 {
+  font-size: 1.5rem;
+  font-weight: 700; 
+  margin-bottom: 0.8rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.transportation h3 {
+  font-size: 1.2rem; 
+  font-weight: 700; 
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.transportation p {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.transportation a {
+  color: #0077cc; 
+  text-decoration: underline;
+}
+
+.transportation a:hover {
+  color: #005fa3; 
+  text-decoration: none;
+}
+.parking-prices {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10rem;
+  padding: 2rem 5rem;
+  margin-top: 1.5rem;
+  background-color: rgb(243, 242, 242);
+}
+.parking-prices-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: center; 
+}
+.parking-prices-text h2 {
+  font-size: 1.2rem;
+  font-weight: 700; 
+  margin-bottom: 0.8rem;
+  color: #555;
+  font-family: 'Montserrat', sans-serif;
+}
+.parking-prices-text p {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.parking-prices-table {
+  width: 50%;
+  border-collapse: collapse;
+  background-color: transparent;
+  font-size: 1rem;
+}
+
+.parking-prices-table table {
+  width: 100%;
+  border-collapse: collapse; 
+  border: none; 
+}
+
+.parking-prices-table th,
+.parking-prices-table td {
+  padding: 0.5rem 1rem;
+  text-align: center;
+  border: none; 
+}
+
+.parking-prices-table tbody tr {
+  border-bottom: 1px solid #ccc;
+}
+
+.parking-prices-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.parking-prices-table th {
+  font-weight: 700;
+}
+
+html {
+  scroll-padding-top: 15%; 
+}
+
+/* container used by Login/Membership components */
+.container{
+  width: min(1100px, 92%);
+  margin-inline: auto;
+}
+
+/* page background */
+.auth-page{
+  background-color:#f7fafc;
+  min-height:100vh;
+}
+
+/* hero header (teal gradient like the other pages) */
+.hero{ padding:48px 0; }
+.hero--teal{
+  background: linear-gradient(180deg, var(--color-brand, #19667C), #127a86);
+  color:#fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  border-bottom: 2px solid var(--color-brand-darker, #08323E);
+}
+.hero__inner{ display:flex; flex-direction:column; gap:.35rem; }
+.hero__title{
+  font-family:'Montserrat', sans-serif;
+  font-size: clamp(28px, 3vw, 44px);
+  font-weight: 900;
+  letter-spacing: .5px;
+}
+.hero__sub{ opacity:.95; font-weight:600; }
+
+/* grid layout for form + side panel */
+.auth__grid{
+  display:grid;
+  grid-template-columns: 1.25fr .85fr;
+  gap:24px;
+  padding:32px 0 60px;
+}
+@media (max-width: 960px){
+  .auth__grid{ grid-template-columns: 1fr; }
+}
+
+/* cards */
+.card{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  box-shadow: 0 8px 24px rgba(15,23,42,.08);
+}
+.card-soft{ /* keep your class name but upgrade visuals */
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  box-shadow: 0 8px 24px rgba(15,23,42,.08);
+}
+.card--spacious{ padding:24px; }
+.card--side{ padding:0; overflow:hidden; }
+
+.card__title{
+  font-size:1.25rem;
+  font-weight:800;
+  color:#0f172a;
+  margin-bottom:.25rem;
+}
+.muted{ color:#475569; }
+
+/* link styles matching brand */
+.link{
+  color: var(--color-brand, #19667C);
+  text-decoration:none;
+  font-weight:600;
+}
+.link:hover{ text-decoration:underline; }
+.link-button{
+  background:none; border:0; padding:0;
+  color: var(--color-brand, #19667C);
+  font-weight:600; cursor:pointer;
+}
+
+/* inputs already exist (.input); add focus & subtle shadow */
+.input{
+  width:100%;
+  padding:.7rem .85rem;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  outline:none;
+  background:#fff;
+}
+.input:focus{
+  border-color:#94a3b8;
+  box-shadow:0 0 0 3px rgba(148,163,184,.25);
+}
+
+/* buttons: reuse your .login-button aesthetics as a general .btn */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  padding: .85rem 1.25rem;
+  border: 2px solid transparent;
+  border-radius: 9999px;             /* pill shape like the Cart button */
+  cursor: pointer;
+  transition: transform .05s ease, filter .2s ease, background .2s ease, border-color .2s ease;
+  text-decoration: none;              /* also works if used on <Link> */
+}
+.btn--brand {
+  background: var(--color-brand, #19667C);
+  color: #fff;
+  border-color: var(--color-brand-darker, #08323E);
+  box-shadow: 0 6px 18px rgba(25,102,124,.22);
+}
+.btn--brand:hover {
+  filter: brightness(1.05);
+  border-color: var(--color-brand, #19667C);
+}
+.btn--brand:active {
+  transform: translateY(1px);
+}
+
+.btn--lg {
+  padding: 1rem 1.35rem;              /* a little taller like the screenshot */
+  font-size: 1rem;
+}
+
+.btn__icon {
+  display: inline-block;
+  line-height: 0;
+  font-size: 1.05rem;
+}
+
+/* show/hide password toggle inside input */
+.pwdwrap{ position:relative; }
+.pwdtoggle{
+  position:absolute; right:8px; top:50%; transform:translateY(-50%);
+  background:transparent; border:0; color:#475569; font-weight:700; cursor:pointer;
+}
+
+/* checkbox row */
+.check{ display:flex; align-items:center; gap:.5rem; color:#1f2937; margin-top:4px; }
+
+/* alerts */
+.alert{
+  border-radius:12px; padding:.7rem .9rem; font-weight:600; margin:.25rem 0 .5rem;
+}
+.alert--error{ background:#fef2f2; color:#b91c1c; border:1px solid #fee2e2; }
+
+/* side panel with museum image + white wash */
+.side__inner{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.0), rgba(255,255,255,0.9)),
+    url("/museum.png") center/cover no-repeat;
+  padding:22px;
+  min-height:100%;
+  border-radius:16px;
+}
+.side__title{ font-weight:800; color:#0f172a; margin-bottom:.5rem; }
+.side__list{ margin:0 0 1rem; padding-left:1.1rem; color:#1f2937; }
+.side__list li{ margin:.25rem 0; }
+
+/* small helpers for headings in simple pages (no hero) */
+.page-title{
+  font-size:2rem;
+  font-weight:800;
+  color:#0f172a;
+  margin-bottom: .75rem;
+}
+
+/* membership two-column rows */
+.plan-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+@media (max-width:700px){
+  .plan-row{ grid-template-columns:1fr; }
+}
+
+/* help text under buttons */
+.help{ color:#475569; }
