@@ -3,16 +3,6 @@ import db from '../config/database.js'
 
 const router = express.Router()
 
-// GET all membership types (benefits)
-router.get('/types', async (req, res) => {
-  try {
-    const [types] = await db.query('SELECT * FROM Benefits')
-    res.json(types)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
 // GET user's memberships
 router.get('/user/:userId', async (req, res) => {
   try {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { authService } from "../services/authService";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -30,20 +31,14 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Login failed.");
-      }
-
+      await authService.login(email, password);
+      // Navigate and reload to update navbar
       navigate("/");
+      window.location.reload();
     } catch (err) {
-      setError(err.message || "Login failed. Please try again.");
+      // Handle axios error structure: err.response.data.error or err.message
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || "Login failed. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -158,8 +153,8 @@ export default function Login() {
             </div>
 
             <p className="help muted" style={{ marginTop: 12, textAlign: "center" }}>
-              Don’t have an account?{" "}
-              <Link to="/membership" className="link">Become a member</Link>
+              Don't have an account?{" "}
+              <Link to="/register" className="link">Create account</Link>
             </p>
           </form>
         </div>

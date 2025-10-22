@@ -265,7 +265,12 @@ router.post('/refresh', async (req, res) => {
  * Logout user
  */
 router.post('/logout', (req, res) => {
-  res.clearCookie('refreshToken')
+  // Clear cookie with same options used when setting it
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  })
   res.json({ message: 'Logged out successfully' })
 })
 

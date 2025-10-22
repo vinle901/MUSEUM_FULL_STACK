@@ -334,4 +334,151 @@ router.put('/:id', async (req, res) => {
   }
 })
 
+// POST process membership checkout - MAIN ENDPOINT FOR MEMBERSHIP PURCHASE
+router.post('/membership-checkout', async (req, res) => {
+  let connection
+
+  try {
+    // Get connection from pool
+    connection = await db.getConnection()
+
+    const {
+      user_id,
+      payment_method,
+      membership_type,
+    } = req.body
+
+    console.log('Membership checkout request:', { user_id, payment_method, membership_type })
+
+    // Validation
+    if (!user_id || !payment_method || !membership_type) {
+      return res.status(400).json({
+        error: 'Missing required fields: user_id, payment_method, membership_type',
+      })
+    }
+
+    // Validate payment method matches schema ENUM
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment']
+    if (!validPaymentMethods.includes(payment_method)) {
+      return res.status(400).json({
+        error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}`,
+      })
+    }
+
+    // Start database transaction
+    await connection.beginTransaction()
+    console.log('Database transaction started')
+
+    // Step 1: Get membership type details from Benefits table
+    const [benefits] = await connection.query(
+      'SELECT * FROM Benefits WHERE membership_type = ?',
+      [membership_type],
+    )
+
+    if (benefits.length === 0) {
+      await connection.rollback()
+      return res.status(400).json({ error: 'Invalid membership type' })
+    }
+
+    const membershipBenefit = benefits[0]
+    const totalPrice = parseFloat(membershipBenefit.annual_fee)
+
+    // Step 2: Check if user already has an active membership
+    const [existingMemberships] = await connection.query(
+      'SELECT * FROM Membership WHERE user_id = ? AND is_active = TRUE',
+      [user_id],
+    )
+
+    const isRenewal = existingMemberships.length > 0
+
+    // Step 3: Create transaction record
+    const [transactionResult] = await connection.query(
+      `INSERT INTO Transactions
+       (user_id, total_price, total_items, payment_method, transaction_status)
+       VALUES (?, ?, 1, ?, 'Completed')`,
+      [user_id, totalPrice, payment_method],
+    )
+
+    const transactionId = transactionResult.insertId
+    console.log('Transaction created:', transactionId)
+
+    // Step 4: Create or update membership record
+    if (isRenewal) {
+      // Deactivate old membership
+      await connection.query(
+        'UPDATE Membership SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE',
+        [user_id],
+      )
+      console.log('Deactivated old membership')
+    }
+
+    // Create new membership
+    const startDate = new Date()
+    const expirationDate = new Date()
+    expirationDate.setFullYear(expirationDate.getFullYear() + 1) // Add 1 year
+
+    const [membershipResult] = await connection.query(
+      `INSERT INTO Membership
+       (user_id, membership_type, start_date, expiration_date, is_active)
+       VALUES (?, ?, ?, ?, TRUE)`,
+      [
+        user_id,
+        membership_type,
+        startDate.toISOString().split('T')[0],
+        expirationDate.toISOString().split('T')[0],
+      ],
+    )
+
+    const membershipId = membershipResult.insertId
+    console.log('Membership created:', membershipId)
+
+    // Step 5: Create membership purchase record
+    await connection.query(
+      `INSERT INTO Membership_Purchase
+       (transaction_id, membership_id, amount_paid, is_renewal)
+       VALUES (?, ?, ?, ?)`,
+      [transactionId, membershipId, totalPrice, isRenewal],
+    )
+
+    console.log('Membership purchase record created')
+
+    // Commit the transaction
+    await connection.commit()
+    console.log('Database transaction committed successfully')
+
+    res.status(201).json({
+      success: true,
+      message: 'Membership purchased successfully',
+      transaction_id: transactionId,
+      membership_id: membershipId,
+      membership_type,
+      start_date: startDate.toISOString().split('T')[0],
+      expiration_date: expirationDate.toISOString().split('T')[0],
+      total_paid: totalPrice,
+      is_renewal: isRenewal,
+    })
+  } catch (error) {
+    // Rollback on error
+    if (connection) {
+      try {
+        await connection.rollback()
+        console.log('Transaction rolled back due to error')
+      } catch (rollbackError) {
+        console.error('Rollback error:', rollbackError)
+      }
+    }
+
+    console.error('Membership checkout error:', error)
+    res.status(500).json({
+      error: 'Failed to process membership purchase',
+      details: error.message,
+    })
+  } finally {
+    // Release connection back to pool
+    if (connection) {
+      connection.release()
+    }
+  }
+})
+
 export default router

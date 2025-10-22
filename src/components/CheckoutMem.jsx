@@ -1,7 +1,7 @@
-// File: src/components/Checkout.jsx
+// File: src/components/CheckoutMem.jsx
 
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import api from '../services/api'
 import { getImageUrl } from '../utils/imageHelpers'
@@ -10,6 +10,11 @@ import { authService } from '../services/authService'
 const Checkout = () => {
   const { cart, getCartTotal, clearCart } = useCart()
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  // Check if this is a membership checkout
+  const isMembershipCheckout = location.state?.checkoutType === 'membership'
+  const membershipData = location.state?.membershipData
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -33,34 +38,28 @@ const Checkout = () => {
   const [errors, setErrors] = useState({})
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderComplete, setOrderComplete] = useState(false)
+  const [orderDetails, setOrderDetails] = useState(null)
 
-  const subtotal = getCartTotal()
-  const taxRate = 0.0825
+  // Calculate totals based on checkout type
+  const subtotal = isMembershipCheckout 
+    ? parseFloat(membershipData?.plan?.annual_fee || 0) 
+    : getCartTotal()
+  const taxRate = 0.0825 // 8.25% tax
   const tax = subtotal * taxRate
   const total = subtotal + tax
 
   // Pre-fill form with user data if available
   useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const currentUser = await authService.getCurrentUser()
-        console.log(currentUser)
-        if (currentUser) {
-          setFormData(prev => ({
-            ...prev,
-            email: currentUser.email || '',
-            firstName: currentUser.first_name || '',
-            lastName: currentUser.last_name || '',
-            phone: currentUser.phone_number || '',
-          }))
-        }
-      } catch (error) {
-        // User not logged in or error fetching data
-        console.log('Could not load user data:', error)
-      }
+    if (membershipData?.user) {
+      setFormData(prev => ({
+        ...prev,
+        email: membershipData.user.email || '',
+        firstName: membershipData.user.first_name || '',
+        lastName: membershipData.user.last_name || '',
+        phone: membershipData.user.phone_number || '',
+      }))
     }
-    loadUserData()
-  }, [])
+  }, [membershipData])
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -122,7 +121,7 @@ const Checkout = () => {
       return
     }
 
-    if (cart.length === 0) {
+    if (!isMembershipCheckout && cart.length === 0) {
       alert('Your cart is empty')
       return
     }
@@ -130,42 +129,74 @@ const Checkout = () => {
     setIsProcessing(true)
 
     try {
+      let response
       let currentUser = null
-      
-      // Get current user (if logged in)
+
+      // Get current user for both membership and gift shop purchases
       try {
         currentUser = await authService.getCurrentUser()
       } catch (error) {
-        console.log('User not logged in, proceeding as guest')
+        console.log('User not logged in')
       }
 
-      const transactionData = {
-        user_id: currentUser?.user_id || 1,
-        payment_method: formData.paymentMethod,
-        total_price: parseFloat(total.toFixed(2)),
-        cart_items: cart.map(item => ({
-          item_id: item.item_id,
-          quantity: item.quantity
-        })),
-        customer_info: {
-          email: formData.email,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          zipCode: formData.zipCode
+      if (isMembershipCheckout) {
+        // Process membership purchase
+        if (!currentUser) {
+          alert('Please log in to purchase a membership')
+          navigate('/login')
+          return
         }
+
+        const membershipTransactionData = {
+          user_id: currentUser.user_id,
+          payment_method: formData.paymentMethod,
+          membership_type: membershipData.plan.membership_type,
+        }
+
+        response = await api.post('/api/transactions/membership-checkout', membershipTransactionData)
+
+        
+        console.log('Membership transaction successful:', response.data)
+        
+        setOrderDetails({
+          type: 'membership',
+          ...response.data,
+        })
+      } else {
+        // Process gift shop purchase
+        const transactionData = {
+          user_id: currentUser?.user_id || 1,
+          payment_method: formData.paymentMethod,
+          total_price: parseFloat(total.toFixed(2)),
+          cart_items: cart.map(item => ({
+            item_id: item.item_id,
+            quantity: item.quantity,
+          })),
+          customer_info: {
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zipCode: formData.zipCode,
+          },
+        }
+
+        response = await api.post('/api/transactions/gift-shop-checkout', transactionData)
+        
+        console.log('Transaction successful:', response.data)
+        
+        setOrderDetails({
+          type: 'gift-shop',
+          ...response.data,
+        })
+        clearCart()
       }
 
-      const response = await api.post('/api/transactions/gift-shop-checkout', transactionData)
-      
-      console.log('Transaction successful:', response.data)
-      
       setIsProcessing(false)
       setOrderComplete(true)
-      clearCart()
     } catch (error) {
       console.error('Transaction failed:', error)
       setIsProcessing(false)
@@ -175,7 +206,7 @@ const Checkout = () => {
     }
   }
 
-  if (cart.length === 0 && !orderComplete) {
+  if (!isMembershipCheckout && cart.length === 0 && !orderComplete) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
@@ -192,12 +223,16 @@ const Checkout = () => {
   }
 
   if (orderComplete) {
+    const isMembership = orderDetails?.type === 'membership'
+    
     return (
       <div className="min-h-screen bg-white">
         {/* Header matching site theme */}
         <div className="bg-brand text-white py-16 px-8">
           <div className="max-w-7xl mx-auto">
-            <h1 className="text-5xl font-bold">Order Confirmed</h1>
+            <h1 className="text-5xl font-bold">
+              {isMembership ? 'Membership Activated!' : 'Order Confirmed'}
+            </h1>
           </div>
         </div>
 
@@ -209,15 +244,21 @@ const Checkout = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-4xl font-bold text-black mb-3">Thank You for Your Purchase!</h2>
+            <h2 className="text-4xl font-bold text-black mb-3">
+              {isMembership ? 'Welcome to Our Museum Family!' : 'Thank You for Your Purchase!'}
+            </h2>
             <p className="text-xl text-gray-600">
-              Your order has been successfully processed.
+              {isMembership 
+                ? 'Your membership has been successfully activated.' 
+                : 'Your order has been successfully processed.'}
             </p>
           </div>
 
           {/* Order Details Card */}
           <div className="bg-white border-2 border-gray-200 rounded-lg p-8 mb-6">
-            <h3 className="text-2xl font-bold mb-6 pb-4 border-b-2 border-gray-200">Order Information</h3>
+            <h3 className="text-2xl font-bold mb-6 pb-4 border-b-2 border-gray-200">
+              {isMembership ? 'Membership Information' : 'Order Information'}
+            </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
@@ -230,6 +271,32 @@ const Checkout = () => {
                 <p className="text-lg font-semibold">{formData.email}</p>
               </div>
               
+              {isMembership && orderDetails && (
+                <>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Membership Type</p>
+                    <p className="text-lg font-semibold">{orderDetails.membership_type}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Membership Status</p>
+                    <p className="text-lg font-semibold text-green-600">
+                      {orderDetails.is_renewal ? 'Renewed' : 'New'} - Active
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Start Date</p>
+                    <p className="text-lg font-semibold">{orderDetails.start_date}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Expiration Date</p>
+                    <p className="text-lg font-semibold">{orderDetails.expiration_date}</p>
+                  </div>
+                </>
+              )}
+              
               <div>
                 <p className="text-sm text-gray-600 mb-1">Payment Method</p>
                 <p className="text-lg font-semibold">{formData.paymentMethod}</p>
@@ -237,17 +304,21 @@ const Checkout = () => {
               
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Amount</p>
-                <p className="text-lg font-semibold text-brand">${total.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-brand">
+                  ${isMembership && orderDetails ? orderDetails.total_paid.toFixed(2) : total.toFixed(2)}
+                </p>
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mt-6">
-              <p className="text-sm text-gray-700">
-                <strong>Shipping Address:</strong><br />
-                {formData.address}<br />
-                {formData.city}, {formData.state} {formData.zipCode}
-              </p>
-            </div>
+            {!isMembership && (
+              <div className="bg-gray-50 rounded-lg p-4 mt-6">
+                <p className="text-sm text-gray-700">
+                  <strong>Shipping Address:</strong><br />
+                  {formData.address}<br />
+                  {formData.city}, {formData.state} {formData.zipCode}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Information Notice */}
@@ -257,9 +328,13 @@ const Checkout = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <p className="font-semibold text-blue-900 mb-1">Your order details have been recorded</p>
+                <p className="font-semibold text-blue-900 mb-1">
+                  {isMembership ? 'Your membership is now active' : 'Your order details have been recorded'}
+                </p>
                 <p className="text-sm text-blue-800">
-                  You can pick up your items at the museum gift shop. Please bring a valid ID and your order reference.
+                  {isMembership 
+                    ? 'You can now enjoy all the benefits of your membership. Visit your profile to view your membership details.' 
+                    : 'You can pick up your items at the museum gift shop. Please bring a valid ID and your order reference.'}
                 </p>
               </div>
             </div>
@@ -267,18 +342,37 @@ const Checkout = () => {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => navigate('/gift-shop')}
-              className="bg-brand text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-dark transition-colors"
-            >
-              Continue Shopping
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-white text-black border-2 border-gray-300 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
-            >
-              Back to Home
-            </button>
+            {isMembership ? (
+              <>
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="bg-brand text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-dark transition-colors"
+                >
+                  View Profile
+                </button>
+                <button
+                  onClick={() => navigate('/membership/info')}
+                  className="bg-white text-black border-2 border-gray-300 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Membership Benefits
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate('/gift-shop')}
+                  className="bg-brand text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-dark transition-colors"
+                >
+                  Continue Shopping
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="bg-white text-black border-2 border-gray-300 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Back to Home
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -289,7 +383,14 @@ const Checkout = () => {
     <div className="min-h-screen bg-white">
       <div className="bg-brand text-white py-16 px-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-5xl font-bold">Checkout</h1>
+          <h1 className="text-5xl font-bold">
+            {isMembershipCheckout ? 'Complete Your Membership' : 'Checkout'}
+          </h1>
+          {isMembershipCheckout && membershipData && (
+            <p className="text-xl mt-2 opacity-90">
+              {membershipData.plan.membership_type} Membership - ${parseFloat(membershipData.plan.annual_fee).toFixed(2)}/year
+            </p>
+          )}
         </div>
       </div>
 
@@ -480,39 +581,44 @@ const Checkout = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold mb-2">Expiry Date *</label>
-                      <div className="flex gap-2">
-                        <select
-                          name="expiryMonth"
-                          value={formData.expiryMonth}
-                          onChange={handleInputChange}
-                          className={`flex-1 px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                            errors.expiry ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                          }`}
-                        >
-                          <option value="">MM</option>
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={String(i + 1).padStart(2, '0')}>
-                              {String(i + 1).padStart(2, '0')}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="expiryYear"
-                          value={formData.expiryYear}
-                          onChange={handleInputChange}
-                          className={`flex-1 px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                            errors.expiry ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                          }`}
-                        >
-                          <option value="">YYYY</option>
-                          {Array.from({ length: 10 }, (_, i) => (
-                            <option key={i} value={2025 + i}>
-                              {2025 + i}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <select
+                            name="expiryMonth"
+                            value={formData.expiryMonth}
+                            onChange={handleInputChange}
+                            className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                              errors.expiryMonth ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                            }`}
+                          >
+                            <option value="">MM</option>
+                            {Array.from({ length: 12 }, (_, i) => (
+                              <option key={i + 1} value={String(i + 1).padStart(2, '0')}>
+                                {String(i + 1).padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.expiryMonth && <p className="text-red-500 text-sm mt-1">{errors.expiryMonth}</p>}
+                        </div>
+                        <div>
+                          <select
+                            name="expiryYear"
+                            value={formData.expiryYear}
+                            onChange={handleInputChange}
+                            className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                              errors.expiryYear ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                            }`}
+                          >
+                            <option value="">YYYY</option>
+                            {Array.from({ length: 10 }, (_, i) => (
+                              <option key={i} value={2025 + i}>
+                                {2025 + i}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.expiryYear && <p className="text-red-500 text-sm mt-1">{errors.expiryYear}</p>}
+                        </div>
                       </div>
-                      {errors.expiry && <p className="text-red-500 text-sm mt-1">{errors.expiry}</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-2">CVV *</label>
@@ -566,18 +672,35 @@ const Checkout = () => {
             <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 sticky top-24">
               <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
               
-              <div className="space-y-4 mb-6">
-                {cart.map(item => (
-                  <div key={item.item_id} className="flex gap-3">
-                    <img src={getImageUrl(item.image_url)} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">{item.item_name}</p>
-                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                      <p className="text-sm font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+              {/* Membership Summary */}
+              {isMembershipCheckout && membershipData ? (
+                <div className="space-y-4 mb-6">
+                  <div className="bg-white rounded-lg p-4 border-2 border-brand">
+                    <div className="mb-3">
+                      <p className="text-sm text-gray-600 mb-1">Membership Type</p>
+                      <p className="font-bold text-lg">{membershipData.plan.membership_type}</p>
+                    </div>
+                    <div className="mb-3">
+                      <p className="text-sm text-gray-600 mb-1">Annual Fee</p>
+                      <p className="font-semibold text-brand">${parseFloat(membershipData.plan.annual_fee).toFixed(2)}</p>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                /* Gift Shop Items */
+                <div className="space-y-4 mb-6">
+                  {cart.map(item => (
+                    <div key={item.item_id} className="flex gap-3">
+                      <img src={getImageUrl(item.image_url)} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">{item.item_name}</p>
+                        <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                        <p className="text-sm font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-3 border-t-2 border-gray-300 pt-4">
                 <div className="flex justify-between text-lg">

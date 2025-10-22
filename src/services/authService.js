@@ -37,9 +37,9 @@ export const authService = {
   /**
    * Get current user from localStorage
    */
-  getCurrentUser: () => {
-    const userStr = localStorage.getItem('user')
-    return userStr ? JSON.parse(userStr) : null
+  getCurrentUser: async () => {
+    const response = await api.get('/api/users/profile')
+    return response.data || null
   },
 
   /**
