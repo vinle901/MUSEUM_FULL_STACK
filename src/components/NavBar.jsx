@@ -72,6 +72,7 @@ function Navbar() {
         <li><Link to="/gift-shop">Gift Shop</Link></li>
         <li><Link to="/calendar">Calendar</Link></li>
         <li><Link to="/support">Support</Link></li>
+        <li><Link to="/cafeteria">CAFETERIA</Link></li>
         <li><Link to="/membershipinfo">Membership</Link></li>
       </ul>
 
