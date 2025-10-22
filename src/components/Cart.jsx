@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { getImageUrl } from '../utils/imageHelpers'
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart()
@@ -74,7 +75,7 @@ const Cart = () => {
                 <div key={item.item_id} className="bg-white border-2 border-gray-200 rounded-lg p-4 flex gap-4">
                   {/* Image */}
                   <img
-                    src={item.image_url}
+                    src={getImageUrl(item.image_url)}
                     alt={item.item_name}
                     className="w-24 h-24 object-cover rounded-lg"
                   />

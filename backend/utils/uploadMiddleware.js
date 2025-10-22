@@ -5,28 +5,30 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Configure storage with custom filename: originalname-timestamp.ext
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    cb(null, path.join(__dirname, '../uploads/artworks'))
-  },
-  filename(req, file, cb) {
-    // Get file extension
-    const ext = path.extname(file.originalname)
-    // Get filename without extension
-    const nameWithoutExt = path.basename(file.originalname, ext)
-    // Create filename: name-timestamp.ext
-    const timestamp = Date.now()
-    cb(null, `${nameWithoutExt}-${timestamp}${ext}`)
-  },
-})
+// Generic function to create upload middleware for any folder
+export const createUpload = (folderName, fieldName) => {
+  const storage = multer.diskStorage({
+    destination(req, file, cb) {
+      cb(null, path.join(__dirname, `../uploads/${folderName}`))
+    },
+    filename(req, file, cb) {
+      const ext = path.extname(file.originalname)
+      const nameWithoutExt = path.basename(file.originalname, ext)
+      const timestamp = Date.now()
+      cb(null, `${nameWithoutExt}-${timestamp}${ext}`)
+    },
+  })
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
-})
+  const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  })
 
-// Single image upload with field name 'artwork_image'
-export const uploadArtworkImage = upload.single('artwork_image')
+  return upload.single(fieldName)
+}
 
-export default { uploadArtworkImage }
+// Create one for your upload need
+export const uploadArtworkImage = createUpload('artworks', 'artwork_image')
+export const uploadGiftShopImage = createUpload('giftshop', 'item_image')
+
+export default { uploadArtworkImage, uploadGiftShopImage }

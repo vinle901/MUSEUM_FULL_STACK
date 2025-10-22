@@ -10,12 +10,7 @@ const router = express.Router()
 // GET all artworks - Public
 router.get('/', async (req, res) => {
   try {
-    const [artworks] = await db.query(`
-      SELECT a.*, ar.name as artist_name, e.exhibition_name
-      FROM Artwork a
-      LEFT JOIN Artist ar ON a.artist_id = ar.artist_id
-      LEFT JOIN Exhibition e ON a.exhibition_id = e.exhibition_id
-    `)
+    const [artworks] = await db.query('SELECT * FROM artwork')
     res.json(artworks)
   } catch (error) {
     res.status(500).json({ error: error.message })

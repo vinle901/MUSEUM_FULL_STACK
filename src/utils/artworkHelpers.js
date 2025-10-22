@@ -1,3 +1,6 @@
+// Re-export image utilities for convenience
+export { getImageUrl } from './imageHelpers'
+
 /**
  * Convert artwork type to URL-safe slug
  * @param {string} type - The artwork type
@@ -24,7 +27,7 @@ export const getActualTypeName = (artworks) => {
  * @returns {string} Artist name or 'Unknown Artist'
  */
 export const getArtistName = (artistId, artists) => {
-  const artist = artists.find(a => a.id == artistId)
+  const artist = artists.find(a => a.artist_id == artistId)
   return artist ? artist.name : 'Unknown Artist'
 }
 

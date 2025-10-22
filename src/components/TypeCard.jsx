@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { getImageUrl } from '../utils/imageHelpers'
 
 const TypeCard = ({ type }) => {
   return (
@@ -9,7 +10,7 @@ const TypeCard = ({ type }) => {
       {/* Image section */}
       <div className="relative h-48 overflow-hidden bg-gray-100">
         <img
-          src={type.imageUrl}
+          src={getImageUrl(type.imageUrl)}
           alt={type.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />

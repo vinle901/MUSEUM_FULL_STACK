@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import api from '../services/api'
+import { getImageUrl } from '../utils/imageHelpers'
 
 const Checkout = () => {
   const { cart, getCartTotal, clearCart } = useCart()
@@ -532,7 +533,7 @@ const Checkout = () => {
               <div className="space-y-4 mb-6">
                 {cart.map(item => (
                   <div key={item.item_id} className="flex gap-3">
-                    <img src={item.image_url} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
+                    <img src={getImageUrl(item.image_url)} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
                     <div className="flex-1">
                       <p className="font-semibold text-sm">{item.item_name}</p>
                       <p className="text-sm text-gray-600">Qty: {item.quantity}</p>

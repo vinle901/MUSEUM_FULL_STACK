@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { getImageUrl } from '../utils/imageHelpers'
 
 const ArtworkPreview = ({ artwork, onClose }) => {
   if (!artwork) return null
@@ -34,7 +35,7 @@ const ArtworkPreview = ({ artwork, onClose }) => {
           </button>
 
           <img
-            src={artwork.picture_url}
+            src={getImageUrl(artwork.picture_url)}
             alt={artwork.title}
             className="w-full h-[55vh] object-contain rounded-t-lg bg-gray-200"
           />
@@ -98,7 +99,7 @@ const ArtworkPreview = ({ artwork, onClose }) => {
 
           <div className="flex gap-3">
             <Link
-              to={`/artworks/${artwork.id}`}
+              to={`/artworks/${artwork.artwork_id}`}
               className="flex-1 bg-brand hover:bg-brand-dark text-white font-semibold py-2 px-4 rounded transition-colors text-center"
             >
               View Full Details

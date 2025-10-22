@@ -1,3 +1,5 @@
+import { getImageUrl } from '../utils/imageHelpers'
+
 const ArtworkCard = ({ artwork, artistName, onClick }) => {
   return (
     <div
@@ -10,7 +12,7 @@ const ArtworkCard = ({ artwork, artistName, onClick }) => {
       {/* Image section */}
       <div className="relative overflow-hidden bg-gray-100 z-0">
         <img
-          src={artwork.picture_url}
+          src={getImageUrl(artwork.picture_url)}
           alt={artwork.title}
           className="w-full h-auto transition-transform duration-300 group-hover:scale-105"
           loading="lazy"

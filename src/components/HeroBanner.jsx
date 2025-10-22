@@ -2,7 +2,7 @@ import artworkBanner from '/artwork_banner.jpeg'
 
 const HeroBanner = ({ scrollY, title, description, backgroundImage = artworkBanner }) => {
   return (
-    <div className="relative h-[900px] overflow-visible flex items-center bg-white">
+    <div className="relative h-[700px] overflow-visible flex items-center bg-white">
       <img
         src={backgroundImage}
         alt="Banner"
@@ -33,13 +33,13 @@ const HeroBanner = ({ scrollY, title, description, backgroundImage = artworkBann
       <div
         className="container mx-auto pl-4 lg:pl-8 relative z-30"
         style={{
-          transform: `translateY(250px)`,
+          transform: `translateY(180px)`,
           transition: 'transform 0.1s ease-out'
         }}
       >
         <div className="max-w-3xl">
           <h1
-            className="text-7xl lg:text-8xl font-black mb-6 leading-tight transition-all duration-300 tracking-tight"
+            className="text-6xl lg:text-7xl font-black mb-5 leading-tight transition-all duration-300 tracking-tight"
             style={{
               color: scrollY > 170 ? '#000000ff' : '#ffffff',
               textShadow: scrollY > 170 ? 'none' : '3px 3px 12px rgba(0,0,0,0.9)',
@@ -49,7 +49,7 @@ const HeroBanner = ({ scrollY, title, description, backgroundImage = artworkBann
             {title}
           </h1>
           <p
-            className="text-2xl lg:text-3xl font-semibold leading-relaxed transition-all duration-300"
+            className="text-xl lg:text-2xl font-semibold leading-relaxed transition-all duration-300"
             style={{
               color: scrollY > 50 ? '#000000ff' : '#ffffff',
               textShadow: scrollY > 50 ? 'none' : '2px 2px 8px rgba(0,0,0,0.9)',

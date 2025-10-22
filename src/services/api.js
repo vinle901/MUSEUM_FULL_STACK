@@ -4,7 +4,7 @@ const API_BASE_URL = 'http://localhost:3000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  // withCredentials: true,
+  withCredentials: true,
 })
 
 
@@ -35,7 +35,7 @@ export const processGiftShopCheckout = async (checkoutData) => {
 //       try {
 //         // Try to refresh the token
 //         const { data } = await axios.post(
-//           `${API_BASE_URL}/api/auth/refresh`,
+//           `${API_BASE_URL}/auth/refresh`,
 //           {},
 //           { withCredentials: true }
 //         )

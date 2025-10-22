@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
+import { getImageUrl } from '../utils/imageHelpers'
 
 const GiftShopCard = ({ item }) => {
   const { addToCart } = useCart()
@@ -9,17 +10,17 @@ const GiftShopCard = ({ item }) => {
 
   // Defensive: Convert price to number if it's a string (from MySQL DECIMAL)
   const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
-  const stockQuantity = typeof item.stock_quantity === 'string' 
-    ? parseInt(item.stock_quantity, 10) 
+  const stockQuantity = typeof item.stock_quantity === 'string'
+    ? parseInt(item.stock_quantity, 10)
     : item.stock_quantity
 
   const handleAddToCart = () => {
     if (!item.is_available || stockQuantity < 1) return
-    
+
     setIsAdding(true)
     // Convert price to number before adding to cart
     addToCart({ ...item, price })
-    
+
     setTimeout(() => {
       setIsAdding(false)
     }, 500)
@@ -30,7 +31,7 @@ const GiftShopCard = ({ item }) => {
       {/* Image */}
       <div className="relative h-64 bg-gray-100 overflow-hidden">
         <img
-          src={item.image_url}
+          src={getImageUrl(item.image_url)}
           alt={item.item_name}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
