@@ -18,6 +18,7 @@ import Register from "./components/Register.jsx"
 import Membership from "./components/Membership.jsx"
 import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
+import Cafeteria from "./components/Cafeteria";
 
 function App() {
   return (
@@ -42,7 +43,7 @@ function App() {
           <Route path="/membership/join" element={<Membership />} />
           <Route path="/membership" element={<Navigate to="/membershipinfo" replace />} />
           {/* Add cafeteria route - create component or redirect */}
-          <Route path="/cafeteria" element={<div className="p-8 text-center"><h1 className="text-3xl">Cafeteria - Coming Soon</h1></div>} />
+          <Route path="/cafeteria" element={<Cafeteria />} />
         </Routes>
         <Footer />
       </div>
