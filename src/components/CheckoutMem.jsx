@@ -151,6 +151,7 @@ const Checkout = () => {
           user_id: currentUser.user_id,
           payment_method: formData.paymentMethod,
           membership_type: membershipData.plan.membership_type,
+          total_paid: parseFloat(total.toFixed(2)), // Include tax
         }
 
         response = await api.post('/api/transactions/membership-checkout', membershipTransactionData)

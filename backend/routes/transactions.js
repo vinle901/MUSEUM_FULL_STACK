@@ -346,9 +346,10 @@ router.post('/membership-checkout', async (req, res) => {
       user_id,
       payment_method,
       membership_type,
+      total_paid, // Total including tax from frontend
     } = req.body
 
-    console.log('Membership checkout request:', { user_id, payment_method, membership_type })
+    console.log('Membership checkout request:', { user_id, payment_method, membership_type, total_paid })
 
     // Validation
     if (!user_id || !payment_method || !membership_type) {
@@ -381,7 +382,8 @@ router.post('/membership-checkout', async (req, res) => {
     }
 
     const membershipBenefit = benefits[0]
-    const totalPrice = parseFloat(membershipBenefit.annual_fee)
+    // Use total_paid from frontend (includes tax) if provided, otherwise use annual_fee
+    const totalPrice = total_paid ? parseFloat(total_paid) : parseFloat(membershipBenefit.annual_fee)
 
     // Step 2: Check if user already has an active membership
     const [existingMemberships] = await connection.query(

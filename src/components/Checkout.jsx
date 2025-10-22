@@ -33,7 +33,17 @@ const Checkout = () => {
   const [errors, setErrors] = useState({})
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderComplete, setOrderComplete] = useState(false)
+  
+  // NEW: Store completed order details to preserve data after cart is cleared
+  const [completedOrder, setCompletedOrder] = useState({
+    subtotal: 0,
+    tax: 0,
+    total: 0,
+    customerInfo: {},
+    items: []
+  })
 
+  // Calculate totals from current cart
   const subtotal = getCartTotal()
   const taxRate = 0.0825
   const tax = subtotal * taxRate
@@ -139,6 +149,11 @@ const Checkout = () => {
         console.log('User not logged in, proceeding as guest')
       }
 
+    // Calculate final totals BEFORE clearing cart
+    const finalSubtotal = getCartTotal()
+    const finalTax = finalSubtotal * taxRate
+    const finalTotal = finalSubtotal + finalTax
+
       const transactionData = {
         user_id: currentUser?.user_id || 1,
         payment_method: formData.paymentMethod,
@@ -158,14 +173,35 @@ const Checkout = () => {
           zipCode: formData.zipCode
         }
       }
-
       const response = await api.post('/api/transactions/gift-shop-checkout', transactionData)
       
       console.log('Transaction successful:', response.data)
       
+      // CRITICAL FIX: Save order details BEFORE clearing cart
+      setCompletedOrder({
+        subtotal: finalSubtotal,
+        tax: finalTax,
+        total: finalTotal,
+        customerInfo: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zipCode,
+          paymentMethod: formData.paymentMethod
+        },
+        items: cart.map(item => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      })
+      
       setIsProcessing(false)
       setOrderComplete(true)
-      clearCart()
+      clearCart() // Now safe to clear cart - we've saved all needed data
     } catch (error) {
       console.error('Transaction failed:', error)
       setIsProcessing(false)
@@ -192,6 +228,9 @@ const Checkout = () => {
   }
 
   if (orderComplete) {
+    // Use completedOrder data instead of current cart (which is empty)
+    const { subtotal: orderSubtotal, tax: orderTax, total: orderTotal, customerInfo } = completedOrder
+
     return (
       <div className="min-h-screen bg-white">
         {/* Header matching site theme */}
@@ -222,30 +261,31 @@ const Checkout = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Customer</p>
-                <p className="text-lg font-semibold">{formData.firstName} {formData.lastName}</p>
+                <p className="text-lg font-semibold">{customerInfo.firstName} {customerInfo.lastName}</p>
               </div>
               
               <div>
                 <p className="text-sm text-gray-600 mb-1">Email</p>
-                <p className="text-lg font-semibold">{formData.email}</p>
+                <p className="text-lg font-semibold">{customerInfo.email}</p>
               </div>
               
               <div>
                 <p className="text-sm text-gray-600 mb-1">Payment Method</p>
-                <p className="text-lg font-semibold">{formData.paymentMethod}</p>
+                <p className="text-lg font-semibold">{customerInfo.paymentMethod}</p>
               </div>
               
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Amount</p>
-                <p className="text-lg font-semibold text-brand">${total.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-brand">${orderTotal.toFixed(2)}</p>
               </div>
             </div>
 
+            {/* Shipping Address Display */}
             <div className="bg-gray-50 rounded-lg p-4 mt-6">
-              <p className="text-sm text-gray-700">
-                <strong>Shipping Address:</strong><br />
-                {formData.address}<br />
-                {formData.city}, {formData.state} {formData.zipCode}
+              <p className="text-sm font-semibold text-gray-700 mb-2">Shipping To:</p>
+              <p className="text-base text-gray-900">
+                {customerInfo.address}<br />
+                {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}
               </p>
             </div>
           </div>
@@ -259,7 +299,7 @@ const Checkout = () => {
               <div>
                 <p className="font-semibold text-blue-900 mb-1">Your order details have been recorded</p>
                 <p className="text-sm text-blue-800">
-                  You can pick up your items at the museum gift shop. Please bring a valid ID and your order reference.
+                  Your items will be shipped to the address above. You will receive tracking information once your order ships.
                 </p>
               </div>
             </div>
@@ -548,6 +588,16 @@ const Checkout = () => {
                       placeholder="Add a special message to your gift..."
                     />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="newsletterSubscribe"
+                      checked={formData.newsletterSubscribe}
+                      onChange={handleInputChange}
+                      className="w-5 h-5"
+                    />
+                    <label className="text-sm">Subscribe to newsletter for exclusive offers and updates</label>
+                  </div>
                 </div>
               </div>
 
@@ -567,16 +617,19 @@ const Checkout = () => {
               <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
               
               <div className="space-y-4 mb-6">
-                {cart.map(item => (
-                  <div key={item.item_id} className="flex gap-3">
-                    <img src={getImageUrl(item.image_url)} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">{item.item_name}</p>
-                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                      <p className="text-sm font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+                {cart.map(item => {
+                  const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
+                  return (
+                    <div key={item.item_id} className="flex gap-3">
+                      <img src={item.image_url} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">{item.item_name}</p>
+                        <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                        <p className="text-sm font-semibold">${(price * item.quantity).toFixed(2)}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="space-y-3 border-t-2 border-gray-300 pt-4">

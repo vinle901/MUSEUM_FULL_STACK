@@ -1,6 +1,7 @@
+// File: src/components/Cart.jsx
+
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
-import { getImageUrl } from '../utils/imageHelpers'
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart()
@@ -71,63 +72,69 @@ const Cart = () => {
             </div>
 
             <div className="space-y-4">
-              {cart.map((item) => (
-                <div key={item.item_id} className="bg-white border-2 border-gray-200 rounded-lg p-4 flex gap-4">
-                  {/* Image */}
-                  <img
-                    src={getImageUrl(item.image_url)}
-                    alt={item.item_name}
-                    className="w-24 h-24 object-cover rounded-lg"
-                  />
+              {cart.map((item) => {
+                // Defensive: ensure price is a number
+                const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
+                const lineTotal = price * item.quantity
 
-                  {/* Details */}
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-bold text-lg text-black">{item.item_name}</h3>
-                        <p className="text-sm text-gray-600">{item.category}</p>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.item_id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+                return (
+                  <div key={item.item_id} className="bg-white border-2 border-gray-200 rounded-lg p-4 flex gap-4">
+                    {/* Image */}
+                    <img
+                      src={item.image_url}
+                      alt={item.item_name}
+                      className="w-24 h-24 object-cover rounded-lg"
+                    />
 
-                    <div className="flex justify-between items-center">
-                      {/* Quantity Controls */}
-                      <div className="flex items-center gap-3">
+                    {/* Details */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-bold text-lg text-black">{item.item_name}</h3>
+                          <p className="text-sm text-gray-600">{item.category}</p>
+                        </div>
                         <button
-                          onClick={() => updateQuantity(item.item_id, item.quantity - 1)}
-                          className="w-8 h-8 rounded-full border-2 border-gray-300 hover:border-brand hover:text-brand flex items-center justify-center font-bold"
+                          onClick={() => removeFromCart(item.item_id)}
+                          className="text-red-600 hover:text-red-800"
                         >
-                          −
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
                         </button>
-                        <span className="text-lg font-semibold w-8 text-center">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.item_id, item.quantity + 1)}
-                          disabled={item.quantity >= item.stock_quantity}
-                          className="w-8 h-8 rounded-full border-2 border-gray-300 hover:border-brand hover:text-brand flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          +
-                        </button>
-                        {item.quantity >= item.stock_quantity && (
-                          <span className="text-sm text-orange-600 font-medium">Max stock reached</span>
-                        )}
                       </div>
 
-                      {/* Price */}
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">${item.price.toFixed(2)} each</p>
-                        <p className="text-xl font-bold text-brand">${(item.price * item.quantity).toFixed(2)}</p>
+                      <div className="flex justify-between items-center">
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => updateQuantity(item.item_id, item.quantity - 1)}
+                            className="w-8 h-8 rounded-full border-2 border-gray-300 hover:border-brand hover:text-brand flex items-center justify-center font-bold"
+                          >
+                            −
+                          </button>
+                          <span className="text-lg font-semibold w-8 text-center">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.item_id, item.quantity + 1)}
+                            disabled={item.quantity >= item.stock_quantity}
+                            className="w-8 h-8 rounded-full border-2 border-gray-300 hover:border-brand hover:text-brand flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            +
+                          </button>
+                          {item.quantity >= item.stock_quantity && (
+                            <span className="text-sm text-orange-600 font-medium">Max stock reached</span>
+                          )}
+                        </div>
+
+                        {/* Price */}
+                        <div className="text-right">
+                          <p className="text-sm text-gray-600">${price.toFixed(2)} each</p>
+                          <p className="text-xl font-bold text-brand">${lineTotal.toFixed(2)}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             <Link
@@ -141,7 +148,7 @@ const Cart = () => {
             </Link>
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary - REMOVED PROMO CODE BOX */}
           <div className="lg:col-span-1">
             <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 sticky top-24">
               <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
@@ -165,24 +172,10 @@ const Cart = () => {
 
               <button
                 onClick={handleCheckout}
-                className="w-full bg-brand text-white py-3 rounded-lg font-bold text-lg hover:bg-brand-dark transition-colors mb-4"
+                className="w-full bg-brand text-white py-3 rounded-lg font-bold text-lg hover:bg-brand-dark transition-colors"
               >
                 Proceed to Checkout
               </button>
-
-              <div className="border-t border-gray-300 pt-4">
-                <h3 className="font-semibold mb-2">Promo Code</h3>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Enter code"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand"
-                  />
-                  <button className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700">
-                    Apply
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>

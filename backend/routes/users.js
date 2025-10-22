@@ -29,7 +29,7 @@ router.get('/profile', middleware.requireAuth, async (req, res) => {
     // Get membership info if exists
     const [memberships] = await db.query(
       `SELECT membership_id, membership_type, start_date, expiration_date, is_active
-       FROM Membership WHERE user_id = ? ORDER BY start_date DESC LIMIT 1`,
+       FROM Membership WHERE user_id = ? and is_active = 1 ORDER BY start_date DESC LIMIT 1`,
       [userId],
     )
 
