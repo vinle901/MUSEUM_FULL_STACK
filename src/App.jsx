@@ -7,6 +7,7 @@ import NavBar from './components/NavBar'
 import Home from './components/Home'
 import Footer from './components/Footer'
 import Visit from './components/Visit'
+import Calendar from './components/Calendar'
 import GiftShop from './components/GiftShop'
 import Cart from './components/Cart'
 import Checkout from './components/Checkout'
@@ -30,6 +31,7 @@ function App() {
           <Route path="/gift-shop" element={<GiftShop />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/calendar" element={<Calendar />} />
           <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />
           <Route path="/membership" element={<Membershipinfo />} />

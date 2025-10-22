@@ -42,18 +42,29 @@ router.get('/calendar/view', async (req, res) => {
 // Protected routes - Only admin/employee can modify events
 
 // POST create new event - Admin/Employee only
+router.post('/upload-image', middleware.requireRole('admin', 'employee'), (req, res) => {
+  uploadEventImage(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message })
+    if (!req.file) return res.status(400).json({ error: 'No image file provided' })
+
+    const imageUrl = `/uploads/events/${req.file.filename}`
+    res.status(200).json({ message: 'Image uploaded successfully', imageUrl })
+  })
+})
+
 router.post('/', middleware.requireRole('admin', 'employee'), async (req, res) => {
   try {
     const {
       event_name, event_type, event_date, event_time, duration_minutes, location,
-      description, exhibition_id, max_capacity, is_members_only,
+      description, exhibition_id, max_capacity, is_members_only, picture_url,
     } = req.body
     const [result] = await db.query(
       `INSERT INTO Events (event_name, event_type, event_date, event_time, duration_minutes, location,
-       description, exhibition_id, max_capacity, is_members_only) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       description, exhibition_id, max_capacity, is_members_only, picture_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         event_name, event_type, event_date, event_time, duration_minutes, location,
-        description, exhibition_id, max_capacity, is_members_only || false,
+        description, exhibition_id, max_capacity, is_members_only || false, picture_url || null,
       ],
     )
     res.status(201).json({ event_id: result.insertId, message: 'Event created successfully' })
@@ -69,8 +80,8 @@ router.put('/:id', middleware.requireRole('admin', 'employee'), async (req, res)
       event_name, description, location, is_cancelled,
     } = req.body
     await db.query(
-      'UPDATE Events SET event_name = ?, description = ?, location = ?, is_cancelled = ? WHERE event_id = ?',
-      [event_name, description, location, is_cancelled, req.params.id],
+      'UPDATE Events SET event_name = ?, description = ?, location = ?, is_cancelled = ?, picture_url = ? WHERE event_id = ?',
+      [event_name, description, location, is_cancelled, picture_url, req.params.id],
     )
     res.json({ message: 'Event updated successfully' })
   } catch (error) {
