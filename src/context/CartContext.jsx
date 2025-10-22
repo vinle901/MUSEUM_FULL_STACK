@@ -19,8 +19,11 @@ export const CartProvider = ({ children }) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find((cartItem) => cartItem.item_id === item.item_id)
 
-      // Ensure price is a number
-      const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
+      // Ensure price is stored as a number (convert from string if needed)
+      const itemWithNumericPrice = {
+        ...item,
+        price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+      }
 
       if (existingItem) {
         return prevCart.map((cartItem) =>
@@ -29,7 +32,7 @@ export const CartProvider = ({ children }) => {
             : cartItem
         )
       } else {
-        return [...prevCart, { ...item, price, quantity: 1 }]
+        return [...prevCart, { ...itemWithNumericPrice, quantity: 1 }]
       }
     })
   }
@@ -58,10 +61,21 @@ export const CartProvider = ({ children }) => {
   }
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => {
+    const total = cart.reduce((sum, item) => {
+      // Ensure price is a number for calculation
       const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
-      return total + (price * item.quantity)
+      const itemTotal = price * item.quantity
+      
+      // Debug logging to catch $0.00 issues
+      if (isNaN(itemTotal)) {
+        console.warn('Invalid price calculation for item:', item)
+        return sum
+      }
+      
+      return sum + itemTotal
     }, 0)
+
+    return total
   }
 
   const getCartItemCount = () => {
