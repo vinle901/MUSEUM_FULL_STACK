@@ -21,6 +21,7 @@ import membershipRoutes from './routes/memberships.js'
 import transactionRoutes from './routes/transactions.js'
 import employeeRoutes from './routes/employees.js'
 import eventHostingRoutes from './routes/event-hosting.js'
+import benefitsRoutes from './routes/benefits.js'
 import middleware from './utils/middleware.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -58,6 +59,7 @@ app.use('/api/events', eventRoutes)
 app.use('/api/event-hosting', eventHostingRoutes)
 app.use('/api/giftshop', giftShopRoutes)
 app.use('/api/cafeteria', cafeteriaRoutes)
+app.use('/api/benefits', benefitsRoutes)
 
 // Transaction routes - gift-shop-checkout is public, others may require auth
 // IMPORTANT: Place BEFORE protected routes to allow guest checkout
@@ -67,8 +69,10 @@ app.use('/api/transactions', transactionRoutes)
 app.use('/api/tickets', middleware.requireAuth, ticketRoutes)
 app.use('/api/memberships', middleware.requireAuth, membershipRoutes)
 
-// Admin/Employee only routes - Role-based access control
-app.use('/api/users', middleware.requireRole('admin', 'employee'), userRoutes)
+// User routes - Mix of protected and admin routes
+// Profile routes (/api/users/profile/*) are accessible to authenticated users
+// Other routes require admin/employee role
+app.use('/api/users', userRoutes)
 
 // Admin only routes - All operations require admin role
 app.use('/api/employees', employeeRoutes)

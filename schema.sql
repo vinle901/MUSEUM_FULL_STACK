@@ -133,7 +133,6 @@ CREATE TABLE `Membership`(
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY(`membership_id`),
-    UNIQUE KEY `unique_user_active_membership` (`user_id`, `is_active`),
     INDEX `idx_user_id` (`user_id`),
     INDEX `idx_expiration` (`expiration_date`),
     INDEX `idx_user_active` (`user_id`, `is_active`, `expiration_date`),

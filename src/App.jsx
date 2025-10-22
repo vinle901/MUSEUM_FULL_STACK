@@ -11,11 +11,15 @@ import Calendar from './components/Calendar'
 import GiftShop from './components/GiftShop'
 import Cart from './components/Cart'
 import Checkout from './components/Checkout'
+import CheckoutMem from './components/CheckoutMem'
 import Support from './components/Support' 
 import { CartProvider } from './context/CartContext'
 import Login from "./components/Login.jsx"
+import Register from "./components/Register.jsx"
 import Membership from "./components/Membership.jsx"
 import Membershipinfo from "./components/Membershipinfo"
+import Profile from "./components/Profile.jsx"
+import Cafeteria from "./components/Cafeteria";
 
 function App() {
   return (
@@ -32,13 +36,16 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/calendar" element={<Calendar />} />
+          <Route path="/checkout-membership" element={<CheckoutMem />} />
           <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/membership" element={<Membershipinfo />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/membershipinfo" element={<Membershipinfo />} />
           <Route path="/membership/join" element={<Membership />} />
-          <Route path="/membership-info" element={<Navigate to="/membership" replace />} />
+          <Route path="/membership" element={<Navigate to="/membershipinfo" replace />} />
           {/* Add cafeteria route - create component or redirect */}
-          <Route path="/cafeteria" element={<div className="p-8 text-center"><h1 className="text-3xl">Cafeteria - Coming Soon</h1></div>} />
+          <Route path="/cafeteria" element={<Cafeteria />} />
         </Routes>
         <Footer />
       </div>

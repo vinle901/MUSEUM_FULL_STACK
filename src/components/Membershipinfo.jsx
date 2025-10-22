@@ -1,56 +1,65 @@
 // src/components/MembershipInfo.jsx
 import { Link } from "react-router-dom";
-const PLANS = [
-  {
-    key: "individual",
-    title: "Individual",
-    price: 70,
-    img: "https://www.famsf.org/storage/images/5266a91b-7b8c-4a50-9b70-091624408128/deyoung-190930-0182-032-henrik-kam-2019-5.jpg?crop=3000,1688,x0,y312&format=jpg&quality=80&width=1000",
-    perks: [
-      "One free single-use parking pass + discounted parking thereafter",
-      "Free parking when dining at Café Leonelli or Le Jardinier",
-      "15% discount at Café Leonelli",
-      "10% discount at the Museum Shop",
-    ],
-  },
-  {
-    key: "dual",
-    title: "Dual",
-    price: 95,
-    img: "https://pensacolamuseum.org/wp-content/uploads/2025/04/PMA_25_DUAL-9810-scaled.jpg",
-    perks: [
-      "All Individual benefits for two adults",
-      "Invitation to the annual Members Holiday Party",
-    ],
-  },
-  {
-    key: "family",
-    title: "Family",
-    price: 115,
-    img: "https://media.istockphoto.com/id/1399195000/photo/mother-and-daughter-in-art-gallery.jpg?s=612x612&w=0&k=20&c=r_r2UMdb4hELHGxqx_3RAHZWiBPyUI1k2Gg23xE7A5o=",
-    perks: [
-      "All Dual benefits",
-      "Admission privileges for children 18 and under in the same household",
-      "Discounts on children’s art classes",
-      "Invitations to family art-making programs",
-    ],
-  },
-  {
-    key: "patron",
-    title: "Patron",
-    price: 200,
-    img: "https://media.istockphoto.com/id/538359000/photo/family-on-trip-to-museum-looking-at-map-together.jpg?s=612x612&w=0&k=20&c=6ry6SAPOAdVhhz3dccXCnwSck4ikASCLRZ0Z_cQW2tU=",
-    perks: [
-      "All Family benefits",
-      "Exhibition preview invitations (Patron+ levels)",
-      "Museum publication subscription",
-      "Glassell School of Art discounts",
-      "Reciprocal privileges at 70+ U.S. museums",
-    ],
-  },
-];
+import { useState, useEffect } from "react";
+import { fetchBenefits, getDetailedBenefits, getMembershipImage } from "../services/benefitsService";
+
+// Reusable CheckIcon component
+const CheckIcon = ({ className = "w-5 h-5 text-brand flex-shrink-0 mt-0.5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+  </svg>
+);
 
 export default function MembershipInfo() {
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadBenefits() {
+      try {
+        const benefits = await fetchBenefits();
+        setPlans(benefits);
+      } catch (err) {
+        setError("Failed to load membership benefits");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadBenefits();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="auth-page" style={{ background: "#f7fafc" }}>
+        <header className="hero hero--teal">
+          <div className="container hero__inner">
+            <h1 className="hero__title">Membership</h1>
+          </div>
+        </header>
+        <section className="container" style={{ padding: "32px 0" }}>
+          <p className="text-center text-gray-600">Loading...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="auth-page" style={{ background: "#f7fafc" }}>
+        <header className="hero hero--teal">
+          <div className="container hero__inner">
+            <h1 className="hero__title">Membership</h1>
+          </div>
+        </header>
+        <section className="container" style={{ padding: "32px 0" }}>
+          <div className="alert alert--error">{error}</div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="auth-page" style={{ background: "#f7fafc" }}>
       {/* Hero */}
@@ -62,54 +71,58 @@ export default function MembershipInfo() {
           </p>
         </div>
       </header>
-      {/* Special event banner */}
-    
 
       {/* Intro + Contact */}
       <section className="container" style={{ padding: "32px 0 12px" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.4fr .8fr",
-            gap: 24,
-          }}
-        >
-          <div className="card card--spacious">
-            <h2 className="page-title" style={{ marginTop: 0, marginBottom: 8 }}>
+        <div className="grid grid-cols-[1.4fr_0.8fr] gap-6">
+          <div className="card card--spacious bg-gradient-to-br from-white to-gray-50 border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <h2 className="page-title text-3xl font-bold text-brand mb-3 mt-0">
               Levels & Benefits
             </h2>
-            <p className="muted" style={{ fontSize: "1.05rem" }}>
+            <p className="text-gray-600 text-lg leading-relaxed mb-4">
               See extraordinary exhibitions, get free admission, enjoy complimentary
               entry at premium nights, take members-only tours, and support one of the
-              city’s premier museums. <strong>Select your membership level below.</strong>
+              city's premier museums. <strong className="text-brand">Select your membership level below.</strong>
             </p>
 
-            <ul style={{ marginTop: 12, paddingLeft: "1.25rem" }}>
-              <li>Free year-round admission</li>
-              <li>Members preview nights for select exhibitions</li>
-              <li>Access to the Members Lounge</li>
-              <li>Members-only lectures, programs, and tours</li>
-              <li>Discounted tickets for guests and museum films</li>
-              <li>Admission to our house museums</li>
+            <ul className="space-y-3 mt-6 pl-0 list-none">
+              <li className="flex items-start gap-3 text-gray-700">
+                <CheckIcon />
+                <span>Free year-round admission</span>
+              </li>
+              <li className="flex items-start gap-3 text-gray-700">
+                <CheckIcon />
+                <span>Members preview nights for select exhibitions</span>
+              </li>
+              <li className="flex items-start gap-3 text-gray-700">
+                <CheckIcon />
+                <span>Access to the Members Lounge</span>
+              </li>
+              <li className="flex items-start gap-3 text-gray-700">
+                <CheckIcon />
+                <span>Members-only lectures, programs, and tours</span>
+              </li>
+              <li className="flex items-start gap-3 text-gray-700">
+                <CheckIcon />
+                <span>Discounted tickets for guests and museum films</span>
+              </li>
+              <li className="flex items-start gap-3 text-gray-700">
+                <CheckIcon />
+                <span>Admission to our house museums</span>
+              </li>
             </ul>
           </div>
 
-          <aside className="card card--spacious">
-            <h3 className="card__title" style={{ marginTop: 0 }}>Questions?</h3>
-            <div style={{ display: "grid", gap: 12 }}>
-              <div
-                className="card"
-                style={{ borderRadius: 12, padding: 12, display: "grid", gap: 4 }}
-              >
-                <strong>Call for Questions</strong>
-                <span className="muted">713-639-7550</span>
+          <aside className="card card--spacious bg-white border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <h3 className="text-xl font-bold text-brand mb-4 mt-0">Questions?</h3>
+            <div className="space-y-3">
+              <div className="bg-gradient-to-br from-brand/5 to-brand/10 rounded-xl p-4 border-l-4 border-brand hover:shadow-md transition-all duration-300 hover:translate-x-1">
+                <strong className="text-gray-900 block mb-1">Call for Questions</strong>
+                <span className="text-gray-600 text-sm">713-639-7550</span>
               </div>
-              <div
-                className="card"
-                style={{ borderRadius: 12, padding: 12, display: "grid", gap: 4 }}
-              >
-                <strong>Email Your Questions</strong>
-                <span className="muted">membership@themuseum.org</span>
+              <div className="bg-gradient-to-br from-brand/5 to-brand/10 rounded-xl p-4 border-l-4 border-brand hover:shadow-md transition-all duration-300 hover:translate-x-1">
+                <strong className="text-gray-900 block mb-1">Email Your Questions</strong>
+                <span className="text-gray-600 text-sm">membership@themuseum.org</span>
               </div>
             </div>
           </aside>
@@ -125,62 +138,62 @@ export default function MembershipInfo() {
             gap: 20,
           }}
         >
-          {PLANS.map((p) => (
-            <article key={p.key} className="card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {plans.map((p) => (
+            <article 
+              key={p.membership_type} 
+              className="bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer group break-inside-avoid relative" 
+              style={{ 
+                display: "flex", 
+                flexDirection: "column"
+              }}
+            >
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-brand/0 via-brand/30 to-brand/0 translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out z-10 pointer-events-none"></div>
+              
               <div
+                className="relative overflow-hidden group"
                 style={{
                   height: 160,
-                  background: `url(${p.img}) center/cover no-repeat`,
+                  background: `url(${getMembershipImage(p.membership_type)}) center/cover no-repeat`,
                 }}
-              />
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style={{ backgroundImage: `url(${getMembershipImage(p.membership_type)})` }} />
+                {/* Price badge */}
+                <div className="absolute top-3 right-3 bg-white rounded-full px-4 py-2 shadow-lg">
+                  <span className="text-brand font-bold text-lg">${parseFloat(p.annual_fee).toFixed(0)}</span>
+                </div>
+              </div>
               <div className="card--spacious" style={{ borderRadius: 0, display: "flex", flexDirection: "column", flex: 1 }}>
-                <div
+                <h3
+                  className="mb-4"
                   style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "space-between",
-                    marginBottom: 8,
+                    fontFamily: "Montserrat, sans-serif",
+                    fontWeight: 800,
+                    fontSize: "1.35rem",
+                    margin: 0,
+                    color: "#0f172a",
                   }}
                 >
-                  <h3
-                    style={{
-                      fontFamily: "Montserrat, sans-serif",
-                      fontWeight: 800,
-                      fontSize: "1.25rem",
-                      margin: 0,
-                    }}
-                  >
-                    {p.title}
-                  </h3>
-                  <div style={{ fontWeight: 800, fontSize: "1.2rem" }}>
-                    ${p.price}
-                  </div>
-                </div>
+                  {p.membership_type}
+                </h3>
 
-                <ul style={{ paddingLeft: "1.15rem", marginBottom: 16, flex: 1 }}>
-                  {p.perks.map((perk, i) => (
-                    <li key={i} style={{ marginBottom: 6 }}>
-                      {perk}
+                <ul style={{ paddingLeft: 0, marginBottom: 20, flex: 1, listStyle: "none" }}>
+                  {getDetailedBenefits(p).map((perk, i) => (
+                    <li key={i} className="flex items-start gap-2 mb-2" style={{ fontSize: "0.9rem", lineHeight: 1.5 }}>
+                      <CheckIcon className="w-5 h-5 text-brand flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700">{perk}</span>
                     </li>
                   ))}
                 </ul>
 
-                <div style={{ display: "grid", gap: 8 }}>
-                  <Link
-                    to="/membership/join"
-                    className="btn btn--brand btn--lg"
-                    style={{ justifyContent: "center" }}
-                  >
-                    Join / Renew
-                  </Link>
-
-                  <Link
-                    to="/membership/join"
-                    className="link"
-                    style={{ textAlign: "center" }}
-                  >
-                  </Link>
-                </div>
+                <Link
+                  to="/membership/join"
+                  className="btn btn--brand btn--lg w-full font-bold"
+                  style={{ justifyContent: "center" }}
+                >
+                  Join Now
+                </Link>
               </div>
             </article>
           ))}
