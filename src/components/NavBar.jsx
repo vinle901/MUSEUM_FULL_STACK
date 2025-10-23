@@ -1,5 +1,7 @@
+// File: src/components/NavBar.jsx
+
 import { Link, useNavigate } from "react-router-dom";
-import { FaSignInAlt, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import { FaSignInAlt, FaUser, FaSignOutAlt, FaBriefcase, FaStore, FaChartBar, FaCog } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 
@@ -72,30 +74,108 @@ function Navbar() {
         <li><Link to="/gift-shop">Gift Shop</Link></li>
         <li><Link to="/calendar">Calendar</Link></li>
         <li><Link to="/support">Support</Link></li>
-        <li><Link to="/cafeteria">CAFETERIA</Link></li>
         <li><Link to="/membershipinfo">Membership</Link></li>
       </ul>
 
-      {isLoggedIn ? (
-        <div className="flex items-center gap-3">
-          <Link to="/profile" className="login-button">
-            <FaUser className="login-icon" />
-            <span>{userName}</span>
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="login-button bg-transparent border border-gray-600 cursor-pointer"
-            title="Logout"
+      <div className="navbar-right-section" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Employee Portal Links - Visible to Everyone for Development */}
+        <div className="employee-portals" style={{ display: 'flex', gap: '8px' }}>
+          <Link 
+            to="/employee/pos" 
+            className="employee-portal-link"
+            title="POS System"
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#059669',
+              color: 'white',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#047857'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#059669'}
           >
-            <FaSignOutAlt className="login-icon" />
-          </button>
+            <FaStore size={16} />
+            <span>POS</span>
+          </Link>
+          
+          <Link 
+            to="/employee/admin" 
+            className="employee-portal-link"
+            title="Admin Portal"
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#7c3aed',
+              color: 'white',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#6d28d9'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#7c3aed'}
+          >
+            <FaCog size={16} />
+            <span>Admin</span>
+          </Link>
+          
+          <Link 
+            to="/employee/reports" 
+            className="employee-portal-link"
+            title="Analytics & Reports"
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#0891b2',
+              color: 'white',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0e7490'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#0891b2'}
+          >
+            <FaChartBar size={16} />
+            <span>Reports</span>
+          </Link>
         </div>
-      ) : (
-        <Link to="/login" className="login-button">
-          <FaSignInAlt className="login-icon" />
-          <span>Login</span>
-        </Link>
-      )}
+
+        {/* User Account Section */}
+        {isLoggedIn ? (
+          <div className="flex items-center gap-3">
+            <Link to="/profile" className="login-button">
+              <FaUser className="login-icon" />
+              <span>{userName}</span>
+            </Link>
+            
+            <button
+              onClick={handleLogout}
+              className="login-button bg-transparent border border-gray-600 cursor-pointer"
+              title="Logout"
+            >
+              <FaSignOutAlt className="login-icon" />
+            </button>
+          </div>
+        ) : (
+          <Link to="/login" className="login-button">
+            <FaSignInAlt className="login-icon" />
+            <span>Login</span>
+          </Link>
+        )}
+      </div>
     </nav>
   );
 }

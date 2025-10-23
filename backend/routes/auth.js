@@ -1,3 +1,5 @@
+// File: backend/routes/auth.js
+
 import express from 'express'
 import db from '../config/database.js'
 import {
@@ -12,25 +14,44 @@ import {
 const router = express.Router()
 
 /**
- * Helper function to determine user role
- * Checks if user is an employee or admin based on Employee table
+ * Helper function to determine user role AND specific employee type
+ * Returns an object with role and employeeType
  */
-async function getUserRole(userId) {
+async function getUserRoleDetails(userId) {
   const [employees] = await db.query(
     'SELECT role, is_active FROM Employee WHERE user_id = ? AND is_active = TRUE',
     [userId],
   )
 
   if (employees.length > 0) {
-    // Check if they're a manager or have admin-like role
     const employeeRole = employees[0].role.toLowerCase()
-    if (employeeRole.includes('manager') || employeeRole.includes('director') || employeeRole.includes('admin')) {
-      return 'admin'
+    
+    // Determine specific employee type based on role
+    let employeeType = null
+    
+    // Admin roles
+    if (employeeRole.includes('admin') || employeeRole.includes('director') || employeeRole.includes('manager')) {
+      employeeType = 'admin'
+      return { role: 'admin', employeeType: 'admin' }
     }
-    return 'employee'
+    
+    // Cafeteria roles
+    if (employeeRole.includes('cafeteria') || employeeRole.includes('barista') || employeeRole.includes('cashier') || employeeRole.includes('food')) {
+      employeeType = 'cafeteria'
+      return { role: 'employee', employeeType: 'cafeteria' }
+    }
+    
+    // Analyst roles
+    if (employeeRole.includes('analyst') || employeeRole.includes('data') || employeeRole.includes('report')) {
+      employeeType = 'analyst'
+      return { role: 'employee', employeeType: 'analyst' }
+    }
+    
+    // Default employee type for other roles
+    return { role: 'employee', employeeType: 'general' }
   }
 
-  return 'customer'
+  return { role: 'customer', employeeType: null }
 }
 
 /**
@@ -102,13 +123,14 @@ router.post('/register', async (req, res) => {
     const userId = result.insertId
 
     // Determine role by checking Employee table
-    const role = await getUserRole(userId)
+    const roleDetails = await getUserRoleDetails(userId)
 
     // Generate tokens
     const user = {
       id: userId,
       email,
-      role,
+      role: roleDetails.role,
+      employeeType: roleDetails.employeeType,
     }
 
     const accessToken = generateAccessToken(user)
@@ -130,6 +152,7 @@ router.post('/register', async (req, res) => {
         first_name,
         last_name,
         role: user.role,
+        employeeType: user.employeeType,
       },
     })
   } catch (error) {
@@ -176,13 +199,14 @@ router.post('/login', async (req, res) => {
     }
 
     // Determine role by checking Employee table
-    const role = await getUserRole(user.user_id)
+    const roleDetails = await getUserRoleDetails(user.user_id)
 
     // Generate tokens
     const tokenUser = {
       id: user.user_id,
       email: user.email,
-      role,
+      role: roleDetails.role,
+      employeeType: roleDetails.employeeType,
     }
 
     const accessToken = generateAccessToken(tokenUser)
@@ -203,7 +227,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        role,
+        role: roleDetails.role,
+        employeeType: roleDetails.employeeType,
       },
     })
   } catch (error) {
@@ -244,13 +269,14 @@ router.post('/refresh', async (req, res) => {
     const user = users[0]
 
     // Determine role
-    const role = await getUserRole(user.user_id)
+    const roleDetails = await getUserRoleDetails(user.user_id)
 
     // Generate new access token
     const accessToken = generateAccessToken({
       id: user.user_id,
       email: user.email,
-      role,
+      role: roleDetails.role,
+      employeeType: roleDetails.employeeType,
     })
 
     res.json({ accessToken })
@@ -298,14 +324,15 @@ router.get('/me', async (req, res) => {
     }
 
     const user = users[0]
-    const role = await getUserRole(user.user_id)
+    const roleDetails = await getUserRoleDetails(user.user_id)
 
     res.json({
       id: user.user_id,
       email: user.email,
       first_name: user.first_name,
       last_name: user.last_name,
-      role,
+      role: roleDetails.role,
+      employeeType: roleDetails.employeeType,
     })
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' })
