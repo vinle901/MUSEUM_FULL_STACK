@@ -1,14 +1,19 @@
+// File: src/components/NavBar.jsx
+
 import { Link, useNavigate } from "react-router-dom";
-import { FaSignInAlt, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import { FaSignInAlt, FaUser, FaSignOutAlt, FaStore, FaChartBar, FaCog, FaBars, FaTimes } from 'react-icons/fa';
 import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 
 function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('customer');
+  const [employeeType, setEmployeeType] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Check if user is logged in
+  // Check if user is logged in and get their role
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     const user = localStorage.getItem('user');
@@ -18,11 +23,17 @@ function Navbar() {
       try {
         const userData = JSON.parse(user);
         setUserName(userData.first_name || 'User');
+        setUserRole(userData.role || 'customer');
+        setEmployeeType(userData.employeeType || null);
       } catch (e) {
         setUserName('User');
+        setUserRole('customer');
+        setEmployeeType(null);
       }
     } else {
       setIsLoggedIn(false);
+      setUserRole('customer');
+      setEmployeeType(null);
     }
 
     // Listen for storage changes (e.g., login/logout in another tab)
@@ -35,11 +46,17 @@ function Navbar() {
         try {
           const userData = JSON.parse(user);
           setUserName(userData.first_name || 'User');
+          setUserRole(userData.role || 'customer');
+          setEmployeeType(userData.employeeType || null);
         } catch (e) {
           setUserName('User');
+          setUserRole('customer');
+          setEmployeeType(null);
         }
       } else {
         setIsLoggedIn(false);
+        setUserRole('customer');
+        setEmployeeType(null);
       }
     };
 
@@ -51,20 +68,42 @@ function Navbar() {
     try {
       await authService.logout();
       setIsLoggedIn(false);
+      setIsMobileMenuOpen(false);
       navigate('/');
       window.location.reload();
     } catch (error) {
       console.error('Logout error:', error);
       // Still clear local state even if API call fails
       setIsLoggedIn(false);
+      setIsMobileMenuOpen(false);
       navigate('/');
       window.location.reload();
     }
   };
 
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
+  // Helper functions to determine what portals the user can access
+  const canAccessPOS = () => {
+    return userRole === 'admin' || employeeType === 'admin' || employeeType === 'cafeteria';
+  };
+
+  const canAccessAdmin = () => {
+    return userRole === 'admin' || employeeType === 'admin';
+  };
+
+  const canAccessReports = () => {
+    return userRole === 'admin' || employeeType === 'admin' || employeeType === 'analyst';
+  };
+
   return (
     <nav className="navbar">
+      {/* Logo */}
       <Link to="/" className="navbar-logo">THE MUSEUM</Link>
+
+      {/* Desktop Navigation Links */}
       <ul className="navbar-links">
         <li><Link to="/visit">Visit</Link></li>
         <li><Link to="/artworks">Art</Link></li>
@@ -75,25 +114,122 @@ function Navbar() {
         <li><Link to="/membershipinfo">Membership</Link></li>
       </ul>
 
-      {isLoggedIn ? (
-        <div className="flex items-center gap-3">
-          <Link to="/profile" className="login-button">
-            <FaUser className="login-icon" />
-            <span>{userName}</span>
+      {/* Desktop Right Section */}
+      <div className="navbar-right-section">
+        {/* Employee Portal Links - Role-Based Visibility */}
+        {isLoggedIn && (canAccessPOS() || canAccessAdmin() || canAccessReports()) && (
+          <div className="employee-portals">
+            {canAccessPOS() && (
+              <Link to="/employee/pos" className="employee-portal-link pos-link" title="POS System">
+                <FaStore size={16} />
+                <span>POS</span>
+              </Link>
+            )}
+
+            {canAccessAdmin() && (
+              <Link to="/employee/admin" className="employee-portal-link admin-link" title="Admin Portal">
+                <FaCog size={16} />
+                <span>Admin</span>
+              </Link>
+            )}
+
+            {canAccessReports() && (
+              <Link to="/employee/reports" className="employee-portal-link reports-link" title="Analytics & Reports">
+                <FaChartBar size={16} />
+                <span>Reports</span>
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* User Account Section */}
+        {isLoggedIn ? (
+          <div className="navbar-user-section">
+            <Link to="/profile" className="login-button">
+              <FaUser className="login-icon" />
+              <span className="user-name">{userName}</span>
+            </Link>
+
+            <button onClick={handleLogout} className="login-button logout-btn" title="Logout">
+              <FaSignOutAlt className="login-icon" />
+            </button>
+          </div>
+        ) : (
+          <Link to="/login" className="login-button">
+            <FaSignInAlt className="login-icon" />
+            <span>Login</span>
           </Link>
-          <button
-            onClick={handleLogout}
-            className="login-button bg-transparent border border-gray-600 cursor-pointer"
-            title="Logout"
-          >
-            <FaSignOutAlt className="login-icon" />
-          </button>
-        </div>
-      ) : (
-        <Link to="/login" className="login-button">
-          <FaSignInAlt className="login-icon" />
-          <span>Login</span>
-        </Link>
+        )}
+      </div>
+
+      {/* Mobile Hamburger Menu Button */}
+      <button
+        className="mobile-menu-toggle"
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        aria-label="Toggle menu"
+      >
+        {isMobileMenuOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
+      </button>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <>
+          <div className="mobile-menu-backdrop" onClick={closeMobileMenu} />
+          <div className="mobile-menu">
+            <div className="mobile-menu-content">
+              {/* Navigation Links */}
+              <div className="mobile-menu-section">
+                <Link to="/visit" className="mobile-menu-link" onClick={closeMobileMenu}>Visit</Link>
+                <Link to="/artworks" className="mobile-menu-link" onClick={closeMobileMenu}>Art</Link>
+                <Link to="/cafeteria" className="mobile-menu-link" onClick={closeMobileMenu}>Cafeteria</Link>
+                <Link to="/gift-shop" className="mobile-menu-link" onClick={closeMobileMenu}>Gift Shop</Link>
+                <Link to="/calendar" className="mobile-menu-link" onClick={closeMobileMenu}>Calendar</Link>
+                <Link to="/support" className="mobile-menu-link" onClick={closeMobileMenu}>Support</Link>
+                <Link to="/membershipinfo" className="mobile-menu-link" onClick={closeMobileMenu}>Membership</Link>
+              </div>
+
+              {/* Employee Portals */}
+              {isLoggedIn && (canAccessPOS() || canAccessAdmin() || canAccessReports()) && (
+                <div className="mobile-menu-section employee-section">
+                  <div className="mobile-menu-heading">Employee Portals</div>
+                  {canAccessPOS() && (
+                    <Link to="/employee/pos" className="mobile-menu-link portal-link" onClick={closeMobileMenu}>
+                      <FaStore size={16} /> POS System
+                    </Link>
+                  )}
+                  {canAccessAdmin() && (
+                    <Link to="/employee/admin" className="mobile-menu-link portal-link" onClick={closeMobileMenu}>
+                      <FaCog size={16} /> Admin Portal
+                    </Link>
+                  )}
+                  {canAccessReports() && (
+                    <Link to="/employee/reports" className="mobile-menu-link portal-link" onClick={closeMobileMenu}>
+                      <FaChartBar size={16} /> Reports
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {/* User Section */}
+              <div className="mobile-menu-section user-section">
+                {isLoggedIn ? (
+                  <>
+                    <Link to="/profile" className="mobile-menu-link user-link" onClick={closeMobileMenu}>
+                      <FaUser size={16} /> {userName}
+                    </Link>
+                    <button onClick={handleLogout} className="mobile-menu-link logout-link">
+                      <FaSignOutAlt size={16} /> Logout
+                    </button>
+                  </>
+                ) : (
+                  <Link to="/login" className="mobile-menu-link login-link" onClick={closeMobileMenu}>
+                    <FaSignInAlt size={16} /> Login
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </nav>
   );

@@ -1,3 +1,12 @@
+/* eslint-disable indent */
+/* eslint-disable react/jsx-one-expression-per-line */
+/* eslint-disable max-len */
+/* eslint-disable react/button-has-type */
+/* eslint-disable comma-dangle */
+/* eslint-disable no-trailing-spaces */
+/* eslint-disable prettier/prettier */
+/* eslint-disable react/function-component-definition */
+/* eslint-disable jsx-a11y/label-has-associated-control */
 // File: src/components/CheckoutMem.jsx
 
 import { useState, useEffect } from 'react'
@@ -352,7 +361,7 @@ const Checkout = () => {
                   View Profile
                 </button>
                 <button
-                  onClick={() => navigate('/membership/info')}
+                  onClick={() => navigate('/membershipinfo')}
                   className="bg-white text-black border-2 border-gray-300 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
                 >
                   Membership Benefits
