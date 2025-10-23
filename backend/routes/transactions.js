@@ -1,3 +1,11 @@
+/* eslint-disable padded-blocks */
+/* eslint-disable object-curly-newline */
+/* eslint-disable arrow-parens */
+/* eslint-disable no-trailing-spaces */
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable comma-dangle */
+/* eslint-disable object-shorthand */
 // File: backend/routes/transactions.js
 
 import express from 'express'
@@ -6,6 +14,7 @@ import db from '../config/database.js'
 const router = express.Router()
 
 // GET all transactions for a user
+// IMPORTANT: Specific routes like /user/:userId must come BEFORE generic /:id routes
 router.get('/user/:userId', async (req, res) => {
   try {
     // Check if requesting user matches userId OR user is admin
@@ -14,7 +23,7 @@ router.get('/user/:userId', async (req, res) => {
     }
 
     const [transactions] = await db.query(
-      'SELECT * FROM Transactions WHERE user_id = ? ORDER BY transaction_date DESC', 
+      'SELECT * FROM Transactions WHERE user_id = ? ORDER BY transaction_date DESC',
       [req.params.userId]
     )
     res.json(transactions)
@@ -27,40 +36,108 @@ router.get('/user/:userId', async (req, res) => {
 // GET transaction by ID with all details
 router.get('/:id', async (req, res) => {
   try {
+    // Require authentication
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' })
+    }
+
     const [transactions] = await db.query(
-      'SELECT * FROM Transactions WHERE transaction_id = ?', 
+      'SELECT * FROM Transactions WHERE transaction_id = ?',
       [req.params.id]
     )
-    
+
     if (transactions.length === 0) {
       return res.status(404).json({ error: 'Transaction not found' })
     }
 
     // Check if requesting user owns this transaction OR is admin
-    if (req.user && req.user.id !== transactions[0].user_id && req.user.role !== 'Admin') {
+    if (req.user.id !== transactions[0].user_id && req.user.role !== 'Admin') {
       return res.status(403).json({ error: 'Forbidden: You can only view your own transactions' })
     }
 
-    // Get all purchase details
+    // Get all purchase details based on schema
+
+    // Ticket purchases with full details
     const [tickets] = await db.query(
-      'SELECT * FROM Ticket_Purchase WHERE transaction_id = ?', 
-      [req.params.id]
+      `SELECT
+        tp.*,
+        tt.ticket_name,
+        tt.description as ticket_description,
+        ex.exhibition_name,
+        ev.event_name,
+        ev.event_date,
+        ev.event_time
+       FROM Ticket_Purchase tp
+       LEFT JOIN Ticket_Types tt ON tp.ticket_type_id = tt.ticket_type_id
+       LEFT JOIN Exhibition ex ON tp.exhibition_id = ex.exhibition_id
+       LEFT JOIN Events ev ON tp.event_id = ev.event_id
+       WHERE tp.transaction_id = ?`,
+      [req.params.id],
     )
+
+    // Gift shop purchases with item details
     const [giftItems] = await db.query(
-      'SELECT * FROM Gift_Shop_Purchase WHERE transaction_id = ?', 
-      [req.params.id]
+      `SELECT
+        gsp.*,
+        gsi.category,
+        gsi.description,
+        gsi.image_url
+       FROM Gift_Shop_Purchase gsp
+       LEFT JOIN Gift_Shop_Items gsi ON gsp.gift_item_id = gsi.item_id
+       WHERE gsp.transaction_id = ?`,
+      [req.params.id],
     )
+
+    // Cafeteria purchases with item details
     const [cafeteriaItems] = await db.query(
-      'SELECT * FROM Cafeteria_Purchase WHERE transaction_id = ?', 
-      [req.params.id]
+      `SELECT
+        cp.*,
+        ci.category,
+        ci.description,
+        ci.is_vegetarian,
+        ci.is_vegan,
+        ci.allergen_info
+       FROM Cafeteria_Purchase cp
+       LEFT JOIN Cafeteria_Items ci ON cp.cafeteria_item_id = ci.item_id
+       WHERE cp.transaction_id = ?`,
+      [req.params.id],
     )
+
+    // Membership purchases with full membership details
     const [memberships] = await db.query(
-      'SELECT * FROM Membership_Purchase WHERE transaction_id = ?', 
-      [req.params.id]
+      `SELECT
+        mp.*,
+        m.membership_type,
+        m.start_date,
+        m.expiration_date,
+        m.is_active,
+        b.annual_fee,
+        b.unlimited_visits,
+        b.priority_entry,
+        b.guest_passes,
+        b.access_to_member_events,
+        b.discount_percentage
+       FROM Membership_Purchase mp
+       LEFT JOIN Membership m ON mp.membership_id = m.membership_id
+       LEFT JOIN Benefits b ON m.membership_type = b.membership_type
+       WHERE mp.transaction_id = ?`,
+      [req.params.id],
     )
+
+    // Donations
     const [donations] = await db.query(
-      'SELECT * FROM Donation WHERE transaction_id = ?', 
-      [req.params.id]
+      `SELECT
+        donation_id,
+        transaction_id,
+        amount as donation_amount,
+        donation_type,
+        is_anonymous,
+        dedication_message as donation_message,
+        tax_receipt_sent,
+        donated_at
+       FROM Donation
+       WHERE transaction_id = ?`,
+      [req.params.id],
     )
 
     res.json({
@@ -243,6 +320,7 @@ router.post('/gift-shop-checkout', async (req, res) => {
       console.log(`Purchase record created for ${dbItem.item_name}`)
 
       // Update stock quantity
+      // eslint-disable-next-line no-await-in-loop
       await connection.query(
         `UPDATE Gift_Shop_Items 
          SET stock_quantity = stock_quantity - ? 

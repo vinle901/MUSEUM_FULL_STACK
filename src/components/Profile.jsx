@@ -4,8 +4,14 @@ import api from "../services/api";
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+  const [expandedTransaction, setExpandedTransaction] = useState(null);
+  const [transactionDetails, setTransactionDetails] = useState({});
+  const [loadingDetails, setLoadingDetails] = useState({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -22,6 +28,7 @@ export default function Profile() {
   // Fetch profile on mount
   useEffect(() => {
     fetchProfile();
+    fetchTransactions();
   }, []);
 
   async function fetchProfile() {
@@ -46,6 +53,56 @@ export default function Profile() {
       setError(err.response?.data?.error || err.message || "Failed to load profile");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchTransactions() {
+    try {
+      setLoadingTransactions(true);
+      const userId = JSON.parse(localStorage.getItem("user") || "{}").id;
+      
+      if (!userId) return;
+      
+      const res = await api.get(`/api/transactions/user/${userId}`);
+      console.log("Transactions:", res.data);
+      setTransactions(res.data || []);
+    } catch (err) {
+      console.error("Failed to load transactions:", err);
+      // Don't show error for transactions as it's not critical
+    } finally {
+      setLoadingTransactions(false);
+    }
+  }
+
+  async function fetchTransactionDetails(transactionId) {
+    if (transactionDetails[transactionId]) {
+      // Already loaded, just toggle
+      setExpandedTransaction(expandedTransaction === transactionId ? null : transactionId);
+      return;
+    }
+
+    try {
+      setLoadingDetails(prev => ({ ...prev, [transactionId]: true }));
+      const res = await api.get(`/api/transactions/${transactionId}`);
+      console.log('Transaction details response:', res.data);
+      setTransactionDetails(prev => ({ ...prev, [transactionId]: res.data }));
+      setExpandedTransaction(transactionId);
+    } catch (err) {
+      console.error("Failed to load transaction details:", err);
+      console.error("Error response:", err.response?.data);
+      const errorMessage = err.response?.data?.error || err.message || "Unknown error occurred";
+      setError("Failed to load transaction details: " + errorMessage);
+      setTimeout(() => setError(""), 5000); // Clear error after 5 seconds
+    } finally {
+      setLoadingDetails(prev => ({ ...prev, [transactionId]: false }));
+    }
+  }
+
+  function toggleTransactionDetails(transactionId) {
+    if (expandedTransaction === transactionId) {
+      setExpandedTransaction(null);
+    } else {
+      fetchTransactionDetails(transactionId);
     }
   }
 
@@ -266,7 +323,7 @@ export default function Profile() {
                 )}
 
                 {/* Preferences */}
-                <div className="pb-4">
+                <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-lg font-semibold mb-3">Preferences</h3>
                   <div>
                     <p className="m-0 text-sm text-gray-600">Newsletter Subscription</p>
@@ -274,6 +331,267 @@ export default function Profile() {
                       {profile?.subscribe_to_newsletter ? "Subscribed" : "Not subscribed"}
                     </p>
                   </div>
+                </div>
+
+                {/* Transaction History */}
+                <div className="pb-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold m-0">Recent Transactions</h3>
+                    {transactions.length > 5 && (
+                      <button 
+                        onClick={() => setShowAllTransactions(!showAllTransactions)}
+                        className="text-sm text-brand hover:text-brand-dark underline"
+                      >
+                        {showAllTransactions ? 'Show Less' : `Show All (${transactions.length})`}
+                      </button>
+                    )}
+                  </div>
+                  {loadingTransactions ? (
+                    <p className="text-sm text-gray-600">Loading transactions...</p>
+                  ) : transactions.length > 0 ? (
+                    <div className="space-y-3">
+                      {(showAllTransactions ? transactions : transactions.slice(0, 5)).map((transaction) => (
+                        <div key={transaction.transaction_id} className="border border-gray-200 rounded-lg">
+                          <div 
+                            className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={() => toggleTransactionDetails(transaction.transaction_id)}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="m-0 font-medium">
+                                  Transaction #{transaction.transaction_id}
+                                </p>
+                                <p className="m-0 text-sm text-gray-600">
+                                  {formatDate(transaction.transaction_date)}
+                                </p>
+                                <p className="m-0 text-sm text-gray-600">
+                                  Payment: {transaction.payment_method}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="m-0 font-semibold text-lg text-brand">
+                                  ${parseFloat(transaction.total_price).toFixed(2)}
+                                </p>
+                                <p className="m-0 text-sm">
+                                  <span className={`inline-block px-2 py-1 rounded text-xs ${
+                                    transaction.transaction_status === 'Completed' 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {transaction.transaction_status}
+                                  </span>
+                                </p>
+                                <p className="m-0 text-xs text-gray-500 mt-1">
+                                  {expandedTransaction === transaction.transaction_id ? '▲ Hide Details' : '▼ View Details'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Expanded Details */}
+                          {expandedTransaction === transaction.transaction_id && (
+                            <div className="border-t border-gray-200 bg-white p-4">
+                              {loadingDetails[transaction.transaction_id] ? (
+                                <p className="text-sm text-gray-600">Loading details...</p>
+                              ) : transactionDetails[transaction.transaction_id] ? (
+                                <div className="space-y-4">
+                                  {/* Receipt Header */}
+                                  <div className="border-b border-gray-300 pb-3">
+                                    <h4 className="text-base font-bold mb-1">Transaction Receipt</h4>
+                                    <div className="text-xs text-gray-600 space-y-0.5">
+                                      <p className="m-0">Transaction #{transaction.transaction_id}</p>
+                                      <p className="m-0">{formatDate(transaction.transaction_date)}</p>
+                                      <p className="m-0">Payment: {transaction.payment_method}</p>
+                                      <p className="m-0">Status: <span className={`font-semibold ${
+                                        transaction.transaction_status === 'Completed'
+                                          ? 'text-green-600'
+                                          : transaction.transaction_status === 'Pending'
+                                          ? 'text-yellow-600'
+                                          : 'text-gray-600'
+                                      }`}>{transaction.transaction_status}</span></p>
+                                    </div>
+                                  </div>
+
+                                  {/* Items Purchased */}
+                                  <div className="border-b border-gray-200 pb-3">
+                                    <h4 className="text-sm font-semibold mb-3">Items Purchased</h4>
+
+                                    {/* Tickets */}
+                                    {transactionDetails[transaction.transaction_id].tickets?.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">TICKETS</p>
+                                        <div className="space-y-2">
+                                          {transactionDetails[transaction.transaction_id].tickets.map((ticket, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                              <div className="flex justify-between items-start mb-1">
+                                                <div className="flex-1">
+                                                  <p className="m-0 font-semibold">{ticket.ticket_name || 'General Admission'}</p>
+                                                  <p className="m-0 text-gray-600">Visit: {formatDate(ticket.visit_date)}</p>
+                                                  {ticket.exhibition_name && <p className="m-0 text-gray-600">Exhibition: {ticket.exhibition_name}</p>}
+                                                  {ticket.event_name && (
+                                                    <p className="m-0 text-gray-600">Event: {ticket.event_name} ({formatDate(ticket.event_date)})</p>
+                                                  )}
+                                                  {ticket.discount_amount > 0 && (
+                                                    <p className="m-0 text-green-600">Discount Applied: -${parseFloat(ticket.discount_amount).toFixed(2)}</p>
+                                                  )}
+                                                </div>
+                                                <div className="text-right ml-2">
+                                                  <p className="m-0 text-gray-600">Qty: {ticket.quantity}</p>
+                                                  <p className="m-0 font-semibold">${parseFloat(ticket.line_total).toFixed(2)}</p>
+                                                </div>
+                                              </div>
+                                              <p className="m-0 text-gray-500">
+                                                Status: {ticket.is_used ? 'Used' : 'Valid'}
+                                              </p>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Gift Shop Items */}
+                                    {transactionDetails[transaction.transaction_id].giftItems?.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">GIFT SHOP</p>
+                                        <div className="space-y-2">
+                                          {transactionDetails[transaction.transaction_id].giftItems.map((item, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                              <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                  <p className="m-0 font-semibold">{item.item_name}</p>
+                                                  {item.category && <p className="m-0 text-gray-600">{item.category}</p>}
+                                                  {item.description && <p className="m-0 text-gray-600 mt-1">{item.description}</p>}
+                                                </div>
+                                                <div className="text-right ml-2">
+                                                  <p className="m-0 text-gray-600">Qty: {item.quantity}</p>
+                                                  <p className="m-0 font-semibold">${parseFloat(item.line_total).toFixed(2)}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Cafeteria Items */}
+                                    {transactionDetails[transaction.transaction_id].cafeteriaItems?.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">CAFETERIA</p>
+                                        <div className="space-y-2">
+                                          {transactionDetails[transaction.transaction_id].cafeteriaItems.map((item, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                              <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                  <p className="m-0 font-semibold">{item.item_name}</p>
+                                                  {item.category && <p className="m-0 text-gray-600">{item.category}</p>}
+                                                  {(item.is_vegetarian || item.is_vegan) && (
+                                                    <p className="m-0 text-green-600">
+                                                      {item.is_vegan ? '🌱 Vegan' : '🥬 Vegetarian'}
+                                                    </p>
+                                                  )}
+                                                  {item.allergen_info && (
+                                                    <p className="m-0 text-orange-600">⚠️ {item.allergen_info}</p>
+                                                  )}
+                                                </div>
+                                                <div className="text-right ml-2">
+                                                  <p className="m-0 text-gray-600">Qty: {item.quantity}</p>
+                                                  <p className="m-0 font-semibold">${parseFloat(item.line_total).toFixed(2)}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Memberships */}
+                                    {transactionDetails[transaction.transaction_id].memberships?.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">MEMBERSHIPS</p>
+                                        <div className="space-y-2">
+                                          {transactionDetails[transaction.transaction_id].memberships.map((membership, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                              <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                  <p className="m-0 font-semibold">{membership.membership_type}</p>
+                                                  <p className="m-0 text-gray-600">
+                                                    {formatDate(membership.start_date)} - {formatDate(membership.expiration_date)}
+                                                  </p>
+                                                  <p className="m-0">
+                                                    <span className={membership.is_active ? 'text-green-600' : 'text-gray-500'}>
+                                                      {membership.is_active ? '✓ Active' : 'Inactive'}
+                                                    </span>
+                                                    {membership.is_renewal === 1 || membership.is_renewal === true ? (
+                                                      <span className="text-blue-600 ml-2">• Renewal</span>
+                                                    ) : null}
+                                                  </p>
+                                                </div>
+                                                <div className="text-right ml-2">
+                                                  <p className="m-0 font-semibold">${parseFloat(membership.amount_paid).toFixed(2)}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Donations */}
+                                    {transactionDetails[transaction.transaction_id].donations?.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-gray-700 mb-2">DONATIONS</p>
+                                        <div className="space-y-2">
+                                          {transactionDetails[transaction.transaction_id].donations.map((donation, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                              <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                  <p className="m-0 font-semibold">{donation.donation_type}</p>
+                                                  {donation.is_anonymous && <p className="m-0 text-gray-600">Anonymous</p>}
+                                                  {donation.donation_message && <p className="m-0 text-gray-600 italic">"{donation.donation_message}"</p>}
+                                                  <p className="m-0 text-gray-500">Tax Receipt: {donation.tax_receipt_sent ? '✓ Sent' : 'Pending'}</p>
+                                                </div>
+                                                <div className="text-right ml-2">
+                                                  <p className="m-0 font-semibold">${parseFloat(donation.donation_amount).toFixed(2)}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Receipt Total */}
+                                  <div className="border-t-2 border-gray-300 pt-3">
+                                    <div className="text-sm space-y-1">
+                                      <div className="flex justify-between">
+                                        <p className="m-0">Subtotal:</p>
+                                        <p className="m-0">${(parseFloat(transaction.total_price) / 1.0825).toFixed(2)}</p>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <p className="m-0">Tax (8.25%):</p>
+                                        <p className="m-0">${(parseFloat(transaction.total_price) - (parseFloat(transaction.total_price) / 1.0825)).toFixed(2)}</p>
+                                      </div>
+                                      <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                                        <p className="m-0 font-bold text-base">TOTAL:</p>
+                                        <p className="m-0 font-bold text-lg text-brand">${parseFloat(transaction.total_price).toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-600">No additional details available</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                      <p className="text-sm text-gray-600 m-0">No transactions found</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Account Metadata */}

@@ -1,124 +1,92 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import "./Support.css";
 import { Link } from "react-router-dom";
+import cafeteriaService from "../services/cafeteriaService";
+import { getImageUrl } from "../utils/imageHelpers";
 
 const Cafeteria = () => {
-  // 1) Keep MENU here (inside the component, but BEFORE return)
-  const MENU = [
-    {
-      category: "Coffee & Tea",
-      items: [
-        {
-          name: "House Latte",
-          desc: "Double shot espresso, velvety micro-foam.",
-          price: 5.25,
-          cals: 160,
-          img: "https://www.deathwishcoffee.com/cdn/shop/articles/haydn-golden-latte-unsplash_1a08c7ab-fcba-4b0c-8001-692edad1fe02.jpg?v=1740665931&width=1100",
-        },
-        {
-          name: "Cold Brew",
-          desc: "Slow-steeped, chocolatey finish.",
-          price: 4.75,
-          cals: 10,
-          img: "https://t3.ftcdn.net/jpg/03/16/01/48/360_F_316014817_EC1KN7mAD86ALYhhwGUUeSsQoJIVMtfQ.jpg",
-        },
-        {
-          name: "Loose-Leaf Tea",
-          desc: "Earl Grey, Jasmine, Peppermint, Chamomile.",
-          price: 3.95,
-          cals: 0,
-          img: "https://loveincstatic.blob.core.windows.net/lovefood/2020/Loose-leaf-tea/loose-leaf-vs-tea-bags.jpg",
-        },
-      ],
-    },
-    {
-      category: "Breakfast & Pastries",
-      items: [
-        {
-          name: "Seasonal Croissant",
-          desc: "Baked in-house, rotating fillings.",
-          price: 4.50,
-          cals: 280,
-          img: "https://balthazar-bakery.myshopify.com/cdn/shop/collections/breakfast_retail_new-1120x862.jpg?v=1706678805&width=750",
-        },
-        {
-          name: "Yogurt Parfait",
-          desc: "Greek yogurt, museum granola, local honey, berries.",
-          price: 6.50,
-          cals: 320,
-          tags: ["Vegetarian", "Gluten-Free"],
-          img: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=80",
-        },
-      ],
-    },
-    {
-      category: "Sandwiches & Salads",
-      items: [
-        {
-          name: "Artisan Veggie Sandwich",
-          desc: "Roasted peppers & zucchini, basil-lemon aioli, country loaf.",
-          price: 11.50,
-          cals: 520,
-          tags: ["Vegetarian Options"],
-          img: "https://chiliandtonic.com/wp-content/uploads/2021/06/grilled-veggie-sandwich-05-500x375.jpg",
-        },
-        {
-          name: "Roast Chicken Ciabatta",
-          desc: "Herb-roasted chicken, pickled onion, arugula, garlic aioli.",
-          price: 12.75,
-          cals: 610,
-          img: "https://media.istockphoto.com/id/157647007/photo/panini-sandwiches.jpg?s=612x612&w=0&k=20&c=zui410-M0L0NvLB4KKE-B1stSZDjRw8FSe2Xi1yOwEA=",
-        },
-        {
-          name: "Garden Salad Bowl",
-          desc: "Local greens, cucumber, radish, toasted seeds, citrus vinaigrette.",
-          price: 10.25,
-          cals: 280,
-          tags: ["Vegan", "Gluten-Free"],
-          img: "https://media.istockphoto.com/id/1454741285/photo/roast-fish-and-vegetable-salad-on-wooden-background.jpg?s=612x612&w=0&k=20&c=Slmk-RLvdR3317E5W2UKLul4y1ZH3axjL2XCNOBZbhE=",
-        },
-      ],
-    },
-    {
-      category: "Kids",
-      items: [
-        {
-          name: "Grilled Cheese",
-          desc: "Mild cheddar on buttered sourdough. Served with apple slices.",
-          price: 7.50,
-          cals: 450,
-          img: "https://images.purplecarrot.com/uploads/product/image/1751/_1400_700_Vegan_IndianStyleGrilledCheese_Horizontal-94c1ec28c62513396bb735774966ec21.jpg",
-        },
-        {
-            name: "Mini Pasta Bowl",
-            desc: "Butter or tomato sauce over penne, served with fruit cup and milk.",
-            price: 8.25,
-            cals: 510,
-            tags: ["Vegetarian Options"],
-            img: "https://as1.ftcdn.net/jpg/03/09/68/14/1000_F_309681406_riA81IvbTM12ryVMFjygv1Wi8hSjOAq5.jpg",
-        },
-      ],
-    },
-    {
-      category: "Desserts",
-      items: [
-        {
-          name: "Citrus Olive-Oil Cake",
-          desc: "Fragrant, moist crumb; powdered sugar finish.",
-          price: 5.95,
-          cals: 420,
-          img: "https://temeculaoliveoil.com/wp-content/uploads/2025/09/Blood-Orange-Citrus-Olive-Oil-Cake.png",
-        },
-        {
-          name: "Chocolate Tart",
-          desc: "Dark chocolate ganache, flaky crust, sea-salt.",
-          price: 6.50,
-          cals: 480,
-          img: "https://thumbs.dreamstime.com/b/no-bake-healthy-pastry-chocolate-tart-top-view-decorated-strawberries-blueberries-coconut-chips-served-dark-concrete-180802708.jpg",
-        },
-      ],
-    },
-  ];
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchMenuItems = async () => {
+      try {
+        setLoading(true);
+        const items = await cafeteriaService.getAllItems();
+        setMenuItems(items);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching cafeteria items:', err);
+        setError('Failed to load menu items. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMenuItems();
+  }, []);
+
+  // Transform backend data to match frontend structure
+  const MENU = menuItems.reduce((acc, item) => {
+    // Map backend category names to frontend display names
+    const categoryMap = {
+      'Hot Beverages': 'Coffee & Tea',
+      'Cold Beverages': 'Coffee & Tea',
+      'Sandwiches': 'Sandwiches & Salads',
+      'Salads': 'Sandwiches & Salads',
+      'Main Dishes': 'Kids',
+      'Desserts': 'Desserts'
+    };
+
+    const displayCategory = categoryMap[item.category] || item.category;
+
+    // Find or create category
+    let categoryObj = acc.find(cat => cat.category === displayCategory);
+    if (!categoryObj) {
+      categoryObj = { category: displayCategory, items: [] };
+      acc.push(categoryObj);
+    }
+
+    // Transform item data
+    const transformedItem = {
+      name: item.item_name,
+      desc: item.description,
+      price: parseFloat(item.price),
+      cals: item.calories,
+      prepTime: item.preparation_time_minutes,
+      img: getImageUrl(item.image_url) || 'https://via.placeholder.com/400x220?text=Menu+Item',
+    };
+
+    // Add dietary tags
+    const tags = [];
+    if (item.is_vegetarian) tags.push('Vegetarian');
+    if (item.is_vegan) tags.push('Vegan');
+
+    // Add special tags for specific items based on original hardcoded data
+    if (item.item_name === 'Yogurt Parfait') {
+      tags.push('Gluten-Free');
+    } else if (item.item_name === 'Artisan Veggie Sandwich') {
+      tags.push('Vegetarian Options');
+    } else if (item.item_name === 'Garden Salad Bowl') {
+      tags.push('Gluten-Free');
+    } else if (item.item_name === 'Mini Pasta Bowl') {
+      tags.push('Vegetarian Options');
+    }
+
+    if (tags.length > 0) {
+      transformedItem.tags = tags;
+    }
+
+    categoryObj.items.push(transformedItem);
+    return acc;
+  }, []);
+
+  // Ensure categories are in the correct order
+  const categoryOrder = ['Coffee & Tea', 'Breakfast & Pastries', 'Sandwiches & Salads', 'Kids', 'Desserts'];
+  const displayMenu = categoryOrder.map(catName => {
+    return MENU.find(cat => cat.category === catName);
+  }).filter(Boolean);
 
   // 2) All JSX must be inside return
   return (
@@ -195,7 +163,20 @@ const Cafeteria = () => {
         Prices include tax. Availability may vary daily. Ask about seasonal specials.
         </p>
 
-        {MENU.map((section, idx) => (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <p>Loading menu items...</p>
+          </div>
+        ) : error ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'red' }}>
+            <p>{error}</p>
+          </div>
+        ) : displayMenu.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <p>No menu items available at this time.</p>
+          </div>
+        ) : (
+          displayMenu.map((section, idx) => (
         <div key={idx} style={{ marginBottom: "2.75rem" }}>
             {/* category header */}
             <div
@@ -311,16 +292,28 @@ const Cafeteria = () => {
                         </span>
                     ))}
                     {typeof it.cals === "number" && (
+                    <span
+                    style={{
+                    marginLeft: "auto",
+                    fontSize: ".78rem",
+                    color: "#64748b",
+                    fontWeight: 700,
+                    }}
+                    aria-label="Calories"
+                    >
+                    {it.cals} cal
+                    </span>
+                    )}
+                    {typeof it.prepTime === "number" && it.prepTime > 0 && (
                         <span
                         style={{
-                            marginLeft: "auto",
                             fontSize: ".78rem",
-                            color: "#64748b",
+                            color: "#059669",
                             fontWeight: 700,
                         }}
-                        aria-label="Calories"
+                        aria-label="Preparation Time"
                         >
-                        {it.cals} cal
+                        {it.prepTime} min
                         </span>
                     )}
                     </div>
@@ -329,7 +322,8 @@ const Cafeteria = () => {
             ))}
             </div>
         </div>
-        ))}
+        ))
+        )}
 
         <p style={{ color: "#6b7280", marginTop: ".75rem", fontSize: ".95rem" }}>
         * We proudly feature local roasters and bakers. Please inform us of any allergies.
@@ -350,7 +344,7 @@ const Cafeteria = () => {
       {/* CTA */}
       <section className="cta-section py-5" style={{ backgroundColor: "#eae4da", textAlign: "center" }}>
         <h2 className="section-title mb-3">Plan Your Visit</h2>
-        <p>Take a moment to relax — your table’s waiting at the Museum Café.</p>
+        <p>Take a moment to relax — your table's waiting at the Museum Café.</p>
         <Link to="/visit">
           <button className="btn btn-primary mt-3" style={{ backgroundColor: "#355c7d", border: "none" }}>
             Explore Museum Hours

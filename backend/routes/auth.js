@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-trailing-spaces */
 // File: backend/routes/auth.js
 
 import express from 'express'
