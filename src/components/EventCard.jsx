@@ -6,7 +6,18 @@ import { getImageUrl } from '../utils/imageHelpers'
 // Placeholder image for events/exhibitions without a picture
 const PLACEHOLDER_IMAGE = '/placeholder-event.jpg' // Put this file in your public folder
 
-const EventCard = ({ name, startDate, endDate, time, location, isMemberOnly, pictureUrl }) => {
+const EventCard = ({
+  name,
+  startDate,
+  endDate,
+  time,
+  location,
+  isMemberOnly,
+  pictureUrl,
+  type,
+  item,
+  onPreview,
+}) => {
   const formatDate = (dateStr) => {
     const dateObj = new Date(dateStr)
     return dateObj.toLocaleDateString('en-US', {
@@ -37,7 +48,7 @@ const EventCard = ({ name, startDate, endDate, time, location, isMemberOnly, pic
   const imageSrc = getImageUrl(pictureUrl) || PLACEHOLDER_IMAGE
 
   return (
-    <div className="bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer relative mb-6 group">
+    <div className="bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 relative mb-6 group">
       {/* Shimmer effect */}
       <div className="absolute inset-0 bg-gradient-to-r from-brand/0 via-brand/30 to-brand/0 translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out z-10 pointer-events-none"></div>
 
@@ -64,9 +75,25 @@ const EventCard = ({ name, startDate, endDate, time, location, isMemberOnly, pic
         {time ? (
           <p className="text-gray-600 mb-1">{formatDateTime(startDate, time)}</p>
         ) : (
-          <p className="text-gray-600 mb-1">{formatExhibitionDate(startDate, endDate)}</p>
+          // For exhibitions that are permanent (no end date), show friendly text instead of dates
+          (item && item.exhibition_type && String(item.exhibition_type).toLowerCase() === 'permanent') ? (
+            <p className="text-gray-600 mb-1">Permanent exhibition — ongoing</p>
+          ) : (
+            <p className="text-gray-600 mb-1">{formatExhibitionDate(startDate, endDate)}</p>
+          )
         )}
         <p className="text-gray-500 text-sm">{location}</p>
+
+        {/* Learn more button inside card */}
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => onPreview && onPreview(item, type)}
+            className="px-3 py-1.5 bg-brand text-white rounded-md text-sm hover:bg-brand-dark transition-colors"
+          >
+            Learn more
+          </button>
+        </div>
       </div>
     </div>
   )

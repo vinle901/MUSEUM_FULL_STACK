@@ -9,7 +9,13 @@ const router = express.Router()
 // GET all exhibitions - Public
 router.get('/', async (req, res) => {
   try {
-    const [exhibitions] = await db.query('SELECT * FROM Exhibition WHERE is_active = TRUE')
+    // Allow clients to request inactive exhibitions as well using
+    // ?include_inactive=true. Default behaviour remains to return only active exhibitions.
+    const includeInactive = req.query.include_inactive === 'true'
+    const query = includeInactive
+      ? 'SELECT * FROM Exhibition'
+      : 'SELECT * FROM Exhibition WHERE is_active = TRUE'
+    const [exhibitions] = await db.query(query)
     res.json(exhibitions)
   } catch (error) {
     res.status(500).json({ error: error.message })
