@@ -57,7 +57,7 @@
 
 .location-hours {
   display: flex;
-  gap: 2.5rem;
+  gap: 3rem;
   align-items: flex-start;
   margin: 2rem 0 5rem 0;
   justify-content: center;
@@ -69,11 +69,9 @@
 }
 
 .hours-table {
-  width: 40%;
   border-collapse: collapse;
   background-color: white;
   margin-top: 4rem;
-  margin-left: 3rem;
   font-size: 1rem;
 }
 
@@ -130,11 +128,13 @@
 }
 
 .ticket-table {
+  flex: 0 0 40%;
   width: 40%;
   border-collapse: collapse;
-  margin: 1rem 1.5rem 0 1.5rem;
+  margin: 0; /* rely on gap or space-between for spacing */
   background-color: white;
   font-size: 1rem;
+  box-sizing: border-box;
 }
 
 .ticket-table td {
@@ -160,20 +160,22 @@
 
 .ticket-section {
   display: flex;
-  gap: 2.5rem;
+  gap: 2rem;
   align-items: flex-start;
   margin-bottom: 5rem;
-  justify-content: center;
+  justify-content: space-between; /* enforce 40%/60% split */
 }
 
 .membership-info {
-  flex: 2;
-  padding: 1.2rem 0 1.5rem 3rem;
+  flex: 0 0 60%;
+  width: 60%;
+  padding: 1.2rem 0 1.5rem 1.5rem; /* reduced to fit 60% width nicely */
   font-size: 1.05rem;
   color: #333;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  box-sizing: border-box;
 }
 .membership-info h2 {
   margin-top: 0;
