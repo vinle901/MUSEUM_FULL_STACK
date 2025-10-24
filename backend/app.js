@@ -23,6 +23,7 @@ import employeeRoutes from './routes/employees.js'
 import eventHostingRoutes from './routes/event-hosting.js'
 import benefitsRoutes from './routes/benefits.js'
 import middleware from './utils/middleware.js'
+import reportsRoutes from './routes/reports.js'  // Add with other imports
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -82,6 +83,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Museum API is running :V' })
 })
 
+
+app.use('/api/reports', reportsRoutes)
 // Error handling middleware - MUST be last
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)

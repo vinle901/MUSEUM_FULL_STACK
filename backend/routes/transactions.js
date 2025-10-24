@@ -270,16 +270,54 @@ router.post('/gift-shop-checkout', async (req, res) => {
       }
     }
 
-    // Step 3: Calculate total items
+    // Step 2.5: Check if user has an active membership and get discount percentage
+    let discountPercentage = 0
+    let membershipType = null
+    
+    const [userMemberships] = await connection.query(
+      `SELECT m.membership_type, b.discount_percentage
+       FROM Membership m
+       JOIN Benefits b ON m.membership_type = b.membership_type
+       WHERE m.user_id = ? 
+       AND m.is_active = TRUE 
+       AND m.expiration_date >= CURDATE()
+       LIMIT 1`,
+      [user_id]
+    )
+
+    if (userMemberships.length > 0) {
+      discountPercentage = parseFloat(userMemberships[0].discount_percentage) || 0
+      membershipType = userMemberships[0].membership_type
+      console.log(`User has active membership: ${membershipType} with ${discountPercentage}% discount`)
+    } else {
+      console.log('User has no active membership or membership has expired')
+    }
+
+    // Step 3: Calculate total items and apply discount
     const total_items = cart_items.reduce((sum, item) => sum + item.quantity, 0)
     console.log(`Total items: ${total_items}`)
+    
+    // Calculate discounted total price
+    let calculatedTotalPrice = 0
+    for (const cartItem of cart_items) {
+      const dbItem = itemMap[cartItem.item_id]
+      const originalPrice = dbItem.price
+      const discountedPrice = originalPrice * (1 - discountPercentage / 100)
+      const lineTotal = discountedPrice * cartItem.quantity
+      calculatedTotalPrice += lineTotal
+    }
+    
+    // Round to 2 decimal places
+    calculatedTotalPrice = parseFloat(calculatedTotalPrice.toFixed(2))
+    console.log(`Calculated total price with discount: ${calculatedTotalPrice}`)
 
-    // Step 4: Insert Transaction record
+
+    // Step 4: Insert Transaction record (using calculated price with discount)
     const [transactionResult] = await connection.query(
       `INSERT INTO Transactions 
        (user_id, total_price, total_items, payment_method, transaction_status, employee_id) 
        VALUES (?, ?, ?, ?, 'Completed', NULL)`,
-      [user_id, total_price, total_items, payment_method]
+      [user_id, calculatedTotalPrice, total_items, payment_method]
     )
 
     const transaction_id = transactionResult.insertId
@@ -290,9 +328,12 @@ router.post('/gift-shop-checkout', async (req, res) => {
     
     for (const cartItem of cart_items) {
       const dbItem = itemMap[cartItem.item_id]
-      const line_total = parseFloat((dbItem.price * cartItem.quantity).toFixed(2))
+      // Apply membership discount to the unit price
+      const originalPrice = dbItem.price
+      const discountedUnitPrice = parseFloat((originalPrice * (1 - discountPercentage / 100)).toFixed(2))
+      const line_total = parseFloat((discountedUnitPrice * cartItem.quantity).toFixed(2))
 
-      // Insert purchase record
+      // Insert purchase record with discounted prices
       const [purchaseResult] = await connection.query(
         `INSERT INTO Gift_Shop_Purchase 
          (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total) 
@@ -302,7 +343,7 @@ router.post('/gift-shop-checkout', async (req, res) => {
           cartItem.item_id,
           dbItem.item_name,
           cartItem.quantity,
-          dbItem.price,
+          discountedUnitPrice,
           line_total
         ]
       )
@@ -313,7 +354,7 @@ router.post('/gift-shop-checkout', async (req, res) => {
         gift_item_id: cartItem.item_id,
         item_name: dbItem.item_name,
         quantity: cartItem.quantity,
-        unit_price: dbItem.price,
+        unit_price: discountedUnitPrice,
         line_total: line_total
       })
 
@@ -335,20 +376,25 @@ router.post('/gift-shop-checkout', async (req, res) => {
     await connection.commit()
     console.log('Database transaction committed successfully')
 
-    // Step 7: Return success response
+    // Step 7: Return success response with discount information
     res.status(201).json({
       success: true,
       message: 'Gift shop purchase completed successfully',
       transaction: {
         transaction_id: transaction_id,
         user_id: user_id,
-        total_price: parseFloat(total_price),
+        total_price: calculatedTotalPrice,
         total_items: total_items,
         payment_method: payment_method,
         transaction_status: 'Completed'
       },
       purchases: purchaseRecords,
-      customer_info: customer_info || null
+      customer_info: customer_info || null,
+      discount: {
+        applied: discountPercentage > 0,
+        percentage: discountPercentage,
+        membership_type: membershipType
+      }
     })
 
   } catch (error) {
@@ -560,5 +606,199 @@ router.post('/membership-checkout', async (req, res) => {
     }
   }
 })
+
+// POST /api/transactions/cafeteria-pos - Process cafeteria POS order
+router.post('/cafeteria-pos', async (req, res) => {
+  let connection;
+  
+  try {
+    // Get connection from pool
+    connection = await db.getConnection();
+    
+    const {
+      customerEmail,
+      paymentMethod,
+      items, // Array of { cafeteria_item_id, quantity, unit_price }
+    } = req.body;
+
+    console.log('Cafeteria POS checkout request:', { customerEmail, paymentMethod, items });
+
+    // Validation
+    if (!paymentMethod || !items || items.length === 0) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: paymentMethod and items' 
+      });
+    }
+
+    // Validate payment method matches schema ENUM
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment'];
+    if (!validPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({ 
+        error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}` 
+      });
+    }
+
+    // Start database transaction
+    await connection.beginTransaction();
+
+    // Step 1: Find or create user for walk-in customers
+    let userId = 1; // Default guest user ID (make sure you have a guest user with ID 1)
+    
+    if (customerEmail && customerEmail !== 'walk-in@museum.org') {
+      const [users] = await connection.query(
+        'SELECT user_id FROM users WHERE email = ?',
+        [customerEmail]
+      );
+      
+      if (users.length > 0) {
+        userId = users[0].user_id;
+      } else {
+        // Create a minimal user record for the customer
+        const [userResult] = await connection.query(
+          `INSERT INTO users (email, password, first_name, last_name, birthdate, sex)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [customerEmail, 'not-set', 'Walk-in', 'Customer', '1990-01-01', 'Prefer not to say']
+        );
+        userId = userResult.insertId;
+      }
+    }
+
+    // Step 2: Validate all items exist and get their details
+    const itemIds = items.map(item => item.cafeteria_item_id);
+    const placeholders = itemIds.map(() => '?').join(',');
+    const [dbItems] = await connection.query(
+      `SELECT item_id, item_name, price, is_available 
+       FROM Cafeteria_Items 
+       WHERE item_id IN (${placeholders})`,
+      itemIds
+    );
+
+    // Check if all items were found
+    if (dbItems.length !== items.length) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        error: 'One or more items not found in database'
+      });
+    }
+
+    // Create a map for easy lookup
+    const itemMap = {};
+    dbItems.forEach(item => {
+      itemMap[item.item_id] = item;
+    });
+
+    // Step 3: Validate availability
+    for (const cartItem of items) {
+      const dbItem = itemMap[cartItem.cafeteria_item_id];
+      
+      if (!dbItem.is_available) {
+        await connection.rollback();
+        return res.status(400).json({ 
+          error: `Item "${dbItem.item_name}" is not available` 
+        });
+      }
+    }
+
+    // Step 4: Calculate totals
+    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalPrice = items.reduce((sum, item) => {
+      const dbItem = itemMap[item.cafeteria_item_id];
+      return sum + (parseFloat(dbItem.price) * item.quantity);
+    }, 0);
+
+    // Step 5: Get employee ID if this is an employee processing the order
+    let employeeId = null;
+    if (req.user && (req.user.role === 'employee' || req.user.role === 'admin')) {
+      const [employees] = await connection.query(
+        'SELECT employee_id FROM Employee WHERE user_id = ?',
+        [req.user.id]
+      );
+      if (employees.length > 0) {
+        employeeId = employees[0].employee_id;
+      }
+    }
+
+    // Step 6: Insert Transaction record
+    const [transactionResult] = await connection.query(
+      `INSERT INTO Transactions 
+       (user_id, total_price, total_items, payment_method, transaction_status, employee_id) 
+       VALUES (?, ?, ?, ?, 'Completed', ?)`,
+      [userId, totalPrice, totalItems, paymentMethod, employeeId]
+    );
+
+    const transactionId = transactionResult.insertId;
+    console.log(`Transaction created with ID: ${transactionId}`);
+
+    // Step 7: Insert Cafeteria_Purchase records
+    const purchaseRecords = [];
+    
+    for (const cartItem of items) {
+      const dbItem = itemMap[cartItem.cafeteria_item_id];
+      const lineTotal = parseFloat((parseFloat(dbItem.price) * cartItem.quantity).toFixed(2));
+
+      // Insert purchase record
+      const [purchaseResult] = await connection.query(
+        `INSERT INTO Cafeteria_Purchase 
+         (transaction_id, cafeteria_item_id, item_name, quantity, unit_price, line_total) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          transactionId,
+          cartItem.cafeteria_item_id,
+          dbItem.item_name,
+          cartItem.quantity,
+          dbItem.price,
+          lineTotal
+        ]
+      );
+
+      purchaseRecords.push({
+        purchase_id: purchaseResult.insertId,
+        cafeteria_item_id: cartItem.cafeteria_item_id,
+        item_name: dbItem.item_name,
+        quantity: cartItem.quantity,
+        unit_price: dbItem.price,
+        line_total: lineTotal
+      });
+    }
+
+    // Step 8: Commit transaction
+    await connection.commit();
+    console.log('Cafeteria POS transaction committed successfully');
+
+    // Step 9: Return success response
+    res.status(201).json({
+      success: true,
+      message: 'Cafeteria order processed successfully',
+      transactionId: transactionId,
+      transaction: {
+        transaction_id: transactionId,
+        user_id: userId,
+        total_price: totalPrice,
+        total_items: totalItems,
+        payment_method: paymentMethod,
+        transaction_status: 'Completed',
+        employee_id: employeeId
+      },
+      purchases: purchaseRecords
+    });
+
+  } catch (error) {
+    // Rollback on any error
+    if (connection) {
+      await connection.rollback();
+      console.log('Database transaction rolled back due to error');
+    }
+    console.error('Cafeteria POS checkout error:', error);
+    res.status(500).json({ 
+      error: 'Transaction failed',
+      details: error.message
+    });
+  } finally {
+    // Release connection back to pool
+    if (connection) {
+      connection.release();
+    }
+  }
+});
 
 export default router

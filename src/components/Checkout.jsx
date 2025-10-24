@@ -43,18 +43,27 @@ const Checkout = () => {
   const [errors, setErrors] = useState({})
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderComplete, setOrderComplete] = useState(false)
+  const [membership, setMembership] = useState(null)
+  const [membershipLoading, setMembershipLoading] = useState(true)
   
   // NEW: Store completed order details to preserve data after cart is cleared
   const [completedOrder, setCompletedOrder] = useState({
+    subtotalBeforeDiscount: 0,
+    discountPercentage: 0,
+    discountAmount: 0,
     subtotal: 0,
     tax: 0,
     total: 0,
+    membershipType: null,
     customerInfo: {},
     items: []
   })
 
-  // Calculate totals from current cart
-  const subtotal = getCartTotal()
+  // Calculate totals from current cart with membership discount
+  const subtotalBeforeDiscount = getCartTotal()
+  const discountPercentage = membership?.discount_percentage || 0
+  const discountAmount = subtotalBeforeDiscount * (discountPercentage / 100)
+  const subtotal = subtotalBeforeDiscount - discountAmount
   const taxRate = 0.0825
   const tax = subtotal * taxRate
   const total = subtotal + tax
@@ -73,14 +82,33 @@ const Checkout = () => {
             lastName: currentUser.last_name || '',
             phone: currentUser.phone_number || '',
           }))
+          
+          // Fetch membership information (only for logged-in users)
+          try {
+            const membershipRes = await api.get(`/api/memberships/user/${currentUser.user_id}`)
+            if (membershipRes.data && membershipRes.data.length > 0) {
+              // Get the first active membership
+              const activeMembership = membershipRes.data[0]
+              setMembership(activeMembership)
+              console.log('User membership:', activeMembership)
+            }
+          } catch (membershipError) {
+            console.log('No active membership found:', membershipError)
+          } finally {
+            setMembershipLoading(false)
+          }
+        } else {
+          // User not logged in - that's OK, they can checkout as guest
+          setMembershipLoading(false)
         }
       } catch (error) {
-        // User not logged in or error fetching data
+        // User not logged in or error fetching data - allow guest checkout
         console.log('Could not load user data:', error)
+        setMembershipLoading(false)
       }
     }
     loadUserData()
-  }, [])
+  }, [navigate])
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -152,20 +180,24 @@ const Checkout = () => {
     try {
       let currentUser = null
       
-      // Get current user (if logged in)
+      // Try to get current user (if logged in) - but don't require it
       try {
         currentUser = await authService.getCurrentUser()
       } catch (error) {
-        console.log('User not logged in, proceeding as guest')
+        console.log('User not logged in, proceeding as guest checkout')
+        // This is OK - guests can checkout
       }
 
     // Calculate final totals BEFORE clearing cart
-    const finalSubtotal = getCartTotal()
+    const finalSubtotalBeforeDiscount = getCartTotal()
+    const finalDiscountPercentage = membership?.discount_percentage || 0
+    const finalDiscountAmount = finalSubtotalBeforeDiscount * (finalDiscountPercentage / 100)
+    const finalSubtotal = finalSubtotalBeforeDiscount - finalDiscountAmount
     const finalTax = finalSubtotal * taxRate
     const finalTotal = finalSubtotal + finalTax
 
       const transactionData = {
-        user_id: currentUser?.user_id || 1,
+        user_id: currentUser?.user_id || 1, // Allow guests with user_id = 1
         payment_method: formData.paymentMethod,
         total_price: parseFloat(total.toFixed(2)),
         cart_items: cart.map(item => ({
@@ -189,9 +221,13 @@ const Checkout = () => {
       
       // CRITICAL FIX: Save order details BEFORE clearing cart
       setCompletedOrder({
+        subtotalBeforeDiscount: finalSubtotalBeforeDiscount,
+        discountPercentage: finalDiscountPercentage,
+        discountAmount: finalDiscountAmount,
         subtotal: finalSubtotal,
         tax: finalTax,
         total: finalTotal,
+        membershipType: membership?.membership_type || null,
         customerInfo: {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -240,7 +276,16 @@ const Checkout = () => {
   if (orderComplete) {
     // Use completedOrder data instead of current cart (which is empty)
     // eslint-disable-next-line no-unused-vars, object-curly-newline
-    const { subtotal: orderSubtotal, tax: orderTax, total: orderTotal, customerInfo } = completedOrder
+    const { 
+      subtotalBeforeDiscount: orderSubtotalBefore, 
+      discountPercentage: orderDiscountPercent,
+      discountAmount: orderDiscountAmt,
+      subtotal: orderSubtotal, 
+      tax: orderTax, 
+      total: orderTotal, 
+      membershipType: orderMembershipType,
+      customerInfo 
+    } = completedOrder
 
     return (
       <div className="min-h-screen bg-white">
@@ -290,6 +335,33 @@ const Checkout = () => {
                 <p className="text-lg font-semibold text-brand">${orderTotal.toFixed(2)}</p>
               </div>
             </div>
+            
+            {/* Price Breakdown */}
+            {orderDiscountPercent > 0 && (
+              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6">
+                <p className="text-sm font-semibold text-green-800 mb-3">
+                  ✓ Member Discount Applied ({orderMembershipType})
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Subtotal:</span>
+                    <span className="font-semibold">${orderSubtotalBefore.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-green-700">
+                    <span>Member Discount ({orderDiscountPercent}%):</span>
+                    <span className="font-semibold">-${orderDiscountAmt.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Tax (8.25%):</span>
+                    <span className="font-semibold">${orderTax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-green-300">
+                    <span className="font-bold">Total:</span>
+                    <span className="font-bold text-brand">${orderTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Shipping Address Display */}
             <div className="bg-gray-50 rounded-lg p-4 mt-6">
@@ -646,8 +718,14 @@ const Checkout = () => {
               <div className="space-y-3 border-t-2 border-gray-300 pt-4">
                 <div className="flex justify-between text-lg">
                   <span>Subtotal:</span>
-                  <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                  <span className="font-semibold">${subtotalBeforeDiscount.toFixed(2)}</span>
                 </div>
+                {membership && discountPercentage > 0 && (
+                  <div className="flex justify-between text-lg text-green-600">
+                    <span>Member Discount ({discountPercentage}%):</span>
+                    <span className="font-semibold">-${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg">
                   <span>Tax (8.25%):</span>
                   <span className="font-semibold">${tax.toFixed(2)}</span>

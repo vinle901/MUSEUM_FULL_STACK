@@ -20,10 +20,11 @@ import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
 import Cafeteria from "./components/Cafeteria"
 
-// Employee Components
+// Employee Portal Components
 import EmployeePOS from "./components/employee/EmployeePOS"
 import AdminPortal from "./components/employee/AdminPortal"
 import AnalystReports from "./components/employee/AnalystReports"
+import ProtectedEmployeeRoute from "./components/employee/ProtectedEmployeeRoute"
 
 function App() {
   return (
@@ -31,7 +32,6 @@ function App() {
       <div className="min-h-screen bg-white">
         <NavBar />
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/visit" element={<Visit />} />
           <Route path="/artworks" element={<Artwork />} />
@@ -50,41 +50,29 @@ function App() {
           <Route path="/membership" element={<Navigate to="/membershipinfo" replace />} />
           <Route path="/cafeteria" element={<Cafeteria />} />
           
-          {/* Employee Routes - Open to All for Development */}
-          <Route path="/employee/pos" element={<EmployeePOS />} />
-          <Route path="/employee/admin" element={<AdminPortal />} />
-          <Route path="/employee/reports" element={<AnalystReports />} />
+          {/* Employee Portal Routes */}
+          <Route path="/employee/pos" element={
+            <ProtectedEmployeeRoute allowedTypes={['cafeteria']}>
+              <EmployeePOS />
+            </ProtectedEmployeeRoute>
+          } />
+          <Route path="/employee/admin" element={
+            <ProtectedEmployeeRoute allowedTypes={['admin']}>
+              <AdminPortal />
+            </ProtectedEmployeeRoute>
+          } />
+          <Route path="/employee/reports" element={
+            <ProtectedEmployeeRoute allowedTypes={['analyst']}>
+              <AnalystReports />
+            </ProtectedEmployeeRoute>
+          } />
           <Route path="/employee" element={
-            <div style={{ padding: '40px', textAlign: 'center' }}>
-              <h1>Employee Portal</h1>
-              <p>Welcome to the employee portal. Choose a specific portal from the navigation bar.</p>
-              <div style={{ marginTop: '30px', display: 'flex', gap: '20px', justifyContent: 'center' }}>
-                <a href="/employee/pos" style={{ 
-                  padding: '15px 30px', 
-                  backgroundColor: '#059669', 
-                  color: 'white', 
-                  textDecoration: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 'bold'
-                }}>POS System</a>
-                <a href="/employee/admin" style={{ 
-                  padding: '15px 30px', 
-                  backgroundColor: '#7c3aed', 
-                  color: 'white', 
-                  textDecoration: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 'bold'
-                }}>Admin Portal</a>
-                <a href="/employee/reports" style={{ 
-                  padding: '15px 30px', 
-                  backgroundColor: '#0891b2', 
-                  color: 'white', 
-                  textDecoration: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 'bold'
-                }}>Analytics</a>
+            <ProtectedEmployeeRoute>
+              <div style={{ padding: '40px', textAlign: 'center' }}>
+                <h1>Employee Portal</h1>
+                <p>Welcome to the employee portal. Access your designated area from the navigation.</p>
               </div>
-            </div>
+            </ProtectedEmployeeRoute>
           } />
         </Routes>
         <Footer />

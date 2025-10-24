@@ -56,10 +56,15 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
         return api(originalRequest)
       } catch (refreshError) {
-        // Refresh failed, clear tokens and redirect to login
+        // Refresh failed, clear tokens
         localStorage.removeItem('accessToken')
         localStorage.removeItem('user')
-        window.location.href = '/login'
+        
+        // Only redirect to login if NOT on checkout page (allow guest checkout)
+        if (!window.location.pathname.includes('/checkout')) {
+          window.location.href = '/login'
+        }
+        
         return Promise.reject(refreshError)
       }
     }
