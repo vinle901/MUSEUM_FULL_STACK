@@ -24,6 +24,7 @@ import eventHostingRoutes from './routes/event-hosting.js'
 import benefitsRoutes from './routes/benefits.js'
 import middleware from './utils/middleware.js'
 import reportsRoutes from './routes/reports.js'  // Add with other imports
+import db from './config/database.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -65,6 +66,22 @@ app.use('/api/benefits', benefitsRoutes)
 // Transaction routes - gift-shop-checkout is public, others may require auth
 // IMPORTANT: Place BEFORE protected routes to allow guest checkout
 app.use('/api/transactions', transactionRoutes)
+
+// Public endpoint for ticket types so the Visit page can load real DB data without auth
+app.get('/api/ticket_types', async (req, res) => {
+  try {
+    // Prefer the table name you indicated (ticket_type); fall back to Ticket_Types if needed
+    try {
+      const [rows] = await db.query('SELECT * FROM ticket_type WHERE is_available = TRUE')
+      return res.json(rows)
+    } catch (e1) {
+      const [rows] = await db.query('SELECT * FROM Ticket_Types WHERE is_available = TRUE')
+      return res.json(rows)
+    }
+  } catch (error) {
+    return res.status(500).json({ error: error.message })
+  }
+})
 
 // Protected routes - Authentication required for all operations
 app.use('/api/tickets', middleware.requireAuth, ticketRoutes)

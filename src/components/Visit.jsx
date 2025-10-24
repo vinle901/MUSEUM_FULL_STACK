@@ -89,9 +89,9 @@ function Visit() {
                 </tr>
               ) : (
                 ticketTypes.map((ticket) => (
-                  <tr key={ticket.id}>
+                  <tr key={ticket.ticket_type_id}>
                     <td>{ticket.ticket_name}</td>
-                    <td>{ticket.base_price === 0 ? 'Free' : `$${ticket.base_price.toFixed(2)}`}</td>
+                    <td>{ticket.base_price === 0 ? 'Free' : `$${Number(ticket.base_price).toFixed(2)}`}</td>
                   </tr>
                 ))
               )}
@@ -101,7 +101,12 @@ function Visit() {
             <h2>Membership Benefits</h2>
             <p>Members enjoy free admission, exclusive events, discounts at the gift shop and cafeteria, and early access to special exhibitions. Become a member to support the museum and enjoy these perks!</p>
             <div className="ticket-buttons">
-              <button className="buy-ticket-btn">Buy Ticket</button>
+              <button
+                className="buy-ticket-btn"
+                onClick={() => navigate('/login')}
+              >
+                Buy Ticket
+              </button>
               <button
                 className="become-member-btn"
                 onClick={() => navigate('/membership')}

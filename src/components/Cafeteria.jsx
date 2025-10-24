@@ -346,7 +346,7 @@ const Cafeteria = () => {
         <h2 className="section-title mb-3">Plan Your Visit</h2>
         <p>Take a moment to relax — your table's waiting at the Museum Café.</p>
         <Link to="/visit">
-          <button className="btn btn-primary mt-3" style={{ backgroundColor: "#355c7d", border: "none" }}>
+          <button className="btn btn-primary mt-3" style={{ backgroundColor: "#355c7d", color: "white", border: "none" }}>
             Explore Museum Hours
           </button>
         </Link>

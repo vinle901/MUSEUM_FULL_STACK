@@ -25,6 +25,7 @@ CREATE TABLE `Exhibition`(
     `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `picture_url` VARCHAR(255) NULL,
     PRIMARY KEY(`exhibition_id`),
     INDEX `idx_dates` (`start_date`, `end_date`),
     CHECK (`end_date` IS NULL OR `end_date` >= `start_date`)
@@ -224,6 +225,7 @@ CREATE TABLE `Events`(
     `is_cancelled` BOOLEAN NOT NULL DEFAULT FALSE,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `picture_url` VARCHAR(255) NULL,
     PRIMARY KEY(`event_id`),
     INDEX `idx_date` (`event_date`),
     INDEX `idx_exhibition` (`exhibition_id`),
