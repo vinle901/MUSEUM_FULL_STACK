@@ -18,7 +18,6 @@ import Login from "./components/Login.jsx"
 import Membership from "./components/Membership.jsx"
 import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
-import Cafeteria from "./components/Cafeteria"
 
 // Employee Portal Components
 import EmployeePOS from "./components/employee/EmployeePOS"
