@@ -1,13 +1,3 @@
-/* eslint-disable indent */
-/* eslint-disable react/jsx-one-expression-per-line */
-/* eslint-disable max-len */
-/* eslint-disable react/button-has-type */
-/* eslint-disable comma-dangle */
-/* eslint-disable no-trailing-spaces */
-/* eslint-disable prettier/prettier */
-/* eslint-disable react/function-component-definition */
-/* eslint-disable jsx-a11y/label-has-associated-control */
-
 // File: src/components/Checkout.jsx
 
 import { useState, useEffect } from 'react'
@@ -59,11 +49,19 @@ const Checkout = () => {
     items: []
   })
 
-  // Calculate totals from current cart with membership discount
-  const subtotalBeforeDiscount = getCartTotal()
+  // Calculate totals from current cart with membership rules
   const discountPercentage = membership?.discount_percentage || 0
-  const discountAmount = subtotalBeforeDiscount * (discountPercentage / 100)
-  const subtotal = subtotalBeforeDiscount - discountAmount
+  const priceOf = (p) => (typeof p === 'string' ? parseFloat(p) : (p || 0))
+  const giftItems = cart.filter(item => item.cart_type !== 'ticket')
+  const ticketItems = cart.filter(item => item.cart_type === 'ticket')
+  const hasGifts = giftItems.length > 0
+  const hasTickets = ticketItems.length > 0
+  const ticketDates = Array.from(new Set(ticketItems.map(it => it.visit_date).filter(Boolean)))
+  const giftSubtotalBefore = giftItems.reduce((s, it) => s + priceOf(it.price) * (it.quantity || 0), 0)
+  const ticketSubtotalBefore = ticketItems.reduce((s, it) => s + priceOf(it.price) * (it.quantity || 0), 0)
+  const subtotalBeforeDiscount = giftSubtotalBefore + ticketSubtotalBefore
+  const giftDiscountAmount = giftSubtotalBefore * (discountPercentage / 100)
+  const subtotal = subtotalBeforeDiscount - giftDiscountAmount
   const taxRate = 0.0825
   const tax = subtotal * taxRate
   const total = subtotal + tax
@@ -135,29 +133,35 @@ const Checkout = () => {
       newErrors.phone = 'Valid 10-digit phone number is required'
     }
 
-    if (!formData.address.trim()) newErrors.address = 'Address is required'
-    if (!formData.city.trim()) newErrors.city = 'City is required'
-    if (!formData.state.trim()) newErrors.state = 'State is required'
+    // Shipping address required only when there are gift shop items in the cart
+    if (hasGifts) {
+      if (!formData.address.trim()) newErrors.address = 'Address is required'
+      if (!formData.city.trim()) newErrors.city = 'City is required'
+      if (!formData.state.trim()) newErrors.state = 'State is required'
+    }
     
     const zipRegex = /^\d{5}$/
-    if (!zipRegex.test(formData.zipCode)) newErrors.zipCode = 'Valid 5-digit ZIP code is required'
+    if (hasGifts && !zipRegex.test(formData.zipCode)) newErrors.zipCode = 'Valid 5-digit ZIP code is required'
 
-    const cardRegex = /^\d{16}$/
-    if (!cardRegex.test(formData.cardNumber.replace(/\s/g, ''))) {
-      newErrors.cardNumber = 'Valid 16-digit card number is required'
+    // Payment details only required when there is an amount due
+    if (total > 0) {
+      const cardRegex = /^\d{16}$/
+      if (!cardRegex.test(formData.cardNumber.replace(/\s/g, ''))) {
+        newErrors.cardNumber = 'Valid 16-digit card number is required'
+      }
+
+      if (!formData.cardName.trim()) newErrors.cardName = 'Name on card is required'
+
+      if (!formData.expiryMonth) {
+        newErrors.expiryMonth = 'Month is required'
+      }
+      if (!formData.expiryYear) {
+        newErrors.expiryYear = 'Year is required'
+      }
+
+      const cvvRegex = /^\d{3,4}$/
+      if (!cvvRegex.test(formData.cvv)) newErrors.cvv = 'Valid CVV is required'
     }
-
-    if (!formData.cardName.trim()) newErrors.cardName = 'Name on card is required'
-
-    if (!formData.expiryMonth) {
-      newErrors.expiryMonth = 'Month is required'
-    }
-    if (!formData.expiryYear) {
-      newErrors.expiryYear = 'Year is required'
-    }
-
-    const cvvRegex = /^\d{3,4}$/
-    if (!cvvRegex.test(formData.cvv)) newErrors.cvv = 'Valid CVV is required'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -165,6 +169,18 @@ const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Enforce tickets be for one day only
+    if (hasTickets) {
+      if (ticketDates.length === 0) {
+        alert('Tickets require a visit date. Please add tickets with a visit date in your cart.')
+        return
+      }
+      if (ticketDates.length > 1) {
+        alert('Tickets must be for a single visit date. Please split into separate orders or adjust in your cart.')
+        return
+      }
+    }
 
     if (!validateForm()) {
       return
@@ -188,22 +204,42 @@ const Checkout = () => {
         // This is OK - guests can checkout
       }
 
-    // Calculate final totals BEFORE clearing cart
-    const finalSubtotalBeforeDiscount = getCartTotal()
-    const finalDiscountPercentage = membership?.discount_percentage || 0
-    const finalDiscountAmount = finalSubtotalBeforeDiscount * (finalDiscountPercentage / 100)
-    const finalSubtotal = finalSubtotalBeforeDiscount - finalDiscountAmount
-    const finalTax = finalSubtotal * taxRate
-    const finalTotal = finalSubtotal + finalTax
+  // Calculate final totals BEFORE clearing cart (frontend display only)
+  const finalDiscountPercentage = membership?.discount_percentage || 0
+  const _priceOf = (p) => (typeof p === 'string' ? parseFloat(p) : (p || 0))
+  const _giftItems = cart.filter(item => item.cart_type !== 'ticket')
+  const _ticketItems = cart.filter(item => item.cart_type === 'ticket')
+  const finalGiftSubtotalBefore = _giftItems.reduce((s, it) => s + _priceOf(it.price) * (it.quantity || 0), 0)
+  const finalTicketSubtotalBefore = _ticketItems.reduce((s, it) => s + _priceOf(it.price) * (it.quantity || 0), 0)
+  const finalSubtotalBeforeDiscount = finalGiftSubtotalBefore + finalTicketSubtotalBefore
+  const finalGiftDiscountAmount = finalGiftSubtotalBefore * (finalDiscountPercentage / 100)
+  const finalTicketDiscountAmount = 0
+  const finalSubtotal = finalSubtotalBeforeDiscount - finalGiftDiscountAmount
+  const finalTax = finalSubtotal * taxRate
+  const finalTotal = finalSubtotal + finalTax
+
+      // Build combined payload: separate gift items and ticket items
+      const gift_items = []
+      const ticket_items = []
+      cart.forEach(item => {
+        if (item.cart_type === 'ticket') {
+          ticket_items.push({
+            ticket_type_id: item.ticket_type_id,
+            quantity: item.quantity,
+            visit_date: item.visit_date
+          })
+        } else {
+          gift_items.push({ item_id: item.item_id, quantity: item.quantity })
+        }
+      })
+
+      const hasTickets = ticket_items.length > 0
 
       const transactionData = {
-        user_id: currentUser?.user_id || 1, // Allow guests with user_id = 1
+        user_id: currentUser?.user_id || 1,
         payment_method: formData.paymentMethod,
-        total_price: parseFloat(total.toFixed(2)),
-        cart_items: cart.map(item => ({
-          item_id: item.item_id,
-          quantity: item.quantity
-        })),
+        gift_items,
+        ticket_items,
         customer_info: {
           email: formData.email,
           firstName: formData.firstName,
@@ -215,15 +251,25 @@ const Checkout = () => {
           zipCode: formData.zipCode
         }
       }
-      const response = await api.post('/api/transactions/gift-shop-checkout', transactionData)
+
+      // Choose endpoint based on presence of tickets
+      const response = hasTickets
+        ? await api.post('/api/transactions/combined-checkout', transactionData)
+        : await api.post('/api/transactions/gift-shop-checkout', {
+            user_id: transactionData.user_id,
+            payment_method: transactionData.payment_method,
+            total_price: parseFloat(total.toFixed(2)),
+            cart_items: gift_items,
+            customer_info: transactionData.customer_info
+          })
       
       console.log('Transaction successful:', response.data)
       
       // CRITICAL FIX: Save order details BEFORE clearing cart
       setCompletedOrder({
-        subtotalBeforeDiscount: finalSubtotalBeforeDiscount,
-        discountPercentage: finalDiscountPercentage,
-        discountAmount: finalDiscountAmount,
+    subtotalBeforeDiscount: finalSubtotalBeforeDiscount,
+    discountPercentage: finalDiscountPercentage,
+    discountAmount: finalGiftDiscountAmount,
         subtotal: finalSubtotal,
         tax: finalTax,
         total: finalTotal,
@@ -262,12 +308,20 @@ const Checkout = () => {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-3xl font-bold mb-4">Your cart is empty</h2>
-          <button
-            onClick={() => navigate('/gift-shop')}
-            className="bg-brand text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-dark"
-          >
-            Go to Gift Shop
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => navigate('/gift-shop')}
+              className="bg-brand text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-dark"
+            >
+              Go to Gift Shop
+            </button>
+            <button
+              onClick={() => navigate('/tickets/checkout')}
+              className="bg-white text-black border-2 border-gray-300 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50"
+            >
+              Buy Tickets
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -284,8 +338,19 @@ const Checkout = () => {
       tax: orderTax, 
       total: orderTotal, 
       membershipType: orderMembershipType,
-      customerInfo 
+      customerInfo,
+      items: orderItems = []
     } = completedOrder
+
+    // Recompute per-category subtotals for clearer breakdown lines
+    const _priceOf = (p) => (typeof p === 'string' ? parseFloat(p) : (p || 0))
+    const ocGiftItems = orderItems.filter(it => it.cart_type !== 'ticket')
+    const ocTicketItems = orderItems.filter(it => it.cart_type === 'ticket')
+    const ocGiftSubtotalBefore = ocGiftItems.reduce((s, it) => s + _priceOf(it.price) * (it.quantity || 0), 0)
+    const ocGiftDiscountAmt = ocGiftSubtotalBefore * ((orderDiscountPercent || 0) / 100)
+    const ocHasGifts = ocGiftItems.length > 0
+    const ocHasTickets = ocTicketItems.length > 0
+    const ocTicketDates = Array.from(new Set(ocTicketItems.map(it => it.visit_date).filter(Boolean)))
 
     return (
       <div className="min-h-screen bg-white">
@@ -337,43 +402,48 @@ const Checkout = () => {
             </div>
             
             {/* Price Breakdown */}
-            {orderDiscountPercent > 0 && (
-              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6">
+            <div className="bg-white border-2 border-gray-200 rounded-lg p-4 mb-6">
+              {orderDiscountPercent > 0 && ocGiftSubtotalBefore > 0 && (
                 <p className="text-sm font-semibold text-green-800 mb-3">
                   ✓ Member Discount Applied ({orderMembershipType})
                 </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Subtotal:</span>
-                    <span className="font-semibold">${orderSubtotalBefore.toFixed(2)}</span>
-                  </div>
+              )}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Subtotal:</span>
+                  <span className="font-semibold">${orderSubtotalBefore.toFixed(2)}</span>
+                </div>
+                {orderDiscountPercent > 0 && ocGiftSubtotalBefore > 0 && (
                   <div className="flex justify-between text-green-700">
-                    <span>Member Discount ({orderDiscountPercent}%):</span>
-                    <span className="font-semibold">-${orderDiscountAmt.toFixed(2)}</span>
+                    <span>Member Discount on Gift Items ({orderDiscountPercent}%):</span>
+                    <span className="font-semibold">-${ocGiftDiscountAmt.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Tax (8.25%):</span>
-                    <span className="font-semibold">${orderTax.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-green-300">
-                    <span className="font-bold">Total:</span>
-                    <span className="font-bold text-brand">${orderTotal.toFixed(2)}</span>
-                  </div>
+                )}
+                {/* Ticket member discounts removed; members should select member ticket types */}
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Tax (8.25%):</span>
+                  <span className="font-semibold">${orderTax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-gray-300">
+                  <span className="font-bold">Total:</span>
+                  <span className="font-bold text-brand">${orderTotal.toFixed(2)}</span>
                 </div>
               </div>
-            )}
-
-            {/* Shipping Address Display */}
-            <div className="bg-gray-50 rounded-lg p-4 mt-6">
-              <p className="text-sm font-semibold text-gray-700 mb-2">Shipping To:</p>
-              <p className="text-base text-gray-900">
-                {customerInfo.address}<br />
-                {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}
-              </p>
             </div>
+
+            {/* Shipping Address Display (only if gift items were purchased) */}
+            {ocHasGifts && (
+              <div className="bg-gray-50 rounded-lg p-4 mt-6">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Shipping To:</p>
+                <p className="text-base text-gray-900">
+                  {customerInfo.address}<br />
+                  {customerInfo.city}, {customerInfo.state} {customerInfo.zipCode}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Information Notice */}
+          {/* Information Notice: tailor message for tickets vs shipping */}
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-8">
             <div className="flex items-start gap-3">
               <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,9 +451,16 @@ const Checkout = () => {
               </svg>
               <div>
                 <p className="font-semibold text-blue-900 mb-1">Your order details have been recorded</p>
-                <p className="text-sm text-blue-800">
-                  Your items will be shipped to the address above. You will receive tracking information once your order ships.
-                </p>
+                {ocHasGifts && (
+                  <p className="text-sm text-blue-800">
+                    Your items will be shipped to the address above. You will receive tracking information once your order ships.
+                  </p>
+                )}
+                {ocHasTickets && (
+                  <p className="text-sm text-blue-800 mt-1">
+                    Your tickets are confirmed{ocTicketDates.length === 1 ? ` for ${ocTicketDates[0]}` : ''}. A confirmation email has been sent.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -417,6 +494,17 @@ const Checkout = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-8">
+        {/* Navigation helpers */}
+        {cart.length > 0 && !orderComplete && (
+          <div className="mb-6">
+            <button
+              onClick={() => navigate('/cart')}
+              className="bg-white text-black border-2 border-gray-300 px-4 py-2 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+            >
+              ← Back to Cart
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-8">
@@ -480,70 +568,72 @@ const Checkout = () => {
                 </div>
               </div>
 
-              {/* Shipping Address */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Street Address *</label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                        errors.address ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                      }`}
-                    />
-                    {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
+              {/* Shipping Address: show only when there are gift items */}
+              {hasGifts && (
+                <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+                  <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold mb-2">City *</label>
+                      <label className="block text-sm font-semibold mb-2">Street Address *</label>
                       <input
                         type="text"
-                        name="city"
-                        value={formData.city}
+                        name="address"
+                        value={formData.address}
                         onChange={handleInputChange}
                         className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.city ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                          errors.address ? 'border-red-500' : 'border-gray-300 focus:border-brand'
                         }`}
                       />
-                      {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                      {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">State *</label>
-                      <input
-                        type="text"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleInputChange}
-                        placeholder="TX"
-                        maxLength="2"
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.state ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">ZIP Code *</label>
-                      <input
-                        type="text"
-                        name="zipCode"
-                        value={formData.zipCode}
-                        onChange={handleInputChange}
-                        placeholder="77001"
-                        maxLength="5"
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.zipCode ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode}</p>}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">City *</label>
+                        <input
+                          type="text"
+                          name="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                            errors.city ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                          }`}
+                        />
+                        {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">State *</label>
+                        <input
+                          type="text"
+                          name="state"
+                          value={formData.state}
+                          onChange={handleInputChange}
+                          placeholder="TX"
+                          maxLength="2"
+                          className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                            errors.state ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                          }`}
+                        />
+                        {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">ZIP Code *</label>
+                        <input
+                          type="text"
+                          name="zipCode"
+                          value={formData.zipCode}
+                          onChange={handleInputChange}
+                          placeholder="77001"
+                          maxLength="5"
+                          className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                            errors.zipCode ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                          }`}
+                        />
+                        {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode}</p>}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Payment Information */}
               <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
@@ -701,14 +791,16 @@ const Checkout = () => {
               
               <div className="space-y-4 mb-6">
                 {cart.map(item => {
-                  const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
+                  const price = typeof item.price === 'string' ? parseFloat(item.price) : (item.price || 0)
                   return (
                     <div key={item.item_id} className="flex gap-3">
-                      <img src={item.image_url} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
+                      {item.cart_type !== 'ticket' && item.image_url && (
+                        <img src={item.image_url} alt={item.item_name} className="w-16 h-16 object-cover rounded" />
+                      )}
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{item.item_name}</p>
                         <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                        <p className="text-sm font-semibold">${(price * item.quantity).toFixed(2)}</p>
+                        <p className="text-sm font-semibold">${(price * (item.quantity || 0)).toFixed(2)}</p>
                       </div>
                     </div>
                   )
@@ -720,12 +812,13 @@ const Checkout = () => {
                   <span>Subtotal:</span>
                   <span className="font-semibold">${subtotalBeforeDiscount.toFixed(2)}</span>
                 </div>
-                {membership && discountPercentage > 0 && (
+                {membership && discountPercentage > 0 && giftSubtotalBefore > 0 && (
                   <div className="flex justify-between text-lg text-green-600">
-                    <span>Member Discount ({discountPercentage}%):</span>
-                    <span className="font-semibold">-${discountAmount.toFixed(2)}</span>
+                    <span>Member Discount on Gift Items ({discountPercentage}%):</span>
+                    <span className="font-semibold">-${giftDiscountAmount.toFixed(2)}</span>
                   </div>
                 )}
+                {/* Ticket member discounts removed; members should select member ticket types */}
                 <div className="flex justify-between text-lg">
                   <span>Tax (8.25%):</span>
                   <span className="font-semibold">${tax.toFixed(2)}</span>

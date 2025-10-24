@@ -8,6 +8,12 @@ function Visit() {
   const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const formatPrice = (value) => {
+    const n = Number(value);
+    if (!isFinite(n)) return '$—';
+    return n === 0 ? 'FREE' : `$${n.toFixed(2)}`;
+  };
+
   useEffect(() => {
     const fetchTicketTypes = async () => {
       try {
@@ -80,6 +86,9 @@ function Visit() {
         </div>
 
         <h1 className="section-subtitle" id='ticket-section'>Tickets</h1>
+        <p className="ticket-notes">
+          General Admission — Enjoy access to all current exhibitions on the day of your visit.
+        </p>
         <div className="ticket-section" id='ticket-section'>
           <table className="ticket-table">
             <tbody>
@@ -91,7 +100,7 @@ function Visit() {
                 ticketTypes.map((ticket) => (
                   <tr key={ticket.ticket_type_id}>
                     <td>{ticket.ticket_name}</td>
-                    <td>{ticket.base_price === 0 ? 'Free' : `$${Number(ticket.base_price).toFixed(2)}`}</td>
+                    <td>{formatPrice(ticket.base_price)}</td>
                   </tr>
                 ))
               )}
@@ -103,7 +112,7 @@ function Visit() {
             <div className="ticket-buttons">
               <button
                 className="buy-ticket-btn"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/tickets/checkout')}
               >
                 Buy Ticket
               </button>

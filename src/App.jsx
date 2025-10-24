@@ -11,6 +11,7 @@ import Calendar from './components/Calendar'
 import GiftShop from './components/GiftShop'
 import Cafeteria from './components/Cafeteria'
 import Cart from './components/Cart'
+import Ticket from './components/Ticket.jsx'
 import Checkout from './components/Checkout'
 import Support from './components/Support' 
 import { CartProvider } from './context/CartContext'
@@ -37,11 +38,13 @@ function App() {
           <Route path="/artworks/type/:typeName" element={<Artwork />} />
           <Route path="/artworks/:id" element={<ArtworkDetail />} />
           <Route path="/gift-shop" element={<GiftShop />} />
+          <Route path="/tickets/checkout" element={<Ticket />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/membership" element={<Membershipinfo />} />
           <Route path="/membership/join" element={<Membership />} />
           <Route path="/membership-info" element={<Navigate to="/membership" replace />} />

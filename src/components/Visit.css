@@ -127,18 +127,33 @@
   margin-left: 1.5rem;
 }
 
+.ticket-section {
+  display: flex;
+  flex-direction: row;
+  gap: rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ticket-notes {
+  margin: 0 1.5rem 2rem;
+  color: #333; 
+  font-weight: 500;
+  font-size: 1.2rem;
+}
+
 .ticket-table {
   flex: 0 0 40%;
   width: 40%;
   border-collapse: collapse;
-  margin: 0; /* rely on gap or space-between for spacing */
+  margin: 0; 
   background-color: white;
   font-size: 1rem;
   box-sizing: border-box;
 }
 
 .ticket-table td {
-  padding: 0.5rem 0.8rem;
+  padding: 0.6rem 1rem;
   text-align: left;
   border-bottom: 1px solid #e0e0e0;
   font-size: 0.9rem;
@@ -155,30 +170,20 @@
 }
 .ticket-table td:last-child {
   text-align: right;
-  padding-right: 0.5rem;
-}
-
-.ticket-section {
-  display: flex;
-  gap: 2rem;
-  align-items: flex-start;
-  margin-bottom: 5rem;
-  justify-content: space-between; /* enforce 40%/60% split */
+  padding-right: 1rem;
 }
 
 .membership-info {
   flex: 0 0 60%;
   width: 60%;
-  padding: 1.2rem 0 1.5rem 1.5rem; /* reduced to fit 60% width nicely */
   font-size: 1.05rem;
   color: #333;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  box-sizing: border-box;
 }
+
 .membership-info h2 {
-  margin-top: 0;
   margin-bottom: 0.7rem;
   font-size: 1.5rem;
   font-weight: 600;
@@ -347,5 +352,5 @@
 }
 
 html {
-  scroll-padding-top: 15%; 
+  scroll-padding-top: 25%; 
 }

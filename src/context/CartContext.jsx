@@ -17,22 +17,27 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = (item) => {
     setCart((prevCart) => {
+      // Normalize type and price
+      const cart_type = item.cart_type || 'gift'
       const existingItem = prevCart.find((cartItem) => cartItem.item_id === item.item_id)
 
       // Ensure price is stored as a number (convert from string if needed)
       const itemWithNumericPrice = {
         ...item,
+        cart_type,
         price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
       }
 
       if (existingItem) {
-        return prevCart.map((cartItem) =>
+        const addQty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1
+        return prevCart.map((cartItem) => (
           cartItem.item_id === item.item_id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            ? { ...cartItem, quantity: cartItem.quantity + addQty }
             : cartItem
-        )
+        ))
       } else {
-        return [...prevCart, { ...itemWithNumericPrice, quantity: 1 }]
+        const initialQty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1
+        return [...prevCart, { ...itemWithNumericPrice, quantity: initialQty }]
       }
     })
   }
@@ -50,7 +55,13 @@ export const CartProvider = ({ children }) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
         item.item_id === itemId
-          ? { ...item, quantity: Math.min(newQuantity, item.stock_quantity) }
+          ? {
+              ...item,
+              quantity: Math.min(
+                newQuantity,
+                typeof item.stock_quantity === 'number' ? item.stock_quantity : newQuantity
+              )
+            }
           : item
       )
     )

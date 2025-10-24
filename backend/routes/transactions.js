@@ -271,26 +271,35 @@ router.post('/gift-shop-checkout', async (req, res) => {
     }
 
     // Step 2.5: Check if user has an active membership and get discount percentage
+    // IMPORTANT: Only apply discounts if the authenticated user matches user_id and is not a guest
     let discountPercentage = 0
     let membershipType = null
-    
-    const [userMemberships] = await connection.query(
-      `SELECT m.membership_type, b.discount_percentage
-       FROM Membership m
-       JOIN Benefits b ON m.membership_type = b.membership_type
-       WHERE m.user_id = ? 
-       AND m.is_active = TRUE 
-       AND m.expiration_date >= CURDATE()
-       LIMIT 1`,
-      [user_id]
-    )
 
-    if (userMemberships.length > 0) {
-      discountPercentage = parseFloat(userMemberships[0].discount_percentage) || 0
-      membershipType = userMemberships[0].membership_type
-      console.log(`User has active membership: ${membershipType} with ${discountPercentage}% discount`)
+    const isAuthenticated = !!req.user
+    const isSameUser = isAuthenticated && Number(req.user.id) === Number(user_id)
+    const isGuestUser = Number(user_id) === 1
+
+    if (isSameUser && !isGuestUser) {
+      const [userMemberships] = await connection.query(
+        `SELECT m.membership_type, b.discount_percentage
+         FROM Membership m
+         JOIN Benefits b ON m.membership_type = b.membership_type
+         WHERE m.user_id = ? 
+         AND m.is_active = TRUE 
+         AND m.expiration_date >= CURDATE()
+         LIMIT 1`,
+        [user_id]
+      )
+
+      if (userMemberships.length > 0) {
+        discountPercentage = parseFloat(userMemberships[0].discount_percentage) || 0
+        membershipType = userMemberships[0].membership_type
+        console.log(`User has active membership: ${membershipType} with ${discountPercentage}% discount`)
+      } else {
+        console.log('User has no active membership or membership has expired')
+      }
     } else {
-      console.log('User has no active membership or membership has expired')
+      console.log('Skipping membership discount: unauthenticated, mismatched user, or guest checkout')
     }
 
     // Step 3: Calculate total items and apply discount
@@ -415,6 +424,364 @@ router.post('/gift-shop-checkout', async (req, res) => {
       connection.release()
       console.log('Database connection released')
     }
+  }
+})
+
+// POST process ticket checkout - MAIN ENDPOINT FOR TICKET PURCHASES
+router.post('/ticket-checkout', async (req, res) => {
+  let connection
+
+  try {
+    connection = await db.getConnection()
+
+    const {
+      user_id,
+      payment_method,
+      visit_date,
+      items // Array of { ticket_type_id, quantity }
+    } = req.body
+
+    // Basic validation
+    if (!user_id || !payment_method || !visit_date || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields: user_id, payment_method, visit_date, items' })
+    }
+
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment']
+    if (!validPaymentMethods.includes(payment_method)) {
+      return res.status(400).json({ error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}` })
+    }
+
+    // Start DB transaction
+    await connection.beginTransaction()
+
+    // Step 1: Load ticket types and prices from DB (do not trust client)
+    const ids = items.map(it => it.ticket_type_id)
+    const placeholders = ids.map(() => '?').join(',')
+    const [dbTypes] = await connection.query(
+      `SELECT ticket_type_id, ticket_name, base_price, is_available
+       FROM Ticket_Types
+       WHERE ticket_type_id IN (${placeholders})`,
+      ids
+    )
+
+    if (dbTypes.length !== items.length) {
+      await connection.rollback()
+      return res.status(404).json({ error: 'One or more ticket types not found' })
+    }
+
+    const typeMap = {}
+    dbTypes.forEach(t => {
+      typeMap[t.ticket_type_id] = {
+        ...t,
+        base_price: parseFloat(t.base_price)
+      }
+    })
+
+    // Step 2: Check availability and normalize quantities
+    for (const it of items) {
+      const dbType = typeMap[it.ticket_type_id]
+      if (!dbType.is_available) {
+        await connection.rollback()
+        return res.status(400).json({ error: `Ticket "${dbType.ticket_name}" is not available` })
+      }
+      if (!it.quantity || it.quantity < 1) {
+        await connection.rollback()
+        return res.status(400).json({ error: 'All items must have quantity >= 1' })
+      }
+    }
+
+    // Step 3: Ticket pricing no longer uses membership free admission.
+
+    // Step 4: Compute totals
+    const totalItems = items.reduce((sum, it) => sum + it.quantity, 0)
+    let totalPrice = 0
+
+    const purchaseRows = []
+    for (const it of items) {
+      const dbType = typeMap[it.ticket_type_id]
+  const base = dbType.base_price
+  const final = base
+  const discount = 0
+      const line = parseFloat((final * it.quantity).toFixed(2))
+      totalPrice += line
+      purchaseRows.push({
+        ticket_type_id: it.ticket_type_id,
+        quantity: it.quantity,
+        base_price: base,
+        discount_amount: discount,
+        final_price: final,
+        line_total: line
+      })
+    }
+    totalPrice = parseFloat(totalPrice.toFixed(2))
+
+    // Step 5: Insert Transaction
+    const [tx] = await connection.query(
+      `INSERT INTO Transactions (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
+       VALUES (?, ?, ?, ?, 'Completed', NULL)`,
+      [user_id, totalPrice, totalItems, payment_method]
+    )
+    const transaction_id = tx.insertId
+
+    // Step 6: Insert Ticket_Purchase rows
+    for (const row of purchaseRows) {
+      // eslint-disable-next-line no-await-in-loop
+      await connection.query(
+        `INSERT INTO Ticket_Purchase
+         (transaction_id, ticket_type_id, quantity, base_price, discount_amount, final_price, line_total, exhibition_id, event_id, visit_date, is_used)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, FALSE)`,
+        [transaction_id, row.ticket_type_id, row.quantity, row.base_price, row.discount_amount, row.final_price, row.line_total, visit_date]
+      )
+    }
+
+    await connection.commit()
+
+    return res.status(201).json({
+      success: true,
+      message: 'Ticket purchase completed successfully',
+      transaction: {
+        transaction_id,
+        user_id,
+        total_price: totalPrice,
+        total_items: totalItems,
+        payment_method,
+        transaction_status: 'Completed'
+      }
+    })
+
+  } catch (error) {
+    if (connection) {
+      try { await connection.rollback() } catch {}
+    }
+    console.error('Ticket checkout error:', error)
+    return res.status(500).json({ error: 'Transaction failed', details: error.message })
+  } finally {
+    if (connection) connection.release()
+  }
+})
+
+// POST process combined checkout for gift shop items + tickets
+router.post('/combined-checkout', async (req, res) => {
+  let connection
+
+  try {
+    connection = await db.getConnection()
+
+    const { user_id, payment_method, gift_items = [], ticket_items = [], customer_info } = req.body
+
+    if (!user_id || !payment_method) {
+      return res.status(400).json({ error: 'Missing required fields: user_id, payment_method' })
+    }
+
+    if (gift_items.length === 0 && ticket_items.length === 0) {
+      return res.status(400).json({ error: 'No items to checkout' })
+    }
+
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment']
+    if (!validPaymentMethods.includes(payment_method)) {
+      return res.status(400).json({ error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}` })
+    }
+
+    await connection.beginTransaction()
+
+    // Determine membership benefits once (gift shop only)
+    let discountPercentage = 0
+    let membershipType = null
+
+    const isAuthenticated = !!req.user
+    const isSameUser = isAuthenticated && Number(req.user.id) === Number(user_id)
+    const isGuestUser = Number(user_id) === 1
+
+    if (isSameUser && !isGuestUser) {
+      const [userMemberships] = await connection.query(
+        `SELECT m.membership_type, b.discount_percentage, b.unlimited_visits
+         FROM Membership m
+         JOIN Benefits b ON m.membership_type = b.membership_type
+         WHERE m.user_id = ? AND m.is_active = TRUE AND m.expiration_date >= CURDATE()
+         LIMIT 1`,
+        [user_id]
+      )
+
+      if (userMemberships.length > 0) {
+        discountPercentage = parseFloat(userMemberships[0].discount_percentage) || 0
+        membershipType = userMemberships[0].membership_type
+      }
+    }
+
+    // Process Gift Shop items
+    let giftTotal = 0
+    let giftCount = 0
+    const giftPurchaseRecords = []
+
+    if (gift_items.length > 0) {
+      const giftIds = gift_items.map(i => i.item_id)
+      const placeholders = giftIds.map(() => '?').join(',')
+      const [dbItems] = await connection.query(
+        `SELECT item_id, item_name, price, stock_quantity, is_available
+         FROM Gift_Shop_Items WHERE item_id IN (${placeholders})`,
+        giftIds
+      )
+
+      if (dbItems.length !== gift_items.length) {
+        await connection.rollback()
+        return res.status(404).json({ error: 'One or more gift items not found' })
+      }
+
+      const itemMap = {}
+      dbItems.forEach(i => {
+        itemMap[i.item_id] = {
+          ...i,
+          price: parseFloat(i.price),
+          stock_quantity: parseInt(i.stock_quantity, 10)
+        }
+      })
+
+      for (const gi of gift_items) {
+        const dbItem = itemMap[gi.item_id]
+        if (!dbItem.is_available) {
+          await connection.rollback()
+          return res.status(400).json({ error: `Item "${dbItem.item_name}" is not available for purchase` })
+        }
+        if (dbItem.stock_quantity < gi.quantity) {
+          await connection.rollback()
+          return res.status(400).json({ error: `Insufficient stock for item "${dbItem.item_name}"` })
+        }
+
+        const originalPrice = dbItem.price
+        const discountedUnitPrice = parseFloat((originalPrice * (1 - discountPercentage / 100)).toFixed(2))
+        const line_total = parseFloat((discountedUnitPrice * gi.quantity).toFixed(2))
+        giftTotal += line_total
+        giftCount += gi.quantity
+
+        // Insert gift purchase
+        // eslint-disable-next-line no-await-in-loop
+        const [purchaseResult] = await connection.query(
+          `INSERT INTO Gift_Shop_Purchase (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total)
+           VALUES (NULL, ?, ?, ?, ?, ?)`,
+          [dbItem.item_id, dbItem.item_name, gi.quantity, discountedUnitPrice, line_total]
+        )
+        giftPurchaseRecords.push({ purchase_id: purchaseResult.insertId })
+
+        // Update stock
+        // eslint-disable-next-line no-await-in-loop
+        await connection.query(
+          `UPDATE Gift_Shop_Items SET stock_quantity = stock_quantity - ? WHERE item_id = ?`,
+          [gi.quantity, dbItem.item_id]
+        )
+      }
+    }
+
+    // Process Tickets
+    let ticketTotal = 0
+    let ticketCount = 0
+    const ticketPurchaseRows = []
+
+    if (ticket_items.length > 0) {
+      const typeIds = ticket_items.map(t => t.ticket_type_id)
+      const placeholders = typeIds.map(() => '?').join(',')
+      const [dbTypes] = await connection.query(
+        `SELECT ticket_type_id, ticket_name, base_price, is_available
+         FROM Ticket_Types WHERE ticket_type_id IN (${placeholders})`,
+        typeIds
+      )
+      if (dbTypes.length !== ticket_items.length) {
+        await connection.rollback()
+        return res.status(404).json({ error: 'One or more ticket types not found' })
+      }
+      const typeMap = {}
+      dbTypes.forEach(t => { typeMap[t.ticket_type_id] = { ...t, base_price: parseFloat(t.base_price) } })
+
+      for (const ti of ticket_items) {
+        const dbType = typeMap[ti.ticket_type_id]
+        if (!dbType.is_available) {
+          await connection.rollback()
+          return res.status(400).json({ error: `Ticket "${dbType.ticket_name}" is not available` })
+        }
+        if (!ti.visit_date) {
+          await connection.rollback()
+          return res.status(400).json({ error: 'visit_date is required for ticket items' })
+        }
+  const base = dbType.base_price
+  const final = base
+  const discount = 0
+        const line = parseFloat((final * ti.quantity).toFixed(2))
+        ticketTotal += line
+        ticketCount += ti.quantity
+
+        ticketPurchaseRows.push({
+          ticket_type_id: ti.ticket_type_id,
+          quantity: ti.quantity,
+          base_price: base,
+          discount_amount: discount,
+          final_price: final,
+          line_total: line,
+          visit_date: ti.visit_date
+        })
+      }
+    }
+
+    const grandTotal = parseFloat((giftTotal + ticketTotal).toFixed(2))
+    const totalItems = giftCount + ticketCount
+
+    // Create Transaction
+    const [tx] = await connection.query(
+      `INSERT INTO Transactions (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
+       VALUES (?, ?, ?, ?, 'Completed', NULL)`,
+      [user_id, grandTotal, totalItems, payment_method]
+    )
+    const transaction_id = tx.insertId
+
+    // Attach transaction_id to prior inserted gift purchases (they used NULL)
+    if (giftPurchaseRecords.length > 0) {
+      // Update all purchases to set transaction_id
+      const ids = giftPurchaseRecords.map(r => r.purchase_id)
+      const placeholders = ids.map(() => '?').join(',')
+      await connection.query(
+        `UPDATE Gift_Shop_Purchase SET transaction_id = ? WHERE purchase_id IN (${placeholders})`,
+        [transaction_id, ...ids]
+      )
+    }
+
+    // Insert ticket purchases
+    for (const row of ticketPurchaseRows) {
+      // eslint-disable-next-line no-await-in-loop
+      await connection.query(
+        `INSERT INTO Ticket_Purchase
+         (transaction_id, ticket_type_id, quantity, base_price, discount_amount, final_price, line_total, exhibition_id, event_id, visit_date, is_used)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, FALSE)`,
+        [transaction_id, row.ticket_type_id, row.quantity, row.base_price, row.discount_amount, row.final_price, row.line_total, row.visit_date]
+      )
+    }
+
+    await connection.commit()
+
+    return res.status(201).json({
+      success: true,
+      message: 'Combined purchase completed successfully',
+      transaction: {
+        transaction_id,
+        user_id,
+        total_price: grandTotal,
+        total_items: totalItems,
+        payment_method,
+        transaction_status: 'Completed'
+      },
+      discount: {
+        applied: discountPercentage > 0,
+        percentage: discountPercentage,
+        membership_type: membershipType
+      },
+      customer_info: customer_info || null
+    })
+
+  } catch (error) {
+    if (connection) {
+      try { await connection.rollback() } catch {}
+    }
+    console.error('Combined checkout error:', error)
+    return res.status(500).json({ error: 'Transaction failed', details: error.message })
+  } finally {
+    if (connection) connection.release()
   }
 })
 
