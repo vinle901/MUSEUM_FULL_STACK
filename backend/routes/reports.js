@@ -21,7 +21,7 @@ router.get('/sales', async (req, res) => {
         COUNT(*) as transactionCount,
         AVG(total_price) as averageOrderValue
       FROM Transactions
-      WHERE transaction_date >= ? AND transaction_date <= ?
+      WHERE DATE(transaction_date) >= ? AND DATE(transaction_date) <= ?
         AND transaction_status = 'Completed'
     `, [startDate, endDate]);
 
@@ -31,7 +31,7 @@ router.get('/sales', async (req, res) => {
         DATE(transaction_date) as date,
         SUM(total_price) as sales
       FROM Transactions
-      WHERE transaction_date >= ? AND transaction_date <= ?
+      WHERE DATE(transaction_date) >= ? AND DATE(transaction_date) <= ?
         AND transaction_status = 'Completed'
       GROUP BY DATE(transaction_date)
       ORDER BY date
@@ -42,25 +42,25 @@ router.get('/sales', async (req, res) => {
       SELECT 'Tickets' as category, SUM(tp.line_total) as value
       FROM Ticket_Purchase tp
       JOIN Transactions t ON tp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND t.transaction_status = 'Completed'
       UNION ALL
       SELECT 'Gift Shop' as category, SUM(gsp.line_total) as value
       FROM Gift_Shop_Purchase gsp
       JOIN Transactions t ON gsp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND t.transaction_status = 'Completed'
       UNION ALL
       SELECT 'Cafeteria' as category, SUM(cp.line_total) as value
       FROM Cafeteria_Purchase cp
       JOIN Transactions t ON cp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND t.transaction_status = 'Completed'
       UNION ALL
       SELECT 'Memberships' as category, SUM(mp.amount_paid) as value
       FROM Membership_Purchase mp
       JOIN Transactions t ON mp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND t.transaction_status = 'Completed'
     `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
 
@@ -92,7 +92,7 @@ router.get('/attendance', async (req, res) => {
     const [totalVisitorsResult] = await db.query(`
       SELECT 
         COUNT(DISTINCT t.user_id) as totalVisitors,
-        COUNT(*) / DATEDIFF(?, ?) as averageDailyVisitors
+        COUNT(*) / GREATEST(1, DATEDIFF(?, ?) + 1) as averageDailyVisitors
       FROM Ticket_Purchase tp
       JOIN Transactions t ON tp.transaction_id = t.transaction_id
       WHERE tp.visit_date >= ? AND tp.visit_date <= ?
@@ -132,7 +132,7 @@ router.get('/attendance', async (req, res) => {
         COUNT(*) as visitors
       FROM Ticket_Purchase tp
       JOIN Transactions t ON tp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND tp.is_used = TRUE
       GROUP BY HOUR(t.transaction_date)
       ORDER BY hour
@@ -167,7 +167,7 @@ router.get('/popular-items', async (req, res) => {
         SUM(gsp.line_total) as revenue
       FROM Gift_Shop_Purchase gsp
       JOIN Transactions t ON gsp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND t.transaction_status = 'Completed'
       GROUP BY gsp.item_name
       ORDER BY sales DESC
@@ -182,7 +182,7 @@ router.get('/popular-items', async (req, res) => {
         SUM(cp.line_total) as revenue
       FROM Cafeteria_Purchase cp
       JOIN Transactions t ON cp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND t.transaction_status = 'Completed'
       GROUP BY cp.item_name
       ORDER BY sales DESC
@@ -217,7 +217,7 @@ router.get('/revenue', async (req, res) => {
       SELECT 
         SUM(total_price) as totalRevenue
       FROM Transactions
-      WHERE transaction_date >= ? AND transaction_date <= ?
+      WHERE DATE(transaction_date) >= ? AND DATE(transaction_date) <= ?
         AND transaction_status = 'Completed'
     `, [startDate, endDate]);
 
@@ -227,25 +227,25 @@ router.get('/revenue', async (req, res) => {
         SELECT 'Ticket Sales' as source, SUM(line_total) as amount
         FROM Ticket_Purchase tp
         JOIN Transactions t ON tp.transaction_id = t.transaction_id
-        WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
           AND t.transaction_status = 'Completed'
         UNION ALL
         SELECT 'Gift Shop' as source, SUM(line_total) as amount
         FROM Gift_Shop_Purchase gsp
         JOIN Transactions t ON gsp.transaction_id = t.transaction_id
-        WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
           AND t.transaction_status = 'Completed'
         UNION ALL
         SELECT 'Cafeteria' as source, SUM(line_total) as amount
         FROM Cafeteria_Purchase cp
         JOIN Transactions t ON cp.transaction_id = t.transaction_id
-        WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
           AND t.transaction_status = 'Completed'
         UNION ALL
         SELECT 'Memberships' as source, SUM(amount_paid) as amount
         FROM Membership_Purchase mp
         JOIN Transactions t ON mp.transaction_id = t.transaction_id
-        WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
           AND t.transaction_status = 'Completed'
       ) revenue_sources
       GROUP BY source
@@ -257,11 +257,11 @@ router.get('/revenue', async (req, res) => {
         DATE_FORMAT(transaction_date, '%b') as month,
         SUM(total_price) as revenue
       FROM Transactions
-      WHERE transaction_date >= DATE_SUB(?, INTERVAL 6 MONTH)
-        AND transaction_date <= ?
+      WHERE DATE(transaction_date) >= DATE_SUB(DATE(?), INTERVAL 6 MONTH)
+        AND DATE(transaction_date) <= DATE(?)
         AND transaction_status = 'Completed'
       GROUP BY DATE_FORMAT(transaction_date, '%Y-%m')
-      ORDER BY transaction_date
+      ORDER BY DATE_FORMAT(transaction_date, '%Y-%m')
       LIMIT 6
     `, [endDate, endDate]);
 
@@ -313,7 +313,7 @@ router.get('/membership', async (req, res) => {
         COUNT(*) as total
       FROM Membership_Purchase mp
       JOIN Transactions t ON mp.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date <= ?
+      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
     `, [startDate, endDate]);
 
     // Get membership type distribution

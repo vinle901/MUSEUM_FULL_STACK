@@ -15,6 +15,7 @@ import { useCart } from '../context/CartContext'
 import api from '../services/api'
 import { getImageUrl } from '../utils/imageHelpers'
 import { authService } from '../services/authService'
+import { ticketService } from '../services/ticketService'
 
 const Checkout = () => {
   const { cart, getCartTotal, clearCart } = useCart()
@@ -48,6 +49,9 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderComplete, setOrderComplete] = useState(false)
   const [orderDetails, setOrderDetails] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
+  const [membership, setMembership] = useState(null)
+  const [membershipLoading, setMembershipLoading] = useState(true)
 
   // Calculate totals based on checkout type
   const subtotal = isMembershipCheckout 
@@ -69,6 +73,51 @@ const Checkout = () => {
       }))
     }
   }, [membershipData])
+
+  // Load current user and membership (to block active members from repurchasing)
+  useEffect(() => {
+    const loadUserAndMembership = async () => {
+      try {
+        const user = await authService.getCurrentUser()
+        setCurrentUser(user)
+        const uid = user?.user_id || user?.id
+        if (uid) {
+          try {
+            const res = await ticketService.getUserMembership(uid)
+            if (Array.isArray(res) && res.length > 0) setMembership(res[0])
+            else setMembership(null)
+          } catch {
+            setMembership(null)
+          }
+        } else {
+          setMembership(null)
+        }
+      } catch {
+        setCurrentUser(null)
+        setMembership(null)
+      } finally {
+        setMembershipLoading(false)
+      }
+    }
+    // Only need membership check when doing membership checkout
+    if (isMembershipCheckout) {
+      loadUserAndMembership()
+    } else {
+      setMembershipLoading(false)
+    }
+  }, [isMembershipCheckout])
+
+  const hasActiveMembership = (() => {
+    if (!membership) return false
+    const activeVal = membership.is_active
+    const isActive = (activeVal === 1 || activeVal === true || activeVal === '1')
+    if (!isActive) return false
+    // null expiration means non-expiring, else must be in the future
+    if (!membership.expiration_date) return true
+    const exp = new Date(membership.expiration_date)
+    const today = new Date(); today.setHours(0,0,0,0)
+    return exp >= today
+  })()
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -135,29 +184,35 @@ const Checkout = () => {
       return
     }
 
+    // Prevent purchasing a membership when already active
+    if (isMembershipCheckout && hasActiveMembership) {
+      alert('You already have an active membership and cannot purchase another at this time.')
+      return
+    }
+
     setIsProcessing(true)
 
     try {
       let response
-      let currentUser = null
+      let userForTx = null
 
       // Get current user for both membership and gift shop purchases
       try {
-        currentUser = await authService.getCurrentUser()
+        userForTx = await authService.getCurrentUser()
       } catch (error) {
         console.log('User not logged in')
       }
 
       if (isMembershipCheckout) {
         // Process membership purchase
-        if (!currentUser) {
+        if (!userForTx) {
           alert('Please log in to purchase a membership')
           navigate('/login')
           return
         }
 
         const membershipTransactionData = {
-          user_id: currentUser.user_id,
+          user_id: (userForTx.user_id || userForTx.id),
           payment_method: formData.paymentMethod,
           membership_type: membershipData.plan.membership_type,
           total_paid: parseFloat(total.toFixed(2)), // Include tax
@@ -175,7 +230,7 @@ const Checkout = () => {
       } else {
         // Process gift shop purchase
         const transactionData = {
-          user_id: currentUser?.user_id || 1,
+          user_id: (userForTx?.user_id || userForTx?.id || 1),
           payment_method: formData.paymentMethod,
           total_price: parseFloat(total.toFixed(2)),
           cart_items: cart.map(item => ({
@@ -408,6 +463,13 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-8">
+              {isMembershipCheckout && !orderComplete && hasActiveMembership && (
+                <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
+                  <p className="text-red-800 font-semibold">
+                    You already have an active membership{membership?.membership_type ? ` (${membership.membership_type})` : ''}. Purchasing another is disabled.
+                  </p>
+                </div>
+              )}
               {/* Personal Information */}
               <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
                 <h2 className="text-2xl font-bold mb-6">Personal Information</h2>
@@ -669,7 +731,7 @@ const Checkout = () => {
 
               <button
                 type="submit"
-                disabled={isProcessing}
+                disabled={isProcessing || (isMembershipCheckout && hasActiveMembership)}
                 className="w-full bg-brand text-white py-4 rounded-lg font-bold text-xl hover:bg-brand-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {isProcessing ? 'Processing...' : `Complete Purchase - $${total.toFixed(2)}`}
@@ -694,6 +756,11 @@ const Checkout = () => {
                       <p className="text-sm text-gray-600 mb-1">Annual Fee</p>
                       <p className="font-semibold text-brand">${parseFloat(membershipData.plan.annual_fee).toFixed(2)}</p>
                     </div>
+                    {hasActiveMembership && (
+                      <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                        <p className="text-sm text-red-800 font-semibold">Active membership detected. Checkout is disabled.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (

@@ -145,7 +145,7 @@ const EventPreview = ({ item, type, onClose }) => {
             <div className="flex flex-col sm:flex-row gap-3 justify-end">
               {type === 'Event' ? (
                 <Link
-                  to="/login"
+                  to={`/events/${item.event_id}/rsvp`}
                   className="bg-[#19667C] hover:bg-[#145261] text-white font-bold py-3 px-5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-['Montserrat'] text-sm"
                 >
                   RSVP
@@ -154,7 +154,7 @@ const EventPreview = ({ item, type, onClose }) => {
                 // For exhibitions: only show Buy Ticket if the exhibition is current/ongoing (including permanent)
                 isCurrentExhibitionLocal(item) ? (
                   <Link
-                    to="/visit#ticket-section"
+                    to='/tickets/checkout'
                     className="bg-[#19667C] hover:bg-[#145261] text-white font-bold py-3 px-5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-['Montserrat'] text-sm"
                   >
                     Buy Ticket

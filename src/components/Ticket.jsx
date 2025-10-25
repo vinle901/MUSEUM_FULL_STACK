@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ticketService } from '../services/ticketService'
 import { authService } from '../services/authService'
 import { useCart } from '../context/CartContext'
+import { FaArrowLeft } from 'react-icons/fa'
 
 const Ticket = () => {
   const navigate = useNavigate()
@@ -78,6 +79,14 @@ const Ticket = () => {
   const updateQty = (id, val) => {
     const num = Math.max(0, Math.min(20, Number(val) || 0))
     setQuantities(prev => ({ ...prev, [id]: num }))
+  }
+
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate('/visit')
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -166,7 +175,19 @@ const Ticket = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-8 py-10">
+      <div className="max-w-5xl mx-auto px-8 py-6">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-2 text-gray-700 hover:text-black px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition"
+          aria-label="Go back"
+        >
+          <FaArrowLeft />
+          <span>Back</span>
+        </button>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-8 py-4">
         {loading ? (
           <p>Loading ticket types...</p>
         ) : (

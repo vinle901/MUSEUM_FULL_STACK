@@ -7,7 +7,7 @@ const router = express.Router()
 router.get('/user/:userId', async (req, res) => {
   try {
     // Check if requesting user matches userId OR user is admin
-    if (req.user.id !== parseInt(req.params.userId, 10) && req.user.role !== 'Admin') {
+    if (req.user.id !== parseInt(req.params.userId, 10) && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: You can only view your own memberships' })
     }
 
@@ -32,7 +32,7 @@ router.get('/:id', async (req, res) => {
     }
 
     // Check if requesting user owns this membership OR is admin
-    if (req.user.id !== memberships[0].user_id && req.user.role !== 'Admin') {
+    if (req.user.id !== memberships[0].user_id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: You can only view your own memberships' })
     }
 
@@ -50,7 +50,7 @@ router.post('/', async (req, res) => {
     } = req.body
 
     // Check if requesting user matches user_id OR is admin
-    if (req.user.id !== user_id && req.user.role !== 'Admin') {
+    if (req.user.id !== user_id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: You can only create memberships for yourself' })
     }
 
@@ -74,7 +74,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // Check if requesting user owns this membership OR is admin
-    if (req.user.id !== memberships[0].user_id && req.user.role !== 'Admin') {
+    if (req.user.id !== memberships[0].user_id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: You can only update your own memberships' })
     }
 

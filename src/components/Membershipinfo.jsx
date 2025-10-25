@@ -1,7 +1,9 @@
 // src/components/MembershipInfo.jsx
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { fetchBenefits, getDetailedBenefits, getMembershipImage } from "../services/benefitsService";
+import { authService } from "../services/authService";
+import { ticketService } from "../services/ticketService";
 
 // Reusable CheckIcon component
 const CheckIcon = ({ className = "w-5 h-5 text-brand flex-shrink-0 mt-0.5" }) => (
@@ -14,6 +16,10 @@ export default function MembershipInfo() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [membership, setMembership] = useState(null);
+  const [memLoading, setMemLoading] = useState(true);
+  const isLoggedIn = useMemo(() => !!(currentUser && localStorage.getItem('accessToken')), [currentUser]);
 
   useEffect(() => {
     async function loadBenefits() {
@@ -29,6 +35,46 @@ export default function MembershipInfo() {
     }
     loadBenefits();
   }, []);
+
+  // Determine logged in user and active membership status
+  useEffect(() => {
+    const loadUserAndMembership = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        setCurrentUser(user);
+        if (user?.user_id || user?.id) {
+          try {
+            const uid = user.user_id || user.id;
+            const res = await ticketService.getUserMembership(uid);
+            if (Array.isArray(res) && res.length > 0) setMembership(res[0]);
+            else setMembership(null);
+          } catch {
+            setMembership(null);
+          }
+        } else {
+          setMembership(null);
+        }
+      } catch {
+        setCurrentUser(null);
+        setMembership(null);
+      } finally {
+        setMemLoading(false);
+      }
+    };
+    loadUserAndMembership();
+  }, []);
+
+  const hasActiveMembership = useMemo(() => {
+    if (!membership) return false;
+    const activeVal = membership.is_active;
+    const isActive = (activeVal === 1 || activeVal === true || activeVal === '1');
+    if (!isActive) return false;
+    // Treat null expiration as non-expiring (active). Otherwise require not in the past.
+    if (!membership.expiration_date) return true;
+    const exp = new Date(membership.expiration_date);
+    const today = new Date(); today.setHours(0,0,0,0);
+    return exp >= today;
+  }, [membership]);
 
   if (loading) {
     return (
@@ -74,6 +120,17 @@ export default function MembershipInfo() {
 
       {/* Intro + Contact */}
       <section className="container" style={{ padding: "32px 0 12px" }}>
+        {/* Guard banner if already a member */}
+        {!memLoading && hasActiveMembership && (
+          <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4 mb-6">
+            <p className="text-green-900 font-semibold">
+              You already have an active membership{membership?.membership_type ? ` (${membership.membership_type})` : ''}.
+            </p>
+            {membership?.expiration_date && (
+              <p className="text-green-800 text-sm mt-1">Expires on {new Date(membership.expiration_date).toLocaleDateString()}.</p>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-[1.4fr_0.8fr] gap-6">
           <div className="card card--spacious bg-gradient-to-br from-white to-gray-50 border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <h2 className="page-title text-3xl font-bold text-brand mb-3 mt-0">
@@ -187,13 +244,34 @@ export default function MembershipInfo() {
                   ))}
                 </ul>
 
-                <Link
-                  to="/membership/join"
-                  className="btn btn--brand btn--lg w-full font-bold"
-                  style={{ justifyContent: "center" }}
-                >
-                  Join Now
-                </Link>
+                {hasActiveMembership ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="btn btn--lg w-full font-bold cursor-not-allowed opacity-60"
+                    style={{ justifyContent: "center" }}
+                    title="You already have an active membership"
+                  >
+                    Already a Member
+                  </button>
+                ) : !isLoggedIn ? (
+                  <Link
+                    to="/login"
+                    className="btn btn--brand btn--lg w-full font-bold"
+                    style={{ justifyContent: "center" }}
+                  >
+                    Join
+                  </Link>
+                ) : (
+                  <Link
+                    to="/checkout/membership"
+                    state={{ checkoutType: 'membership', membershipData: { plan: p, user: currentUser } }}
+                    className="btn btn--brand btn--lg w-full font-bold"
+                    style={{ justifyContent: "center" }}
+                  >
+                    Join Now
+                  </Link>
+                )}
               </div>
             </article>
           ))}
@@ -269,13 +347,34 @@ export default function MembershipInfo() {
               </a>
 
               {/* Optional: quick CTA to join */}
-              <Link
-                to="/membership/join"
-                className="btn btn--brand btn--lg"
-                style={{ justifyContent: "center" }}
-              >
-                Become a Member
-              </Link>
+              {hasActiveMembership ? (
+                <button
+                  type="button"
+                  disabled
+                  className="btn btn--lg cursor-not-allowed opacity-60"
+                  style={{ justifyContent: "center" }}
+                  title="You already have an active membership"
+                >
+                  Already a Member
+                </button>
+              ) : !isLoggedIn ? (
+                <Link
+                  to="/login"
+                  className="btn btn--brand btn--lg"
+                  style={{ justifyContent: "center" }}
+                >
+                  Become a Member
+                </Link>
+              ) : (
+                <Link
+                  to="/checkout/membership"
+                  state={{ checkoutType: 'membership' }}
+                  className="btn btn--brand btn--lg"
+                  style={{ justifyContent: "center" }}
+                >
+                  Become a Member
+                </Link>
+              )}
             </div>
           </div>
         </div>
