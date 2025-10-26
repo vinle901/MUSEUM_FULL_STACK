@@ -1,6 +1,7 @@
 import express from 'express'
 import db from '../config/database.js'
 import middleware from '../utils/middleware.js'
+import { uploadExhibitionImage } from '../utils/uploadMiddleware.js'
 
 const router = express.Router()
 
@@ -52,11 +53,11 @@ router.post('/upload-image', middleware.requireRole('admin', 'employee'), (req, 
 router.post('/', middleware.requireRole('admin', 'employee'), async (req, res) => {
   try {
     const {
-      exhibition_name, exhibition_type, location, description, start_date, end_date, is_active,
+      exhibition_name, exhibition_type, location, description, start_date, end_date, is_active, picture_url,
     } = req.body
     const [result] = await db.query(
       'INSERT INTO Exhibition (exhibition_name, exhibition_type, location, description, start_date, end_date, is_active, picture_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [exhibition_name, exhibition_type, location, description, start_date, end_date, is_active || true, picture_url || null],
+      [exhibition_name, exhibition_type, location, description, start_date, end_date, is_active ?? true, picture_url || null],
     )
     res.status(201).json({ exhibition_id: result.insertId, message: 'Exhibition created successfully' })
   } catch (error) {
@@ -68,12 +69,12 @@ router.post('/', middleware.requireRole('admin', 'employee'), async (req, res) =
 router.put('/:id', middleware.requireRole('admin', 'employee'), async (req, res) => {
   try {
     const {
-      exhibition_name, description, location, end_date, is_active, picture_url
+      exhibition_name, exhibition_type, description, location, start_date, end_date, is_active, picture_url
     } = req.body
 
     await db.query(
-      'UPDATE Exhibition SET exhibition_name = ?, description = ?, location = ?, end_date = ?, is_active = ?, picture_url = ? WHERE exhibition_id = ?',
-      [exhibition_name, description, location, end_date, is_active, picture_url, req.params.id],
+      'UPDATE Exhibition SET exhibition_name = ?, exhibition_type = ?, description = ?, location = ?, start_date = ?, end_date = ?, is_active = ?, picture_url = ? WHERE exhibition_id = ?',
+      [exhibition_name, exhibition_type, description, location, start_date, end_date, is_active, picture_url, req.params.id],
     )
     res.json({ message: 'Exhibition updated successfully' })
   } catch (error) {

@@ -64,7 +64,6 @@ export default function Profile() {
       if (!userId) return;
       
       const res = await api.get(`/api/transactions/user/${userId}`);
-      console.log("Transactions:", res.data);
       setTransactions(res.data || []);
     } catch (err) {
       console.error("Failed to load transactions:", err);
@@ -127,17 +126,19 @@ export default function Profile() {
       setLoading(true);
 
       // Interceptor handles auth token and 401 errors automatically
-      const res = await api.put("/api/users/profile", formData);
+      await api.put("/api/users/profile", formData);
 
-      setProfile(res.data.user);
+      // Refetch full profile to get membership data
+      await fetchProfile();
+
       setSuccess("Profile updated successfully!");
       setEditing(false);
 
       // Update user in localStorage
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      storedUser.email = res.data.user.email;
-      storedUser.first_name = res.data.user.first_name;
-      storedUser.last_name = res.data.user.last_name;
+      storedUser.email = formData.email;
+      storedUser.first_name = formData.first_name;
+      storedUser.last_name = formData.last_name;
       localStorage.setItem("user", JSON.stringify(storedUser));
     } catch (err) {
       setError(err.response?.data?.error || err.message || "Failed to update profile");
@@ -454,21 +455,32 @@ export default function Profile() {
                                       <div className="mb-3">
                                         <p className="text-xs font-semibold text-gray-700 mb-2">GIFT SHOP</p>
                                         <div className="space-y-2">
-                                          {transactionDetails[transaction.transaction_id].giftItems.map((item, idx) => (
-                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                                              <div className="flex justify-between items-start">
-                                                <div className="flex-1">
-                                                  <p className="m-0 font-semibold">{item.item_name}</p>
-                                                  {item.category && <p className="m-0 text-gray-600">{item.category}</p>}
-                                                  {item.description && <p className="m-0 text-gray-600 mt-1">{item.description}</p>}
-                                                </div>
-                                                <div className="text-right ml-2">
-                                                  <p className="m-0 text-gray-600">Qty: {item.quantity}</p>
-                                                  <p className="m-0 font-semibold">${parseFloat(item.line_total).toFixed(2)}</p>
+                                          {transactionDetails[transaction.transaction_id].giftItems.map((item, idx) => {
+                                            // Calculate if there was a discount applied
+                                            const currentPrice = parseFloat(item.current_price || 0);
+                                            const paidPrice = parseFloat(item.unit_price || 0);
+                                            const hasDiscount = currentPrice > 0 && paidPrice < currentPrice;
+                                            const discountAmount = hasDiscount ? currentPrice - paidPrice : 0;
+
+                                            return (
+                                              <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                                <div className="flex justify-between items-start">
+                                                  <div className="flex-1">
+                                                    <p className="m-0 font-semibold">{item.item_name}</p>
+                                                    {item.category && <p className="m-0 text-gray-600">{item.category}</p>}
+                                                    {item.description && <p className="m-0 text-gray-600 mt-1">{item.description}</p>}
+                                                    {hasDiscount && (
+                                                      <p className="m-0 text-green-600">Discount Applied: -${discountAmount.toFixed(2)} per item</p>
+                                                    )}
+                                                  </div>
+                                                  <div className="text-right ml-2">
+                                                    <p className="m-0 text-gray-600">Qty: {item.quantity}</p>
+                                                    <p className="m-0 font-semibold">${parseFloat(item.line_total).toFixed(2)}</p>
+                                                  </div>
                                                 </div>
                                               </div>
-                                            </div>
-                                          ))}
+                                            );
+                                          })}
                                         </div>
                                       </div>
                                     )}
@@ -478,28 +490,36 @@ export default function Profile() {
                                       <div className="mb-3">
                                         <p className="text-xs font-semibold text-gray-700 mb-2">CAFETERIA</p>
                                         <div className="space-y-2">
-                                          {transactionDetails[transaction.transaction_id].cafeteriaItems.map((item, idx) => (
-                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                                              <div className="flex justify-between items-start">
-                                                <div className="flex-1">
-                                                  <p className="m-0 font-semibold">{item.item_name}</p>
-                                                  {item.category && <p className="m-0 text-gray-600">{item.category}</p>}
-                                                  {(item.is_vegetarian || item.is_vegan) && (
-                                                    <p className="m-0 text-green-600">
-                                                      {item.is_vegan ? '🌱 Vegan' : '🥬 Vegetarian'}
-                                                    </p>
-                                                  )}
-                                                  {item.allergen_info && (
-                                                    <p className="m-0 text-orange-600">⚠️ {item.allergen_info}</p>
-                                                  )}
-                                                </div>
-                                                <div className="text-right ml-2">
-                                                  <p className="m-0 text-gray-600">Qty: {item.quantity}</p>
-                                                  <p className="m-0 font-semibold">${parseFloat(item.line_total).toFixed(2)}</p>
+                                          {transactionDetails[transaction.transaction_id].cafeteriaItems.map((item, idx) => {
+                                            // Calculate if there was a discount applied
+                                            const currentPrice = parseFloat(item.current_price || 0);
+                                            const paidPrice = parseFloat(item.unit_price || 0);
+                                            const hasDiscount = currentPrice > 0 && paidPrice < currentPrice;
+                                            const discountAmount = hasDiscount ? currentPrice - paidPrice : 0;
+
+                                            return (
+                                              <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                                <div className="flex justify-between items-start">
+                                                  <div className="flex-1">
+                                                    <p className="m-0 font-semibold">{item.item_name}</p>
+                                                    {item.category && <p className="m-0 text-gray-600">{item.category}</p>}
+                                                    {(item.is_vegetarian || item.is_vegan) && (
+                                                      <p className="m-0 text-green-600">
+                                                        {item.is_vegan ? '🌱 Vegan' : '🥬 Vegetarian'}
+                                                      </p>
+                                                    )}
+                                                    {hasDiscount && (
+                                                      <p className="m-0 text-green-600">Discount Applied: -${discountAmount.toFixed(2)} per item</p>
+                                                    )}
+                                                  </div>
+                                                  <div className="text-right ml-2">
+                                                    <p className="m-0 text-gray-600">Qty: {item.quantity}</p>
+                                                    <p className="m-0 font-semibold">${parseFloat(item.line_total).toFixed(2)}</p>
+                                                  </div>
                                                 </div>
                                               </div>
-                                            </div>
-                                          ))}
+                                            );
+                                          })}
                                         </div>
                                       </div>
                                     )}
@@ -527,7 +547,7 @@ export default function Profile() {
                                                   </p>
                                                 </div>
                                                 <div className="text-right ml-2">
-                                                  <p className="m-0 font-semibold">${parseFloat(membership.amount_paid).toFixed(2)}</p>
+                                                  <p className="m-0 font-semibold">${parseFloat(membership.line_total).toFixed(2)}</p>
                                                 </div>
                                               </div>
                                             </div>

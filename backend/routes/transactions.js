@@ -81,7 +81,8 @@ router.get('/:id', async (req, res) => {
         gsp.*,
         gsi.category,
         gsi.description,
-        gsi.image_url
+        gsi.image_url,
+        gsi.price as current_price
        FROM Gift_Shop_Purchase gsp
        LEFT JOIN Gift_Shop_Items gsi ON gsp.gift_item_id = gsi.item_id
        WHERE gsp.transaction_id = ?`,
@@ -96,7 +97,7 @@ router.get('/:id', async (req, res) => {
         ci.description,
         ci.is_vegetarian,
         ci.is_vegan,
-        ci.allergen_info
+        ci.price as current_price
        FROM Cafeteria_Purchase cp
        LEFT JOIN Cafeteria_Items ci ON cp.cafeteria_item_id = ci.item_id
        WHERE cp.transaction_id = ?`,
@@ -302,29 +303,34 @@ router.post('/gift-shop-checkout', async (req, res) => {
       console.log('Skipping membership discount: unauthenticated, mismatched user, or guest checkout')
     }
 
-    // Step 3: Calculate total items and apply discount
+    // Step 3: Calculate total items and subtotal
     const total_items = cart_items.reduce((sum, item) => sum + item.quantity, 0)
     console.log(`Total items: ${total_items}`)
-    
-    // Calculate discounted total price
-    let calculatedTotalPrice = 0
+
+    // Calculate subtotal (line_total does NOT include tax)
+    let subtotal = 0
+
     for (const cartItem of cart_items) {
       const dbItem = itemMap[cartItem.item_id]
       const originalPrice = dbItem.price
-      const discountedPrice = originalPrice * (1 - discountPercentage / 100)
-      const lineTotal = discountedPrice * cartItem.quantity
-      calculatedTotalPrice += lineTotal
+      const discountedUnitPrice = parseFloat((originalPrice * (1 - discountPercentage / 100)).toFixed(2))
+      const lineTotal = parseFloat((discountedUnitPrice * cartItem.quantity).toFixed(2))
+      subtotal += lineTotal
     }
-    
-    // Round to 2 decimal places
-    calculatedTotalPrice = parseFloat(calculatedTotalPrice.toFixed(2))
-    console.log(`Calculated total price with discount: ${calculatedTotalPrice}`)
 
+    subtotal = parseFloat(subtotal.toFixed(2))
+    console.log(`Calculated subtotal: ${subtotal}`)
 
-    // Step 4: Insert Transaction record (using calculated price with discount)
+    // Calculate tax on total
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const calculatedTotalPrice = parseFloat((subtotal + taxAmount).toFixed(2))
+    console.log(`Calculated total price with tax: ${calculatedTotalPrice}`)
+
+    // Step 4: Insert Transaction record (using calculated price with discount and tax)
     const [transactionResult] = await connection.query(
-      `INSERT INTO Transactions 
-       (user_id, total_price, total_items, payment_method, transaction_status, employee_id) 
+      `INSERT INTO Transactions
+       (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
        VALUES (?, ?, ?, ?, 'Completed', NULL)`,
       [user_id, calculatedTotalPrice, total_items, payment_method]
     )
@@ -334,7 +340,7 @@ router.post('/gift-shop-checkout', async (req, res) => {
 
     // Step 5: Insert Gift_Shop_Purchase records and update stock
     const purchaseRecords = []
-    
+
     for (const cartItem of cart_items) {
       const dbItem = itemMap[cartItem.item_id]
       // Apply membership discount to the unit price
@@ -344,8 +350,8 @@ router.post('/gift-shop-checkout', async (req, res) => {
 
       // Insert purchase record with discounted prices
       const [purchaseResult] = await connection.query(
-        `INSERT INTO Gift_Shop_Purchase 
-         (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total) 
+        `INSERT INTO Gift_Shop_Purchase
+         (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
           transaction_id,
@@ -494,28 +500,37 @@ router.post('/ticket-checkout', async (req, res) => {
 
     // Step 4: Compute totals
     const totalItems = items.reduce((sum, it) => sum + it.quantity, 0)
-    let totalPrice = 0
+    let subtotal = 0
 
     const purchaseRows = []
+
     for (const it of items) {
       const dbType = typeMap[it.ticket_type_id]
-  const base = dbType.base_price
-  const final = base
-  const discount = 0
-      const line = parseFloat((final * it.quantity).toFixed(2))
-      totalPrice += line
+      const base = dbType.base_price
+      const final = base
+      const discount = 0
+      const lineTotal = parseFloat((final * it.quantity).toFixed(2))
+
+      subtotal += lineTotal
+
       purchaseRows.push({
         ticket_type_id: it.ticket_type_id,
         quantity: it.quantity,
         base_price: base,
         discount_amount: discount,
         final_price: final,
-        line_total: line
+        line_total: lineTotal
       })
     }
-    totalPrice = parseFloat(totalPrice.toFixed(2))
 
-    // Step 5: Insert Transaction
+    subtotal = parseFloat(subtotal.toFixed(2))
+
+    // Calculate tax on total
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const totalPrice = parseFloat((subtotal + taxAmount).toFixed(2))
+
+    // Step 5: Insert Transaction (only total_price stored in DB)
     const [tx] = await connection.query(
       `INSERT INTO Transactions (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
        VALUES (?, ?, ?, ?, 'Completed', NULL)`,
@@ -701,11 +716,12 @@ router.post('/combined-checkout', async (req, res) => {
           await connection.rollback()
           return res.status(400).json({ error: 'visit_date is required for ticket items' })
         }
-  const base = dbType.base_price
-  const final = base
-  const discount = 0
-        const line = parseFloat((final * ti.quantity).toFixed(2))
-        ticketTotal += line
+        const base = dbType.base_price
+        const final = base
+        const discount = 0
+        const lineTotal = parseFloat((final * ti.quantity).toFixed(2))
+
+        ticketTotal += lineTotal
         ticketCount += ti.quantity
 
         ticketPurchaseRows.push({
@@ -714,14 +730,22 @@ router.post('/combined-checkout', async (req, res) => {
           base_price: base,
           discount_amount: discount,
           final_price: final,
-          line_total: line,
+          line_total: lineTotal,
           visit_date: ti.visit_date
         })
       }
     }
 
-    const grandTotal = parseFloat((giftTotal + ticketTotal).toFixed(2))
+    // Calculate subtotal and grand total
     const totalItems = giftCount + ticketCount
+    const subtotal = parseFloat((giftTotal + ticketTotal).toFixed(2))
+
+    // Calculate tax on total
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const grandTotal = parseFloat((subtotal + taxAmount).toFixed(2))
+
+    console.log(`Combined checkout - Gift total: ${giftTotal}, Ticket total: ${ticketTotal}, Subtotal: ${subtotal}, Tax: ${taxAmount}, Grand Total: ${grandTotal}`)
 
     // Create Transaction
     const [tx] = await connection.query(
@@ -873,8 +897,12 @@ router.post('/membership-checkout', async (req, res) => {
     }
 
     const membershipBenefit = benefits[0]
-    // Use total_paid from frontend (includes tax) if provided, otherwise use annual_fee
-    const totalPrice = total_paid ? parseFloat(total_paid) : parseFloat(membershipBenefit.annual_fee)
+    const annualFee = parseFloat(membershipBenefit.annual_fee)
+
+    // Calculate tax
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((annualFee * TAX_RATE).toFixed(2))
+    const totalPrice = parseFloat((annualFee + taxAmount).toFixed(2))
 
     // Step 2: Check if user already has an active membership
     const [existingMemberships] = await connection.query(
@@ -925,12 +953,12 @@ router.post('/membership-checkout', async (req, res) => {
     const membershipId = membershipResult.insertId
     console.log('Membership created:', membershipId)
 
-    // Step 5: Create membership purchase record
+    // Step 5: Create membership purchase record (line_total does NOT include tax)
     await connection.query(
       `INSERT INTO Membership_Purchase
-       (transaction_id, membership_id, amount_paid, is_renewal)
+       (transaction_id, membership_id, line_total, is_renewal)
        VALUES (?, ?, ?, ?)`,
-      [transactionId, membershipId, totalPrice, isRenewal],
+      [transactionId, membershipId, annualFee, isRenewal],
     )
 
     console.log('Membership purchase record created')
@@ -1068,10 +1096,15 @@ router.post('/cafeteria-pos', async (req, res) => {
 
     // Step 4: Calculate totals
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalPrice = items.reduce((sum, item) => {
+    const subtotal = items.reduce((sum, item) => {
       const dbItem = itemMap[item.cafeteria_item_id];
       return sum + (parseFloat(dbItem.price) * item.quantity);
     }, 0);
+
+    // Calculate tax
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const totalPrice = parseFloat((subtotal + taxAmount).toFixed(2))
 
     // Step 5: Get employee ID if this is an employee processing the order
     let employeeId = null;

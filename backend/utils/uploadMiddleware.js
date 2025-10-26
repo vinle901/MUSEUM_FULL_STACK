@@ -30,7 +30,14 @@ export const createUpload = (folderName, fieldName) => {
 // Create one for your upload need
 export const uploadArtworkImage = createUpload('artworks', 'artwork_image')
 export const uploadGiftShopImage = createUpload('giftshop', 'item_image')
+export const uploadCafeteriaImage = createUpload('cafeteria', 'cafeteria_image')
 export const uploadExhibitionImage = createUpload('exhibitions', 'exhibition_image')
 export const uploadEventImage = createUpload('events', 'event_image')
 
-export default { uploadArtworkImage, uploadGiftShopImage, uploadExhibitionImage, uploadEventImage }
+export default {
+  uploadArtworkImage,
+  uploadGiftShopImage,
+  uploadCafeteriaImage,
+  uploadExhibitionImage,
+  uploadEventImage,
+}

@@ -10,7 +10,12 @@ const router = express.Router()
 // GET all artworks - Public
 router.get('/', async (req, res) => {
   try {
-    const [artworks] = await db.query('SELECT * FROM artwork')
+    const [artworks] = await db.query(`
+      SELECT a.*, ar.name as artist_name, ar.nationality, e.exhibition_name
+      FROM Artwork a
+      LEFT JOIN Artist ar ON a.artist_id = ar.artist_id
+      LEFT JOIN Exhibition e ON a.exhibition_id = e.exhibition_id
+    `)
     res.json(artworks)
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -91,8 +96,8 @@ router.post('/', middleware.requireRole('admin', 'employee'), async (req, res) =
        picture_url, exhibition_id, curated_by_employee_id, acquisition_date, is_on_display)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        title, artist_id, creation_date, artwork_type, material, description,
-        picture_url, exhibition_id, curated_by_employee_id || null, acquisition_date || null, is_on_display || true,
+        title, artist_id, creation_date || null, artwork_type, material, description,
+        picture_url, exhibition_id || null, curated_by_employee_id || null, acquisition_date || null, is_on_display ?? true,
       ],
     )
     res.status(201).json({ artwork_id: result.insertId, message: 'Artwork created successfully' })
@@ -101,21 +106,30 @@ router.post('/', middleware.requireRole('admin', 'employee'), async (req, res) =
   }
 })
 
-// PUT update artwork - Temporarily allow for data updates
-router.put('/:id', async (req, res) => {
-try {
-const updates = req.body
-const fields = Object.keys(updates)
-const values = Object.values(updates)
+// PUT update artwork - Admin/Employee only
+router.put('/:id', middleware.requireRole('admin', 'employee'), async (req, res) => {
+  try {
+    // Define allowed fields that exist in the Artwork table
+    const allowedFields = [
+      'title', 'artist_id', 'creation_date', 'artwork_type', 'material',
+      'description', 'picture_url', 'exhibition_id', 'curated_by_employee_id',
+      'acquisition_date', 'is_on_display'
+    ]
 
-if (fields.length === 0) {
-return res.status(400).json({ error: 'No fields to update' })
-}
+    const updates = req.body
 
-const setClause = fields.map(field => `${field} = ?`).join(', ')
-const query = `UPDATE Artwork SET ${setClause} WHERE artwork_id = ?`
+    // Filter to only include allowed fields
+    const fields = Object.keys(updates).filter(field => allowedFields.includes(field))
+    const values = fields.map(field => updates[field])
 
-values.push(req.params.id)
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' })
+    }
+
+    const setClause = fields.map(field => `${field} = ?`).join(', ')
+    const query = `UPDATE Artwork SET ${setClause} WHERE artwork_id = ?`
+
+    values.push(req.params.id)
 
     await db.query(query, values)
     res.json({ message: 'Artwork updated successfully' })
@@ -129,29 +143,6 @@ router.delete('/:id', middleware.requireRole('admin'), async (req, res) => {
   try {
     await db.query('DELETE FROM Artwork WHERE artwork_id = ?', [req.params.id])
     res.json({ message: 'Artwork deleted successfully' })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
-// PUT update artwork - Admin/Employee only
-router.put('/:id', middleware.requireRole('admin', 'employee'), async (req, res) => {
-  try {
-    const updates = req.body
-    const fields = Object.keys(updates)
-    const values = Object.values(updates)
-
-    if (fields.length === 0) {
-      return res.status(400).json({ error: 'No fields to update' })
-    }
-
-    const setClause = fields.map(field => `${field} = ?`).join(', ')
-    const query = `UPDATE Artwork SET ${setClause} WHERE artwork_id = ?`
-
-    values.push(req.params.id)
-
-    await db.query(query, values)
-    res.json({ message: 'Artwork updated successfully' })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

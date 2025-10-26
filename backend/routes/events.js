@@ -1,6 +1,7 @@
 import express from 'express'
 import db from '../config/database.js'
 import middleware from '../utils/middleware.js'
+import { uploadEventImage } from '../utils/uploadMiddleware.js'
 
 const router = express.Router()
 
@@ -9,7 +10,11 @@ const router = express.Router()
 // GET all events - Public
 router.get('/', async (req, res) => {
   try {
-    const [events] = await db.query('SELECT * FROM Events WHERE is_cancelled = FALSE ORDER BY event_date, event_time')
+    const includeCancelled = req.query.include_cancelled === 'true'
+    const query = includeCancelled
+      ? 'SELECT * FROM Events ORDER BY event_date, event_time'
+      : 'SELECT * FROM Events WHERE is_cancelled = FALSE ORDER BY event_date, event_time'
+    const [events] = await db.query(query)
     res.json(events)
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -77,11 +82,15 @@ router.post('/', middleware.requireRole('admin', 'employee'), async (req, res) =
 router.put('/:id', middleware.requireRole('admin', 'employee'), async (req, res) => {
   try {
     const {
-      event_name, description, location, is_cancelled,
+      event_name, event_type, event_date, event_time, duration_minutes, location,
+      description, max_capacity, is_members_only, is_cancelled, picture_url
     } = req.body
     await db.query(
-      'UPDATE Events SET event_name = ?, description = ?, location = ?, is_cancelled = ?, picture_url = ? WHERE event_id = ?',
-      [event_name, description, location, is_cancelled, picture_url, req.params.id],
+      `UPDATE Events SET event_name = ?, event_type = ?, event_date = ?, event_time = ?,
+       duration_minutes = ?, location = ?, description = ?, max_capacity = ?,
+       is_members_only = ?, is_cancelled = ?, picture_url = ? WHERE event_id = ?`,
+      [event_name, event_type, event_date, event_time, duration_minutes, location,
+       description, max_capacity, is_members_only, is_cancelled, picture_url, req.params.id],
     )
     res.json({ message: 'Event updated successfully' })
   } catch (error) {

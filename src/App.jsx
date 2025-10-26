@@ -21,6 +21,7 @@ import Membership from "./components/Membership.jsx"
 import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
 import EventRSVP from './components/EventRSVP.jsx'
+import Register from "./components/Register.jsx"
 
 // Employee Portal Components
 import EmployeePOS from "./components/employee/EmployeePOS"
@@ -47,11 +48,13 @@ function App() {
           <Route path="/events/:id/rsvp" element={<EventRSVP />} />
           <Route path="/support" element={<Support />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/membership" element={<Membershipinfo />} />
+          <Route path="/membershipinfo" element={<Membershipinfo />} />
+          <Route path="/membership" element={<Membership />} />
           {/* Dedicated membership checkout route */}
           <Route path="/checkout/membership" element={<CheckoutMem />} />
-          <Route path="/membership-info" element={<Navigate to="/membership" replace />} />
+          <Route path="/membership-info" element={<Navigate to="/membershipinfo" replace />} />
           <Route path="/cafeteria" element={<Cafeteria />} />
           
           {/* Employee Portal Routes */}

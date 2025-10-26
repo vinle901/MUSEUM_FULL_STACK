@@ -233,7 +233,7 @@ function Navbar() {
                 {isLoggedIn ? (
                   <>
                     <Link to="/profile" className="mobile-menu-link user-link" onClick={closeMobileMenu}>
-                      <FaUser size={16} /> {userName}
+                      <FaUser size={16} />
                     </Link>
                     <button onClick={handleLogout} className="mobile-menu-link logout-link">
                       <FaSignOutAlt size={16} /> Logout

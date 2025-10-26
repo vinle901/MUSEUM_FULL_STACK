@@ -21,39 +21,40 @@ const router = express.Router()
  */
 async function getUserRoleDetails(userId) {
   const [employees] = await db.query(
-    'SELECT role, is_active FROM Employee WHERE user_id = ? AND is_active = TRUE',
+    'SELECT employee_id, role, is_active FROM Employee WHERE user_id = ? AND is_active = TRUE',
     [userId],
   )
 
   if (employees.length > 0) {
     const employeeRole = employees[0].role.toLowerCase()
-    
+    const employeeId = employees[0].employee_id
+
     // Determine specific employee type based on role
     let employeeType = null
-    
+
     // Admin roles
     if (employeeRole.includes('admin') || employeeRole.includes('director') || employeeRole.includes('manager')) {
       employeeType = 'admin'
-      return { role: 'admin', employeeType: 'admin' }
+      return { role: 'admin', employeeType: 'admin', employeeId }
     }
-    
+
     // Cafeteria roles
     if (employeeRole.includes('cafeteria') || employeeRole.includes('barista') || employeeRole.includes('cashier') || employeeRole.includes('food')) {
       employeeType = 'cafeteria'
-      return { role: 'employee', employeeType: 'cafeteria' }
+      return { role: 'employee', employeeType: 'cafeteria', employeeId }
     }
-    
+
     // Analyst roles
     if (employeeRole.includes('analyst') || employeeRole.includes('data') || employeeRole.includes('report')) {
       employeeType = 'analyst'
-      return { role: 'employee', employeeType: 'analyst' }
+      return { role: 'employee', employeeType: 'analyst', employeeId }
     }
-    
+
     // Default employee type for other roles
-    return { role: 'employee', employeeType: 'general' }
+    return { role: 'employee', employeeType: 'general', employeeId }
   }
 
-  return { role: 'customer', employeeType: null }
+  return { role: 'customer', employeeType: null, employeeId: null }
 }
 
 /**
@@ -209,6 +210,7 @@ router.post('/login', async (req, res) => {
       email: user.email,
       role: roleDetails.role,
       employeeType: roleDetails.employeeType,
+      employeeId: roleDetails.employeeId,
     }
 
     const accessToken = generateAccessToken(tokenUser)
@@ -231,6 +233,7 @@ router.post('/login', async (req, res) => {
         last_name: user.last_name,
         role: roleDetails.role,
         employeeType: roleDetails.employeeType,
+        employeeId: roleDetails.employeeId,
       },
     })
   } catch (error) {

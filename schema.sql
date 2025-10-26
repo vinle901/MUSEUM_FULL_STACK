@@ -109,13 +109,13 @@ CREATE TABLE `Cafeteria_Items`(
     `price` DECIMAL(6,2) NOT NULL,
     `description` TEXT NULL,
     `is_available` BOOLEAN NOT NULL DEFAULT TRUE,
-    `allergen_info` VARCHAR(500) NULL,
     `calories` SMALLINT UNSIGNED NULL,
     `is_vegetarian` BOOLEAN NOT NULL DEFAULT FALSE,
     `is_vegan` BOOLEAN NOT NULL DEFAULT FALSE,
     `preparation_time_minutes` TINYINT UNSIGNED NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `picture_url` VARCHAR(500) NULL,
     PRIMARY KEY(`item_id`),
     INDEX `idx_category` (`category`),
     INDEX `idx_availability` (`is_available`),
@@ -310,8 +310,6 @@ CREATE TABLE `Ticket_Purchase`(
     CHECK (`quantity` > 0),
     CHECK (`final_price` >= 0),
     CHECK (`discount_amount` >= 0),
-    CHECK (`final_price` = `base_price` - `discount_amount`),
-    CHECK (`line_total` = `quantity` * `final_price`)
 );
 
 ALTER TABLE `Ticket_Purchase`
@@ -343,8 +341,7 @@ CREATE TABLE `Gift_Shop_Purchase`(
     INDEX `idx_transaction` (`transaction_id`),
     INDEX `idx_gift_item` (`gift_item_id`),
     CHECK (`quantity` > 0),
-    CHECK (`unit_price` >= 0),
-    CHECK (`line_total` = `quantity` * `unit_price`)
+    CHECK (`unit_price` >= 0)
 );
 
 ALTER TABLE `Gift_Shop_Purchase`
@@ -368,8 +365,7 @@ CREATE TABLE `Cafeteria_Purchase`(
     INDEX `idx_transaction` (`transaction_id`),
     INDEX `idx_cafeteria_item` (`cafeteria_item_id`),
     CHECK (`quantity` > 0),
-    CHECK (`unit_price` >= 0),
-    CHECK (`line_total` = `quantity` * `unit_price`)
+    CHECK (`unit_price` >= 0)
 );
 
 ALTER TABLE `Cafeteria_Purchase`
@@ -384,13 +380,13 @@ CREATE TABLE `Membership_Purchase`(
     `purchase_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `transaction_id` INT UNSIGNED NOT NULL,
     `membership_id` INT UNSIGNED NOT NULL,
-    `amount_paid` DECIMAL(8,2) NOT NULL,
+    `line_total` DECIMAL(8,2) NOT NULL,
     `is_renewal` BOOLEAN NOT NULL DEFAULT FALSE,
     `purchased_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(`purchase_id`),
     INDEX `idx_transaction` (`transaction_id`),
     INDEX `idx_membership` (`membership_id`),
-    CHECK (`amount_paid` >= 0)
+    CHECK (`line_total` >= 0)
 );
 
 ALTER TABLE `Membership_Purchase`

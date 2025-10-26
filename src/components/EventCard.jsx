@@ -48,12 +48,12 @@ const EventCard = ({
   const imageSrc = getImageUrl(pictureUrl) || PLACEHOLDER_IMAGE
 
   return (
-    <div className="bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 relative mb-6 group">
+    <div className="bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 relative mb-6 group flex flex-col h-full">
       {/* Shimmer effect */}
       <div className="absolute inset-0 bg-gradient-to-r from-brand/0 via-brand/30 to-brand/0 translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out z-10 pointer-events-none"></div>
 
       {/* Image section */}
-      <div className="relative overflow-hidden bg-gray-100 z-0">
+      <div className="relative overflow-hidden bg-gray-100 z-0 flex-shrink-0">
         <img
           src={imageSrc}
           alt={name}
@@ -63,15 +63,17 @@ const EventCard = ({
       </div>
 
       {/* Content section */}
-      <div className="p-4 relative z-0">
-        <h3 className="text-lg font-bold text-black mb-2 flex items-center">
-          {name}
+      <div className="p-4 relative z-0 flex flex-col flex-grow">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-bold text-black">
+            {name}
+          </h3>
           {isMemberOnly && (
-            <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
+            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full whitespace-nowrap">
               Member Only
             </span>
           )}
-        </h3>
+        </div>
         {time ? (
           <p className="text-gray-600 mb-1">{formatDateTime(startDate, time)}</p>
         ) : (
@@ -82,10 +84,10 @@ const EventCard = ({
             <p className="text-gray-600 mb-1">{formatExhibitionDate(startDate, endDate)}</p>
           )
         )}
-        <p className="text-gray-500 text-sm">{location}</p>
+        <p className="text-gray-500 text-sm mb-4">{location}</p>
 
-        {/* Learn more button inside card */}
-        <div className="mt-3 flex justify-end">
+        {/* Learn more button pushed to bottom right */}
+        <div className="mt-auto flex justify-end">
           <button
             type="button"
             onClick={() => onPreview && onPreview(item, type)}
