@@ -1,12 +1,12 @@
 // File: src/components/employee/AdminPortal.jsx
 
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaKey } from 'react-icons/fa';
 import api from '../../services/api';
 import './EmployeePortal.css';
 
 function AdminPortal() {
-  const [activeTab, setActiveTab] = useState('artworks');
+  const [activeTab, setActiveTab] = useState('employees');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -16,14 +16,26 @@ function AdminPortal() {
   const [artists, setArtists] = useState([]);
   const [exhibitions, setExhibitions] = useState([]);
   const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordChangeEmployee, setPasswordChangeEmployee] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const tabs = [
+    // Core data - needed by other entities
+    { id: 'employees', label: 'Employees', endpoint: '/api/employees' },
+    { id: 'artists', label: 'Artists', endpoint: '/api/artists' },
+    
+    // Content that depends on artists/employees
     { id: 'artworks', label: 'Artworks', endpoint: '/api/artworks' },
     { id: 'exhibitions', label: 'Exhibitions', endpoint: '/api/exhibitions' },
     { id: 'events', label: 'Museum Events', endpoint: '/api/events' },
+    
+    // Visitor services
+    { id: 'tickets', label: 'Ticket Types', endpoint: '/api/tickets/types' },
     { id: 'giftshop', label: 'Gift Shop Items', endpoint: '/api/giftshop' },
     { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
-    { id: 'tickets', label: 'Ticket Types', endpoint: '/api/tickets/types' },
   ];
 
   useEffect(() => {
@@ -99,6 +111,15 @@ function AdminPortal() {
       }
     }
 
+    if (activeTab === 'employees') {
+      if (formattedItem.hire_date) {
+        formattedItem.hire_date = new Date(formattedItem.hire_date).toISOString().split('T')[0];
+      }
+      if (formattedItem.birthdate) {
+        formattedItem.birthdate = new Date(formattedItem.birthdate).toISOString().split('T')[0];
+      }
+    }
+
     setFormData(formattedItem);
   };
 
@@ -134,6 +155,16 @@ function AdminPortal() {
 
     // Check for duplicate entry errors
     if (errorMessage.includes('Duplicate entry') || errorMessage.includes('unique')) {
+      // Provide specific messages for different tabs
+      if (activeTab === 'employees') {
+        if (errorMessage.includes('email') || errorMessage.toLowerCase().includes('users.email')) {
+          return 'This email address is already in use.\n\nPlease use a different email address.';
+        }
+        if (errorMessage.includes('ssn') || errorMessage.toLowerCase().includes('employee.ssn')) {
+          return 'This SSN is already registered.\n\nPlease check the SSN or contact the administrator if this is an error.';
+        }
+        return 'This employee information already exists (duplicate email or SSN).\n\nPlease use different credentials.';
+      }
       return 'This entry already exists.\n\nPlease use a different name or identifier.';
     }
 
@@ -166,9 +197,125 @@ function AdminPortal() {
     }
   };
 
+  const handlePasswordChangeClick = (employee) => {
+    setPasswordChangeEmployee(employee);
+    setShowPasswordModal(true);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+
+    // Validation
+    if (!newPassword || !confirmPassword) {
+      setPasswordError('Both password fields are required');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    try {
+      await api.post(`/api/employees/${passwordChangeEmployee.employee_id}/change-password`, {
+        newPassword
+      });
+      
+      alert('Password changed successfully! Employee will be required to change it on next login.');
+      setShowPasswordModal(false);
+      setPasswordChangeEmployee(null);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setPasswordError(error.response?.data?.error || 'Failed to change password');
+    }
+  };
+
+  const validateEmployeeForm = () => {
+    const errors = [];
+
+    // Required fields for new employees
+    if (!editingItem) {
+      if (!formData.first_name?.trim()) errors.push('First name is required');
+      if (!formData.last_name?.trim()) errors.push('Last name is required');
+      if (!formData.email?.trim()) errors.push('Email is required');
+      if (!formData.password?.trim()) errors.push('Password is required');
+      if (!formData.birthdate) errors.push('Birthdate is required');
+      if (!formData.sex) errors.push('Sex is required');
+    }
+
+    // Required fields for all employees
+    if (!formData.role?.trim()) errors.push('Role is required');
+    if (!formData.ssn?.trim()) errors.push('SSN is required');
+    if (!formData.hire_date) errors.push('Hire date is required');
+    if (!formData.salary) errors.push('Salary is required');
+    if (!formData.responsibility?.trim()) errors.push('Responsibility is required');
+
+    // Email validation
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.push('Invalid email format');
+    }
+
+    // SSN validation (format: XXX-XX-XXXX)
+    if (formData.ssn && !/^\d{3}-\d{2}-\d{4}$/.test(formData.ssn)) {
+      errors.push('SSN must be in format XXX-XX-XXXX');
+    }
+
+    // Password validation (for new employees)
+    if (!editingItem && formData.password && formData.password.length < 8) {
+      errors.push('Password must be at least 8 characters long');
+    }
+
+    // Salary validation
+    if (formData.salary && parseFloat(formData.salary) <= 0) {
+      errors.push('Salary must be greater than 0');
+    }
+
+    // Date validations
+    if (formData.hire_date) {
+      const hireDate = new Date(formData.hire_date);
+      const today = new Date();
+      if (hireDate > today) {
+        errors.push('Hire date cannot be in the future');
+      }
+    }
+
+    if (formData.birthdate) {
+      const birthdate = new Date(formData.birthdate);
+      const today = new Date();
+      const age = (today - birthdate) / (1000 * 60 * 60 * 24 * 365.25);
+      if (age < 16) {
+        errors.push('Employee must be at least 16 years old');
+      }
+      if (age > 120) {
+        errors.push('Invalid birthdate');
+      }
+    }
+
+    return errors;
+  };
+
   const handleSave = async () => {
     try {
       const endpoint = tabs.find(tab => tab.id === activeTab).endpoint;
+
+      // Validate employee form if on employees tab
+      if (activeTab === 'employees') {
+        const validationErrors = validateEmployeeForm();
+        if (validationErrors.length > 0) {
+          alert('Validation Errors:\n\n' + validationErrors.join('\n'));
+          return;
+        }
+      }
 
       // Upload image first if a file was selected
       let imageUrl = null;
@@ -183,6 +330,16 @@ function AdminPortal() {
 
       // Prepare data to save
       const dataToSave = { ...formData };
+
+      // Format dates to YYYY-MM-DD for employee birthdate and hire_date
+      if (activeTab === 'employees') {
+        if (dataToSave.birthdate) {
+          dataToSave.birthdate = new Date(dataToSave.birthdate).toISOString().split('T')[0];
+        }
+        if (dataToSave.hire_date) {
+          dataToSave.hire_date = new Date(dataToSave.hire_date).toISOString().split('T')[0];
+        }
+      }
 
       // Convert empty strings to null for nullable fields (foreign keys, dates)
       if (activeTab === 'artworks') {
@@ -240,6 +397,12 @@ function AdminPortal() {
           case 'artworks':
             itemId = formData.artwork_id;
             break;
+          case 'artists':
+            itemId = formData.artist_id;
+            break;
+          case 'employees':
+            itemId = formData.employee_id;
+            break;
           case 'tickets':
             itemId = formData.ticket_type_id;
             break;
@@ -251,7 +414,9 @@ function AdminPortal() {
         alert('Item updated successfully');
       } else {
         // Add new item
-        await api.post(endpoint, dataToSave);
+        // Use special endpoint for creating employees with account
+        const createEndpoint = activeTab === 'employees' ? '/api/employees/create-with-account' : endpoint;
+        await api.post(createEndpoint, dataToSave);
         alert('Item added successfully');
       }
 
@@ -915,6 +1080,263 @@ function AdminPortal() {
           </div>
         );
 
+      case 'artists':
+        return (
+          <div className="admin-form">
+            <h3>{editingItem ? 'Edit Artist' : 'Add New Artist'}</h3>
+            <div>
+              <label>Artist Name: *</label>
+              <input
+                type="text"
+                placeholder="e.g., Vincent van Gogh"
+                value={formData.name || ''}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Birth Year:</label>
+              <input
+                type="number"
+                placeholder="e.g., 1853"
+                min="1000"
+                max="2100"
+                value={formData.birth_year || ''}
+                onChange={(e) => handleInputChange('birth_year', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Death Year:</label>
+              <input
+                type="number"
+                placeholder="e.g., 1890 (leave blank if still living)"
+                min="1000"
+                max="2100"
+                value={formData.death_year || ''}
+                onChange={(e) => handleInputChange('death_year', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Nationality:</label>
+              <input
+                type="text"
+                placeholder="e.g., Dutch"
+                value={formData.nationality || ''}
+                onChange={(e) => handleInputChange('nationality', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Biography:</label>
+              <textarea
+                placeholder="e.g., A post-impressionist painter known for bold colors..."
+                value={formData.artist_biography || ''}
+                onChange={(e) => handleInputChange('artist_biography', e.target.value)}
+                rows="4"
+              />
+            </div>
+            <div className="form-buttons">
+              <button onClick={handleSave} className="save-btn">
+                <FaSave /> Save
+              </button>
+              <button onClick={handleCancel} className="cancel-btn">
+                <FaTimes /> Cancel
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'employees':
+        return (
+          <div className="admin-form">
+            <h3>{editingItem ? 'Edit Employee' : 'Add New Employee'}</h3>
+            
+            {/* User Account Information */}
+            <h4 style={{ marginTop: '20px', marginBottom: '10px', color: '#555' }}>Account Information</h4>
+            <div>
+              <label>First Name: *</label>
+              <input
+                type="text"
+                placeholder="e.g., John"
+                value={formData.first_name || ''}
+                onChange={(e) => handleInputChange('first_name', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Last Name: *</label>
+              <input
+                type="text"
+                placeholder="e.g., Smith"
+                value={formData.last_name || ''}
+                onChange={(e) => handleInputChange('last_name', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Email: *</label>
+              <input
+                type="email"
+                placeholder="e.g., john.smith@museum.com"
+                value={formData.email || ''}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+              />
+            </div>
+            {!editingItem && (
+              <>
+                <div>
+                  <label>Initial Password: *</label>
+                  <input
+                    type="password"
+                    placeholder="Enter temporary password"
+                    value={formData.password || ''}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                  />
+                  <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                    Employee must change this password on first login
+                  </small>
+                </div>
+              </>
+            )}
+            <div>
+              <label>Birthdate: *</label>
+              <input
+                type="date"
+                value={formData.birthdate || ''}
+                onChange={(e) => handleInputChange('birthdate', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Sex: *</label>
+              <select
+                value={formData.sex || ''}
+                onChange={(e) => handleInputChange('sex', e.target.value)}
+              >
+                <option value="">Select</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+                <option value="Non-Binary">Non-Binary</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </div>
+            <div>
+              <label>Phone Number:</label>
+              <input
+                type="tel"
+                placeholder="e.g., 555-123-4567"
+                value={formData.phone_number || ''}
+                onChange={(e) => handleInputChange('phone_number', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Address:</label>
+              <input
+                type="text"
+                placeholder="e.g., 123 Main St, Houston, TX 77002"
+                value={formData.address || ''}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+              />
+            </div>
+
+            {/* Employee-Specific Information */}
+            <h4 style={{ marginTop: '20px', marginBottom: '10px', color: '#555' }}>Employment Details</h4>
+            <div>
+              <label>Role: *</label>
+              <select
+                value={formData.role || ''}
+                onChange={(e) => handleInputChange('role', e.target.value)}
+              >
+                <option value="">Select Role</option>
+                <option value="Admin">Admin</option>
+                <option value="Director">Director</option>
+                <option value="Manager">Manager</option>
+                <option value="Curator">Curator</option>
+                <option value="Analyst">Analyst</option>
+                <option value="Data Analyst">Data Analyst</option>
+                <option value="Gift Shop Staff">Gift Shop Staff</option>
+                <option value="Cafeteria Staff">Cafeteria Staff</option>
+                <option value="Barista">Barista</option>
+                <option value="Cashier">Cashier</option>
+                <option value="Ticket Staff">Ticket Staff</option>
+                <option value="Security">Security</option>
+                <option value="Maintenance">Maintenance</option>
+              </select>
+            </div>
+            <div>
+              <label>SSN: *</label>
+              <input
+                type="text"
+                placeholder="e.g., 123-45-6789"
+                maxLength="11"
+                value={formData.ssn || ''}
+                onChange={(e) => handleInputChange('ssn', e.target.value)}
+                disabled={editingItem ? false : false}
+              />
+              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                Format: XXX-XX-XXXX
+              </small>
+            </div>
+            <div>
+              <label>Hire Date: *</label>
+              <input
+                type="date"
+                value={formData.hire_date || ''}
+                onChange={(e) => handleInputChange('hire_date', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Salary: *</label>
+              <input
+                type="number"
+                placeholder="e.g., 50000.00"
+                step="0.01"
+                min="0"
+                value={formData.salary || ''}
+                onChange={(e) => handleInputChange('salary', e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Responsibility: *</label>
+              <textarea
+                placeholder="e.g., Manage exhibitions, oversee artwork curation, coordinate with artists..."
+                value={formData.responsibility || ''}
+                onChange={(e) => handleInputChange('responsibility', e.target.value)}
+                rows="3"
+              />
+            </div>
+            <div>
+              <label>Manager:</label>
+              <select
+                value={formData.manager_id || ''}
+                onChange={(e) => handleInputChange('manager_id', e.target.value)}
+              >
+                <option value="">None (Top-level employee)</option>
+                {items.filter(emp => emp.employee_id !== formData.employee_id).map(emp => (
+                  <option key={emp.employee_id} value={emp.employee_id}>
+                    {emp.first_name} {emp.last_name} - {emp.role}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {editingItem && (
+              <div>
+                <label>Status:</label>
+                <select
+                  value={formData.is_active ? '1' : '0'}
+                  onChange={(e) => handleInputChange('is_active', e.target.value === '1')}
+                >
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </select>
+              </div>
+            )}
+            <div className="form-buttons">
+              <button onClick={handleSave} className="save-btn">
+                <FaSave /> Save
+              </button>
+              <button onClick={handleCancel} className="cancel-btn">
+                <FaTimes /> Cancel
+              </button>
+            </div>
+          </div>
+        );
+
       case 'tickets':
         return (
           <div className="admin-form">
@@ -1010,6 +1432,105 @@ function AdminPortal() {
                       <FaEdit />
                     </button>
                     <button onClick={() => handleDelete(item.artwork_id)} className="delete-btn">
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+
+      case 'artists':
+        return (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Birth Year</th>
+                <th>Death Year</th>
+                <th>Nationality</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => (
+                <tr key={item.artist_id}>
+                  <td>{item.artist_id}</td>
+                  <td>{item.name}</td>
+                  <td>{item.birth_year || 'N/A'}</td>
+                  <td>{item.death_year || 'Living'}</td>
+                  <td>{item.nationality || 'N/A'}</td>
+                  <td>
+                    <button onClick={() => handleEdit(item)} className="edit-btn">
+                      <FaEdit />
+                    </button>
+                    <button onClick={() => handleDelete(item.artist_id)} className="delete-btn">
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+
+      case 'employees':
+        return (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Salary</th>
+                <th>Hire Date</th>
+                <th>Manager</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => (
+                <tr key={item.employee_id}>
+                  <td>{item.employee_id}</td>
+                  <td>{item.first_name} {item.last_name}</td>
+                  <td>{item.email}</td>
+                  <td>{item.role}</td>
+                  <td>${item.salary ? parseFloat(item.salary).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A'}</td>
+                  <td>{item.hire_date ? new Date(item.hire_date).toLocaleDateString() : 'N/A'}</td>
+                  <td>
+                    {item.manager_name || 
+                     (item.manager_first_name && item.manager_last_name 
+                       ? `${item.manager_first_name} ${item.manager_last_name}` 
+                       : 'None')}
+                  </td>
+                  <td>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      borderRadius: '4px', 
+                      backgroundColor: item.is_active ? '#d4edda' : '#f8d7da',
+                      color: item.is_active ? '#155724' : '#721c24',
+                      fontSize: '12px'
+                    }}>
+                      {item.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <button onClick={() => handleEdit(item)} className="edit-btn">
+                      <FaEdit />
+                    </button>
+                    <button 
+                      onClick={() => handlePasswordChangeClick(item)} 
+                      className="edit-btn"
+                      title="Change Password"
+                      style={{ backgroundColor: '#fbbf24', marginLeft: '5px' }}
+                    >
+                      <FaKey />
+                    </button>
+                    <button onClick={() => handleDelete(item.employee_id)} className="delete-btn">
                       <FaTrash />
                     </button>
                   </td>
@@ -1254,6 +1775,96 @@ function AdminPortal() {
         
         {!showAddForm && !editingItem && renderItemsTable()}
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && passwordChangeEmployee && (
+        <div className="fixed inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-md w-full border border-gray-200/50">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-4" style={{ background: 'linear-gradient(to bottom right, #19667C, #127a86)' }}>
+              <FaKey className="text-white text-2xl" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+              Change Password
+            </h2>
+            <p className="text-gray-600 mb-4 text-center">
+              Changing password for <strong>{passwordChangeEmployee.first_name} {passwordChangeEmployee.last_name}</strong>
+            </p>
+            <p className="text-sm text-amber-600 mb-6 text-center bg-amber-50 p-3 rounded-lg border border-amber-200">
+              Employee will be required to change this password on their next login.
+            </p>
+
+            <div className="space-y-4">
+              {passwordError && (
+                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-r shadow-sm">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm">{passwordError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password:
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoFocus
+                  minLength="8"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                  style={{ '--tw-ring-color': '#19667C' }}
+                />
+                <small className="text-xs text-gray-500 mt-1.5 block">Must be at least 8 characters</small>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New Password:
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                  style={{ '--tw-ring-color': '#19667C' }}
+                />
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handlePasswordChange}
+                  className="flex-1 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  style={{ background: 'linear-gradient(to right, #19667C, #127a86)' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #145261, #19667C)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #19667C, #127a86)'}
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordChangeEmployee(null);
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setPasswordError('');
+                  }}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 px-4 rounded-lg transition-all duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

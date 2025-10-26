@@ -39,6 +39,29 @@ router.get('/profile', middleware.requireAuth, async (req, res) => {
       user.membership = membership
     }
 
+    // Get employee info if user is an employee
+    const [employees] = await db.query(
+      `SELECT
+        e.employee_id,
+        e.role,
+        e.hire_date,
+        e.salary,
+        e.responsibility,
+        e.is_active,
+        CONCAT(m.first_name, ' ', m.last_name) as manager_name
+       FROM Employee e
+       LEFT JOIN Employee me ON e.manager_id = me.employee_id
+       LEFT JOIN users m ON me.user_id = m.user_id
+       WHERE e.user_id = ?`,
+      [userId],
+    )
+
+    // Add employee info to response if exists
+    if (employees.length > 0) {
+      const [employee] = employees
+      user.employee = employee
+    }
+
     res.json(user)
   } catch (error) {
     res.status(500).json({ error: error.message })

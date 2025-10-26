@@ -10,8 +10,8 @@ import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-  verifyAccessToken,
 } from '../utils/authService.js'
+import middleware from '../utils/middleware.js'
 
 const router = express.Router()
 
@@ -39,7 +39,7 @@ async function getUserRoleDetails(userId) {
     }
 
     // Cafeteria roles
-    if (employeeRole.includes('cafeteria') || employeeRole.includes('barista') || employeeRole.includes('cashier') || employeeRole.includes('food')) {
+    if (employeeRole.includes('cafeteria') || employeeRole.includes('barista') || employeeRole.includes('cashier') || employeeRole.includes('food') || employeeRole.includes('ticket'))  {
       employeeType = 'cafeteria'
       return { role: 'employee', employeeType: 'cafeteria', employeeId }
     }
@@ -309,19 +309,11 @@ router.post('/logout', (req, res) => {
  * GET /api/auth/me
  * Get current user info (requires authentication)
  */
-router.get('/me', async (req, res) => {
+router.get('/me', middleware.requireAuth, async (req, res) => {
   try {
-    const authorization = req.get('authorization')
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Token missing' })
-    }
-
-    const token = authorization.replace('Bearer ', '')
-    const decoded = verifyAccessToken(token)
-
     const [users] = await db.query(
-      'SELECT user_id, email, first_name, last_name FROM users WHERE user_id = ?',
-      [decoded.id],
+      'SELECT user_id, email, first_name, last_name, password_must_change FROM users WHERE user_id = ?',
+      [req.user.id],
     )
 
     if (users.length === 0) {
@@ -338,9 +330,61 @@ router.get('/me', async (req, res) => {
       last_name: user.last_name,
       role: roleDetails.role,
       employeeType: roleDetails.employeeType,
+      password_must_change: user.password_must_change,
     })
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' })
+    console.error('Get user error:', error)
+    res.status(500).json({ error: 'Failed to get user info' })
+  }
+})
+
+/**
+ * POST /api/auth/change-password
+ * Change user password (requires authentication)
+ */
+router.post('/change-password', middleware.requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' })
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long' })
+    }
+
+    // Get user (req.user is set by middleware)
+    const [users] = await db.query(
+      'SELECT user_id, password FROM users WHERE user_id = ?',
+      [req.user.id],
+    )
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const user = users[0]
+
+    // Verify current password
+    const validPassword = await comparePassword(currentPassword, user.password)
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' })
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword)
+
+    // Update password and clear password_must_change flag
+    await db.query(
+      'UPDATE users SET password = ?, password_must_change = FALSE WHERE user_id = ?',
+      [newPasswordHash, user.user_id],
+    )
+
+    res.json({ message: 'Password changed successfully' })
+  } catch (error) {
+    console.error('Password change error:', error)
+    res.status(500).json({ error: 'Failed to change password' })
   }
 })
 

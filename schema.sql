@@ -57,6 +57,7 @@ CREATE TABLE `users`(
     `subscribe_to_newsletter` BOOLEAN NOT NULL DEFAULT FALSE,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `password_must_change` BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY(`user_id`),
     INDEX `idx_email` (`email`)
 );

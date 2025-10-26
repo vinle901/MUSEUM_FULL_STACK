@@ -50,10 +50,12 @@ router.post('/', middleware.requireRole('admin', 'employee'), async (req, res) =
 // PUT update artist - Admin/Employee only
 router.put('/:id', middleware.requireRole('admin', 'employee'), async (req, res) => {
   try {
-    const { name, nationality, artist_biography } = req.body
+    const {
+      name, nationality, birth_year, death_year, artist_biography,
+    } = req.body
     await db.query(
-      'UPDATE Artist SET name = ?, nationality = ?, artist_biography = ? WHERE artist_id = ?',
-      [name, nationality, artist_biography, req.params.id],
+      'UPDATE Artist SET name = ?, nationality = ?, birth_year = ?, death_year = ?, artist_biography = ? WHERE artist_id = ?',
+      [name, nationality, birth_year, death_year, artist_biography, req.params.id],
     )
     res.json({ message: 'Artist updated successfully' })
   } catch (error) {

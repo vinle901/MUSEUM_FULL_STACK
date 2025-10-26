@@ -323,6 +323,54 @@ export default function Profile() {
                   </div>
                 )}
 
+                {/* Employee Information */}
+                {profile?.employee && (
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold mb-3">Employee Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <p className="m-0 text-sm text-gray-600">Employee ID</p>
+                        <p className="m-0 font-medium">#{profile.employee.employee_id}</p>
+                      </div>
+                      <div>
+                        <p className="m-0 text-sm text-gray-600">Role</p>
+                        <p className="m-0 font-medium">{profile.employee.role}</p>
+                      </div>
+                      <div>
+                        <p className="m-0 text-sm text-gray-600">Hire Date</p>
+                        <p className="m-0 font-medium">{formatDate(profile.employee.hire_date)}</p>
+                      </div>
+                      <div>
+                        <p className="m-0 text-sm text-gray-600">Status</p>
+                        <p className="m-0 font-medium">
+                          {profile.employee.is_active ? (
+                            <span className="text-green-600">Active</span>
+                          ) : (
+                            <span className="text-red-600">Inactive</span>
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="m-0 text-sm text-gray-600">Manager</p>
+                        <p className="m-0 font-medium">{profile.employee.manager_name || "None"}</p>
+                      </div>
+                      <div>
+                        <p className="m-0 text-sm text-gray-600">Salary</p>
+                        <p className="m-0 font-medium">
+                          ${parseFloat(profile.employee.salary).toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="m-0 text-sm text-gray-600">Responsibility</p>
+                        <p className="m-0 font-medium">{profile.employee.responsibility}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Preferences */}
                 <div className="border-b border-gray-200 pb-4">
                   <h3 className="text-lg font-semibold mb-3">Preferences</h3>
