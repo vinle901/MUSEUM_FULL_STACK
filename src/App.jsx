@@ -15,8 +15,10 @@ import Ticket from './components/Ticket.jsx'
 import Checkout from './components/Checkout'
 import CheckoutMem from './components/CheckoutMem.jsx'
 import Support from './components/Support' 
+import Donate from './components/Donate'
 import { CartProvider } from './context/CartContext'
 import Login from "./components/Login.jsx"
+import Register from "./components/Register.jsx"
 import Membership from "./components/Membership.jsx"
 import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
@@ -46,7 +48,9 @@ function App() {
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/events/:id/rsvp" element={<EventRSVP />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/donate" element={<Donate />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/membership" element={<Membershipinfo />} />
           {/* Dedicated membership checkout route */}

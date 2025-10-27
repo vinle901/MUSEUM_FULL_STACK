@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Support.css';
+import donationService from '../services/donationService';
 
 function Support() {
   const navigate = useNavigate();
@@ -11,14 +12,26 @@ function Support() {
     message: ''
   });
 
-  // mock data for top 5 donors
-  const topDonors = [
-    { rank: 1, name: "Sarah Johnson", amount: 50000, year: 2025 },
-    { rank: 2, name: "Michael Chen", amount: 45000, year: 2025 },
-    { rank: 3, name: "Emily Rodriguez", amount: 40000, year: 2025 },
-    { rank: 4, name: "David Park", amount: 35000, year: 2025 },
-    { rank: 5, name: "Lisa Thompson", amount: 30000, year: 2025 }
-  ];
+  const [topDonors, setTopDonors] = useState([]);
+  const [donorsYear, setDonorsYear] = useState(new Date().getFullYear());
+  const [donorsLoading, setDonorsLoading] = useState(true);
+  const [donorsError, setDonorsError] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setDonorsLoading(true);
+        const { donors, year } = await donationService.getTopDonors({ year: donorsYear, limit: 5 });
+        setTopDonors(donors || []);
+        setDonorsYear(year);
+      } catch (err) {
+        console.error('Failed to load donors', err);
+        setDonorsError('Unable to load top donors at this time.');
+      } finally {
+        setDonorsLoading(false);
+      }
+    })();
+  }, [donorsYear]);
 
   const faqItems = [
     {
@@ -208,7 +221,21 @@ function Support() {
         </div>
 
         {/* Top Donors Section */}
-        <h1 className="section-subtitle" id='donors-section'>Our Top Donors - 2025</h1>
+        <h1 className="section-subtitle" id='donors-section'>Our Top Donors - {donorsYear}</h1>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '8px 0 16px', marginLeft: 16 }}>
+          <label htmlFor="donor-year-select" style={{ fontWeight: 600 }}>Year</label>
+          <select
+            id="donor-year-select"
+            value={donorsYear}
+            onChange={(e) => setDonorsYear(parseInt(e.target.value, 10))}
+            className="form-input"
+            style={{ width: 120 }}
+          >
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
         <div className="about-section">
           <p>
             We are deeply grateful to our generous donors who make our mission possible. 
@@ -228,7 +255,16 @@ function Support() {
               </tr>
             </thead>
             <tbody>
-              {topDonors.map((donor) => (
+              {donorsLoading && (
+                <tr><td colSpan={4} style={{ textAlign: 'center', padding: 12 }}>Loading...</td></tr>
+              )}
+              {!donorsLoading && donorsError && (
+                <tr><td colSpan={4} style={{ textAlign: 'center', padding: 12 }}>{donorsError}</td></tr>
+              )}
+              {!donorsLoading && !donorsError && topDonors.length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: 'center', padding: 12 }}>No donations recorded yet for {donorsYear}.</td></tr>
+              )}
+              {!donorsLoading && !donorsError && topDonors.map((donor) => (
                 <tr key={donor.rank}>
                   <td>#{donor.rank}</td>
                   <td>{donor.name}</td>
@@ -245,15 +281,9 @@ function Support() {
               Your donation helps us continue our mission of education, preservation, and 
               community engagement. Every contribution, no matter the amount, makes a difference.
             </p>
-            <p><strong>Ways to Donate:</strong></p>
-            <ul className="donor-list">
-              <li>Call us at (713) 123-1000</li>
-              <li>Mail a check to our address</li>
-              <li>Corporate sponsorship opportunities</li>
-            </ul>
             <div className="ticket-buttons">
-              <button className="buy-ticket-btn" onClick={() => window.location.href = 'tel:(713) 123-1000'}>
-                Call to Donate
+              <button className="buy-ticket-btn" onClick={() => navigate('/donate')}>
+                Donate Now
               </button>
               <button
                 className="become-member-btn"

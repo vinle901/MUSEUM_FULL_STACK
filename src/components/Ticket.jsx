@@ -13,7 +13,7 @@ const Ticket = () => {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(null)
+  // Removed success state; success should only occur at Checkout confirmation
   const [currentUser, setCurrentUser] = useState(null)
   const [membership, setMembership] = useState(null)
   const { addToCart } = useCart()
@@ -129,8 +129,8 @@ const Ticket = () => {
         })
       })
 
-      setSuccess({ added: true })
-      setTimeout(() => navigate('/cart'), 700)
+  // Navigate straight to cart after adding items; confirmation happens at checkout
+  navigate('/cart')
     } catch (err) {
       const msg = err?.message || 'Failed to add tickets to cart.'
       setError(msg)
@@ -139,32 +139,7 @@ const Ticket = () => {
     }
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="bg-brand text-white py-16 px-8">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl font-bold">Tickets Confirmed</h1>
-          </div>
-        </div>
-        <div className="max-w-4xl mx-auto px-8 py-12 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-brand rounded-full mb-6">
-            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-3xl font-bold text-black mb-2">Thank you!</h2>
-          <p className="text-gray-700 mb-6">Your ticket purchase was successful.</p>
-          <button
-            className="bg-brand text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-dark"
-            onClick={() => navigate('/')}
-          >
-            Back to Home
-          </button>
-        </div>
-      </div>
-    )
-  }
+  // Removed intermediate success screen; user proceeds to cart and then to checkout
 
   return (
     <div className="min-h-screen bg-white">

@@ -1,10 +1,10 @@
 import { getImageUrl } from '../utils/imageHelpers'
 
-const ArtworkCard = ({ artwork, artistName, onClick }) => {
+const ArtworkCard = ({ artwork, artistName, onClick, className = '', imageClassName = '' }) => {
   return (
     <div
       onClick={onClick}
-      className="bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer group break-inside-avoid mb-6 relative"
+      className={`bg-white border-2 border-gray-200 hover:border-brand rounded-xl overflow-hidden transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer group break-inside-avoid mb-6 relative ${className}`}
     >
       {/* Shimmer effect */}
       <div className="absolute inset-0 bg-gradient-to-r from-brand/0 via-brand/30 to-brand/0 translate-x-[-100%] group-hover:translate-x-[100%] group-hover:transition-transform group-hover:duration-700 group-hover:ease-in-out z-10 pointer-events-none"></div>
@@ -14,7 +14,7 @@ const ArtworkCard = ({ artwork, artistName, onClick }) => {
         <img
           src={getImageUrl(artwork.picture_url)}
           alt={artwork.title}
-          className="w-full h-auto transition-transform duration-300 group-hover:scale-105"
+          className={`w-full ${imageClassName || 'h-auto'} transition-transform duration-300 group-hover:scale-105`}
           loading="lazy"
         />
         {artwork.is_on_display && (

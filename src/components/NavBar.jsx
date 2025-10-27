@@ -96,20 +96,23 @@ function Navbar() {
     return userRole === 'admin' || employeeType === 'admin' || employeeType === 'analyst';
   };
 
+  // Determine if current user is an admin
+  const isAdmin = userRole === 'admin' || employeeType === 'admin';
+
   return (
-    <nav className={`navbar ${isLoggedIn ? 'is-authenticated' : ''}`}>
+    <nav className={`navbar ${isLoggedIn ? 'is-authenticated' : ''} ${isAdmin ? 'is-admin' : ''}`}>
       {/* Logo */}
       <Link to="/" className="navbar-logo">THE MUSEUM</Link>
 
-      {/* Desktop Navigation Links */}
-      <ul className="navbar-links">
+  {/* Desktop Navigation Links (hidden for admin) */}
+  <ul className="navbar-links">
         <li><Link to="/visit">Visit</Link></li>
         <li><Link to="/artworks">Art</Link></li>
         <li><Link to="/cafeteria">Cafeteria</Link></li>
         <li><Link to="/gift-shop">Gift Shop</Link></li>
         <li><Link to="/calendar">Calendar</Link></li>
         <li><Link to="/support">Support</Link></li>
-        <li><Link to="/membershipinfo">Membership</Link></li>
+        <li><Link to="/membership">Membership</Link></li>
       </ul>
 
   {/* Desktop Right Section */}
@@ -117,10 +120,12 @@ function Navbar() {
         {/* Employee Portal Links + Cart grouped for alignment */}
         {(isLoggedIn && (canAccessPOS() || canAccessAdmin() || canAccessReports())) ? (
           <div className="employee-portals">
-            {/* Cart inside the same row for perfect alignment */}
-            <Link to="/cart" className="cart-button" aria-label="Cart">
-              <FaShoppingCart className="cart-icon" />
-            </Link>
+            {/* Cart hidden for admins on the navbar */}
+            {!isAdmin && (
+              <Link to="/cart" className="cart-button" aria-label="Cart">
+                <FaShoppingCart className="cart-icon" />
+              </Link>
+            )}
             {canAccessPOS() && (
               <Link to="/employee/pos" className="employee-portal-link pos-link" title="POS System">
                 <FaStore size={16} />
@@ -143,10 +148,12 @@ function Navbar() {
             )}
           </div>
         ) : (
-          // If not showing employee portals, still show Cart aligned on right
-          <Link to="/cart" className="cart-button" aria-label="Cart">
-            <FaShoppingCart className="cart-icon" />
-          </Link>
+          // If not showing employee portals, show Cart unless admin
+          !isAdmin && (
+            <Link to="/cart" className="cart-button" aria-label="Cart">
+              <FaShoppingCart className="cart-icon" />
+            </Link>
+          )
         )}
 
         {/* User Account Section */}

@@ -1,7 +1,7 @@
 // File: src/components/employee/AnalystReports.jsx
 
 import React, { useState, useEffect } from 'react';
-import { FaChartBar, FaCalendarAlt, FaDownload, FaFilter } from 'react-icons/fa';
+import { FaChartBar, FaCalendarAlt, FaDownload } from 'react-icons/fa';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import api from '../../services/api';
 import './EmployeePortal.css';
@@ -15,6 +15,7 @@ function AnalystReports() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [granularity, setGranularity] = useState('daily'); // 'daily' | 'weekly' | 'monthly'
+  const [errorMsg, setErrorMsg] = useState('');
 
   const reportTypes = [
     { id: 'sales', label: 'Sales Analysis', icon: FaChartBar },
@@ -30,12 +31,7 @@ function AnalystReports() {
 
   const fetchReportData = async () => {
     setLoading(true);
-    // For now, use real backend only for Sales; others use mock to preview UI
-    if (activeReport !== 'sales') {
-      setReportData(generateMockData(activeReport));
-      setLoading(false);
-      return;
-    }
+    setErrorMsg('');
     try {
       const response = await api.get(`/api/reports/${activeReport}`, {
         params: {
@@ -46,123 +42,10 @@ function AnalystReports() {
       setReportData(response.data);
     } catch (error) {
       console.error('Error fetching report data:', error);
-      setReportData(generateMockData(activeReport));
+      setReportData(null);
+      setErrorMsg(error?.response?.data?.error || 'Failed to load report data.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const generateMockData = (reportType) => {
-    switch (reportType) {
-      /*case 'sales':
-        return {
-          totalSales: 145678.50,
-          transactionCount: 892,
-          averageOrderValue: 163.45,
-          dailySales: [
-            { date: 'Mon', sales: 12450 },
-            { date: 'Tue', sales: 15680 },
-            { date: 'Wed', sales: 18920 },
-            { date: 'Thu', sales: 22100 },
-            { date: 'Fri', sales: 28450 },
-            { date: 'Sat', sales: 32100 },
-            { date: 'Sun', sales: 15978 },
-          ],
-          categorySales: [
-            { category: 'Tickets', value: 65000 },
-            { category: 'Gift Shop', value: 35000 },
-            { category: 'Cafeteria', value: 28000 },
-            { category: 'Memberships', value: 17678.50 },
-          ]
-        };*/
-
-      case 'attendance':
-        return {
-          totalVisitors: 8945,
-          averageDailyVisitors: 298,
-          peakDay: 'Saturday',
-          dailyAttendance: [
-            { date: '2024-01-01', visitors: 250 },
-            { date: '2024-01-02', visitors: 280 },
-            { date: '2024-01-03', visitors: 320 },
-            { date: '2024-01-04', visitors: 290 },
-            { date: '2024-01-05', visitors: 450 },
-            { date: '2024-01-06', visitors: 520 },
-            { date: '2024-01-07', visitors: 380 },
-          ],
-          hourlyDistribution: [
-            { hour: '10AM', visitors: 50 },
-            { hour: '11AM', visitors: 120 },
-            { hour: '12PM', visitors: 180 },
-            { hour: '1PM', visitors: 220 },
-            { hour: '2PM', visitors: 280 },
-            { hour: '3PM', visitors: 250 },
-            { hour: '4PM', visitors: 180 },
-            { hour: '5PM', visitors: 90 },
-          ]
-        };
-
-      case 'popular-items':
-        return {
-          giftShop: [
-            { name: 'Museum Tote Bag', sales: 245, revenue: 4900 },
-            { name: 'Art Print Collection', sales: 189, revenue: 5670 },
-            { name: 'Ceramic Mug', sales: 156, revenue: 2340 },
-            { name: 'Postcard Set', sales: 420, revenue: 2100 },
-            { name: 'Kids Activity Book', sales: 98, revenue: 980 },
-          ],
-          cafeteria: [
-            { name: 'House Latte', sales: 892, revenue: 4682 },
-            { name: 'Artisan Sandwich', sales: 456, revenue: 5244 },
-            { name: 'Garden Salad', sales: 234, revenue: 2397 },
-            { name: 'Chocolate Tart', sales: 189, revenue: 1228 },
-            { name: 'Cold Brew', sales: 567, revenue: 2694 },
-          ]
-        };
-
-      case 'revenue':
-        return {
-          totalRevenue: 145678.50,
-          monthlyGrowth: 12.5,
-          breakdown: [
-            { source: 'Ticket Sales', amount: 65000, percentage: 44.6 },
-            { source: 'Gift Shop', amount: 35000, percentage: 24.0 },
-            { source: 'Cafeteria', amount: 28000, percentage: 19.2 },
-            { source: 'Memberships', amount: 17678.50, percentage: 12.1 },
-          ],
-          monthlyTrend: [
-            { month: 'Jan', revenue: 120000 },
-            { month: 'Feb', revenue: 115000 },
-            { month: 'Mar', revenue: 128000 },
-            { month: 'Apr', revenue: 135000 },
-            { month: 'May', revenue: 142000 },
-            { month: 'Jun', revenue: 145678.50 },
-          ]
-        };
-
-      case 'membership':
-        return {
-          totalMembers: 1234,
-          newMembersThisMonth: 45,
-          renewalRate: 78.5,
-          membershipTypes: [
-            { type: 'Basic', count: 567, percentage: 46 },
-            { type: 'Premium', count: 345, percentage: 28 },
-            { type: 'Student', count: 234, percentage: 19 },
-            { type: 'Senior', count: 88, percentage: 7 },
-          ],
-          monthlyGrowth: [
-            { month: 'Jan', new: 32, renewals: 45 },
-            { month: 'Feb', new: 28, renewals: 52 },
-            { month: 'Mar', new: 41, renewals: 48 },
-            { month: 'Apr', new: 35, renewals: 61 },
-            { month: 'May', new: 39, renewals: 55 },
-            { month: 'Jun', new: 45, renewals: 58 },
-          ]
-        };
-
-      default:
-        return null;
     }
   };
 
@@ -183,6 +66,9 @@ function AnalystReports() {
   };
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+  // Today (YYYY-MM-DD) for clamping
+  const today = new Date().toISOString().split('T')[0];
 
   // Helpers for date formatting and aggregation
   const toDateOnlyString = (value) => {
@@ -245,6 +131,7 @@ function AnalystReports() {
 
   const renderReportContent = () => {
     if (loading) return <div className="loading">Loading report data...</div>;
+    if (errorMsg) return <div className="loading">{errorMsg}</div>;
     if (!reportData) return <div>No data available</div>;
 
     switch (activeReport) {
@@ -357,15 +244,18 @@ function AnalystReports() {
       }
 
       case 'attendance':
-        // Normalize and format attendance data for robust rendering
-        const dailyAttendance = (reportData.dailyAttendance || []).map(d => ({
+        // Normalize and aggregate attendance data with selectable granularity
+        const dailyAttendanceRaw = (reportData.dailyAttendance || []).map(d => ({
           date: (d.date || '').toString().split('T')[0],
-          visitors: Number(d.visitors) || 0,
+          sales: Number(d.visitors) || 0, // reuse aggregateSales by mapping visitors->sales
         }));
-        const hourlyDistribution = (reportData.hourlyDistribution || []).map(h => ({
-          hour: String(h.hour),
-          visitors: Number(h.visitors) || 0,
+        const attSeries = aggregateSales(dailyAttendanceRaw, granularity);
+        const attUnitLabel = granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly';
+        const ticketTypeData = (reportData.ticketTypeBreakdown || []).map(x => ({
+          type: x.type,
+          visitors: Number(x.visitors) || 0,
         }));
+
         return (
           <div className="report-content">
             <div className="metrics-row">
@@ -383,32 +273,66 @@ function AnalystReports() {
               </div>
             </div>
 
+            <div className="granularity-toggle" style={{ display: 'flex', gap: 8, margin: '12px 0' }}>
+              <button
+                className={`toggle-btn ${granularity === 'daily' ? 'active' : ''}`}
+                onClick={() => setGranularity('daily')}
+              >
+                Daily
+              </button>
+              <button
+                className={`toggle-btn ${granularity === 'weekly' ? 'active' : ''}`}
+                onClick={() => setGranularity('weekly')}
+              >
+                Weekly
+              </button>
+              <button
+                className={`toggle-btn ${granularity === 'monthly' ? 'active' : ''}`}
+                onClick={() => setGranularity('monthly')}
+              >
+                Monthly
+              </button>
+            </div>
+
             <div className="chart-section">
-              <h3>Daily Attendance</h3>
+              <h3>{attUnitLabel} Attendance</h3>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dailyAttendance}>
+                <LineChart data={attSeries}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
+                  <XAxis dataKey="label" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="visitors" stroke="#8884d8" />
+                  <Line type="monotone" dataKey="sales" name="Visitors" stroke="#8884d8" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
             <div className="chart-section">
-              <h3>Hourly Distribution</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={hourlyDistribution}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="visitors" fill="#00C49F" />
-                </BarChart>
-              </ResponsiveContainer>
+              <h3>Ticket Type Breakdown</h3>
+              {ticketTypeData.length === 0 ? (
+                <div className="no-items">No ticket data to display</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie
+                      data={ticketTypeData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={110}
+                      dataKey="visitors"
+                      nameKey="type"
+                      label={(e) => `${e.type}: ${Number(e.visitors || 0).toLocaleString()}`}
+                    >
+                      {ticketTypeData.map((entry, index) => (
+                        <Cell key={`tt-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val, name, props) => [Number(val || 0).toLocaleString(), props?.payload?.type]} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         );
@@ -624,17 +548,51 @@ function AnalystReports() {
       <div className="reports-header">
         <h1>Analytics & Reports</h1>
         <div className="date-filter">
-          <FaFilter />
           <input 
             type="date" 
             value={dateRange.startDate}
-            onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+            required
+            max={dateRange.endDate && dateRange.endDate <= today ? dateRange.endDate : today}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const endBase = (dateRange.endDate && dateRange.endDate <= today) ? dateRange.endDate : today;
+              // Fallback start = endBase - 30 days
+              const endDateObj = new Date(endBase);
+              const fallbackStartObj = new Date(endDateObj);
+              fallbackStartObj.setDate(fallbackStartObj.getDate() - 30);
+              const fallbackStart = fallbackStartObj.toISOString().split('T')[0];
+              const newStart = raw && raw.length ? raw : fallbackStart;
+
+              // Clamp end to today and ensure end >= start
+              const clampedEnd = (dateRange.endDate && dateRange.endDate <= today) ? dateRange.endDate : today;
+              const nextEnd = new Date(newStart) > new Date(clampedEnd) ? newStart : clampedEnd;
+              setDateRange({ startDate: newStart, endDate: nextEnd });
+            }}
           />
           <span>to</span>
           <input 
             type="date" 
             value={dateRange.endDate}
-            onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+            required
+            min={dateRange.startDate}
+            max={today}
+            onChange={(e) => {
+              const raw = e.target.value;
+              // Default end to today if cleared or future
+              let newEnd = raw && raw.length ? raw : today;
+              if (newEnd > today) newEnd = today;
+
+              // Ensure start exists and <= end; default start to end - 30 days if missing
+              let newStart = dateRange.startDate && dateRange.startDate.length ? dateRange.startDate : null;
+              if (!newStart) {
+                const endObj = new Date(newEnd);
+                const startObj = new Date(endObj);
+                startObj.setDate(startObj.getDate() - 30);
+                newStart = startObj.toISOString().split('T')[0];
+              }
+              if (new Date(newStart) > new Date(newEnd)) newStart = newEnd;
+              setDateRange({ startDate: newStart, endDate: newEnd });
+            }}
           />
           <button onClick={exportReport} className="export-btn">
             <FaDownload /> Export
