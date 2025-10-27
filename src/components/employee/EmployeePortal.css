@@ -696,15 +696,14 @@
   background: #45a049;
 }
 
-/* mock-banner styles removed per request */
-
 /* Granularity toggle (Sales report) */
 .granularity-toggle {
   display: flex;
   align-items: center;
   gap: 10px;
   background: #ffffff;
-  padding: 8px 10px;
+  padding: 10px;
+  padding-bottom: 20px;
   border-radius: 10px;
 }
 
@@ -757,8 +756,9 @@
 }
 
 .metric-label {
-  font-size: 0.9rem;
-  opacity: 0.9;
+  font-size: 1.1rem; /* bigger title */
+  font-weight: 700;  /* bold */
+  opacity: 0.95;
   margin-bottom: 10px;
 }
 
@@ -768,8 +768,7 @@
 }
 
 .chart-section {
-  margin-top: 30px;
-  margin-bottom: 40px;
+  margin: 40px 0;
 }
 
 .chart-section h3 {

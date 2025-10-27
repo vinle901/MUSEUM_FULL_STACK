@@ -372,22 +372,43 @@ function EmployeePOS() {
     const when = new Date(createdAt);
 
     return (
-      <div className="employee-pos-container">
-        <div className="pos-layout" style={{ display: 'block' }}>
-          <div className="card" style={{ maxWidth: 900, margin: '0 auto', background: '#fff', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', borderRadius: 12, overflow: 'hidden' }}>
-            {/* Header with museum branding */}
-            <div style={{ background: 'linear-gradient(135deg, #19667C 0%, #127a86 100%)', color: '#fff', padding: 32, textAlign: 'center' }}>
-              <h1 style={{ margin: 0, fontSize: 36, fontWeight: 700 }}>🎨 Museum Receipt</h1>
-              <p style={{ margin: '8px 0 0 0', fontSize: 16, opacity: 0.9 }}>Transaction Confirmed</p>
-            </div>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        zIndex: 3000
+      }}>
+        <div style={{
+          width: '100%',
+          maxWidth: 900,
+          background: '#fff',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          borderRadius: 12,
+          overflow: 'hidden',
+          maxHeight: 'calc(100vh - 48px)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Header with museum branding */}
+          <div style={{ background: 'linear-gradient(135deg, #19667C 0%, #127a86 100%)', color: '#fff', padding: 32, textAlign: 'center' }}>
+            <h1 style={{ margin: 0, fontSize: 36, fontWeight: 700 }}>🎨 Museum Receipt</h1>
+            <p style={{ margin: '8px 0 0 0', fontSize: 16, opacity: 0.9 }}>Transaction Confirmed</p>
+          </div>
 
-            {/* Success Banner */}
-            <div style={{ background: '#ecfdf5', borderBottom: '3px solid #10b981', padding: 20, display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center' }}>
-              <FaCheckCircle style={{ color: '#059669', fontSize: 28 }} />
-              <div style={{ color: '#065f46', fontWeight: 600, fontSize: 18 }}>Order Placed Successfully</div>
-            </div>
+          {/* Success Banner */}
+          <div style={{ background: '#ecfdf5', borderBottom: '3px solid #10b981', padding: 20, display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center' }}>
+            <FaCheckCircle style={{ color: '#059669', fontSize: 28 }} />
+            <div style={{ color: '#065f46', fontWeight: 600, fontSize: 18 }}>Order Placed Successfully</div>
+          </div>
 
-            <div style={{ padding: 32 }}>
+          <div style={{ padding: 32, overflowY: 'auto' }}>
               {/* Transaction Details */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32, padding: '20px', background: '#f9fafb', borderRadius: 8 }}>
                 <div>
@@ -609,7 +630,6 @@ function EmployeePOS() {
             </div>
           </div>
         </div>
-      </div>
     );
   }
 
