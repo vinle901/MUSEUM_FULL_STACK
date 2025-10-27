@@ -50,6 +50,8 @@ function AnalystReports() {
   const [txDetailView, setTxDetailView] = useState(false);
   const [selectedTxDetail, setSelectedTxDetail] = useState(null);
   const [txDetailLoading, setTxDetailLoading] = useState(false);
+  // Membership-only revenue (from Revenue breakdown)
+  const [membershipRevenue, setMembershipRevenue] = useState(0);
 
   const reportTypes = [
     { id: 'sales', label: 'Sales Analysis', icon: FaChartBar },
@@ -60,28 +62,52 @@ function AnalystReports() {
   ];
 
   useEffect(() => {
+    const fetchReportData = async () => {
+      setLoading(true);
+      setErrorMsg('');
+      try {
+        const response = await api.get(`/api/reports/${activeReport}`, {
+          params: {
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate
+          }
+        });
+        
+        // If viewing Membership analytics, also fetch revenue breakdown
+        // and extract Memberships revenue for the selected date range.
+        if (activeReport === 'membership') {
+          try {
+            const revResp = await api.get('/api/reports/revenue', {
+              params: {
+                startDate: dateRange.startDate,
+                endDate: dateRange.endDate,
+              },
+            });
+            const breakdown = Array.isArray(revResp.data?.breakdown) ? revResp.data.breakdown : [];
+            const mem = breakdown.find((b) => b.source === 'Memberships');
+            setMembershipRevenue(Number(mem?.amount || 0));
+          } catch (re) {
+            console.error('Failed to load membership revenue:', re);
+            setMembershipRevenue(0);
+          }
+        } else {
+          // Reset to avoid stale numbers when switching tabs
+          setMembershipRevenue(0);
+        }
+        
+        // Set report data AFTER all fetches complete
+        setReportData(response.data);
+      } catch (error) {
+        console.error('Error fetching report data:', error);
+        setReportData(null);
+        setErrorMsg(error?.response?.data?.error || 'Failed to load report data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchReportData();
   }, [activeReport, dateRange]);
-
-  const fetchReportData = async () => {
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      const response = await api.get(`/api/reports/${activeReport}`, {
-        params: {
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        }
-      });
-      setReportData(response.data);
-    } catch (error) {
-      console.error('Error fetching report data:', error);
-      setReportData(null);
-      setErrorMsg(error?.response?.data?.error || 'Failed to load report data.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openTransactionsModal = async (category) => {
     setTxError('');
@@ -281,8 +307,8 @@ function AnalystReports() {
 
   const renderReportContent = () => {
     if (loading) return <div className="loading">Loading report data...</div>;
-    if (errorMsg) return <div className="loading">{errorMsg}</div>;
-    if (!reportData) return <div>No data available</div>;
+    if (errorMsg) return <div className="loading" style={{ color: '#c62828' }}>{errorMsg}</div>;
+    if (!reportData) return <div className="loading">No data available</div>;
 
     switch (activeReport) {
       // Sales Analysis
@@ -792,15 +818,22 @@ function AnalystReports() {
           <div className="report-content">
             <div className="metrics-row">
               <div className="metric-card">
+                <div className="metric-label">Total Revenue</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
+                <div className="metric-value">${membershipRevenue.toLocaleString()}</div>
+              </div>
+              <div className="metric-card">
                 <div className="metric-label">Total Active Members</div>
                 <div className="metric-value">{totalMembers.toLocaleString()}</div>
               </div>
               <div className="metric-card">
-                <div className="metric-label">New This Month</div>
+                <div className="metric-label">New Members</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
                 <div className="metric-value">{newMembersThisMonth.toLocaleString()}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-label">Renewal Rate</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
                 <div className="metric-value">{renewalRate.toLocaleString(undefined, { maximumFractionDigits: 1 })}%</div>
               </div>
             </div>
