@@ -256,7 +256,7 @@ export default function MembershipInfo() {
                   </button>
                 ) : !isLoggedIn ? (
                   <Link
-                    to="/login"
+                    to="/register?redirect=/membership"
                     className="btn btn--brand btn--lg w-full font-bold"
                     style={{ justifyContent: "center" }}
                   >

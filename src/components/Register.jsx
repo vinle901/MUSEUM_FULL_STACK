@@ -231,6 +231,7 @@ export default function Register() {
                     id="birthdate"
                     className="input"
                     type="date"
+                    placeholder="MM/DD/YYYY"
                     value={formData.birthdate}
                     onChange={(e) => handleChange("birthdate", e.target.value)}
                     required

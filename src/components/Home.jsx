@@ -83,30 +83,136 @@ const Home = () => {
           'radial-gradient(ellipse at top, rgba(17,70,85,0.06), transparent 60%), linear-gradient(180deg, #ffffff 0%, #f7faf9 60%, #ffffff 100%)',
       }}
     >
-      {/* Hero Section (Banner) */}
-      <section
-        className="relative h-[80vh] bg-cover bg-center flex items-center justify-center"
-        style={{
-          backgroundImage:
-            "url('https://www.cultureowl.com/storage/editorials/92RU8yhFzIjYk7UzynEx1DuJgtTiXa9SPTa1ZQ4y.jpg')",
-        }}
-      >
-        <div className="absolute inset-0 bg-black/50"></div>
-        <div className="relative text-center text-white px-4">
-        <h1
-            className="text-8xl md:text-6xl lg:text-8xl font-bold mb-10"
-            style={{ fontFamily: 'Playfair Display, serif', letterSpacing: '2px', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
+      {/* Hero Section (Banner) - Modern Design */}
+      <section className="relative min-h-[600px] h-[75vh] max-h-[800px] overflow-hidden">
+        {/* Background Image with Parallax Effect */}
+        <div
+          className="absolute inset-0 bg-cover transform scale-110 transition-transform duration-1000"
+          style={{
+            backgroundImage:
+              "url('https://media.cntraveler.com/photos/5a99866499c77f4533dfc047/16:9/w_2240,c_limit/Braccio-Nuovo-Sculpture-Gallery-J9FA8C.jpg')",
+            backgroundPosition: 'center 75%',
+          }}
+        ></div>
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-transparent"></div>
+
+        {/* Animated Shapes */}
+        <div className="absolute top-20 right-20 w-72 h-72 bg-yellow-300/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-32 left-20 w-96 h-96 bg-[#164e63]/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+
+        {/* Hero Content */}
+        <div className="relative h-full flex items-center justify-center px-4">
+          <div className="max-w-5xl mx-auto text-center">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 mb-8 animate-fade-in">
+              <span className="w-2 h-2 bg-yellow-300 rounded-full animate-pulse"></span>
+              <span className="text-white/90 text-sm font-medium tracking-wide">Experience Art & Culture</span>
+            </div>
+
+            {/* Main Heading with Stagger Animation */}
+            <h1
+              className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight animate-slide-up"
+              style={{
+                fontFamily: 'Playfair Display, serif',
+                letterSpacing: '1px',
+                textShadow: '0 4px 20px rgba(0,0,0,0.5)',
+              }}
             >
-            Welcome to The Museum
-        </h1>
-        <p
-            className="text-4xl md:text-4xl mb-12"
-            style={{ fontFamily: 'Merriweather, serif', letterSpacing: '1px', textShadow: '1px 1px 3px rgba(0,0,0,0.2)' }}
+              Welcome to
+              <br />
+              <span className="bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">
+                The Museum
+              </span>
+            </h1>
+
+            {/* Subtitle */}
+            <p
+              className="text-xl sm:text-2xl md:text-3xl text-white/90 mb-12 max-w-3xl mx-auto animate-slide-up-delay"
+              style={{
+                fontFamily: 'Merriweather, serif',
+                letterSpacing: '0.5px',
+                textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+              }}
             >
-            Explore the beauty of art and history
-        </p>
+              Explore masterpieces, discover history, and immerse yourself in timeless beauty
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-delay">
+              <Link
+                to="/tickets/checkout"
+                className="group relative px-8 py-4 bg-gradient-to-r from-[#164e63] to-[#0a3847] text-white font-semibold rounded-full overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[#164e63]/50"
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  Get Tickets
+                  <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </Link>
+
+              <Link
+                to="/calendar"
+                className="group px-8 py-4 bg-white/20 backdrop-blur-md text-white font-semibold rounded-full border-2 border-white/50 hover:bg-white hover:text-[#164e63] transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              >
+                <span className="flex items-center gap-2">
+                  Explore Exhibitions
+                  <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </span>
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.8s ease-out;
+        }
+
+        .animate-fade-in-delay {
+          animation: fade-in 1s ease-out 0.4s both;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.8s ease-out 0.2s both;
+        }
+
+        .animate-slide-up-delay {
+          animation: slide-up 0.8s ease-out 0.4s both;
+        }
+
+        .delay-1000 {
+          animation-delay: 1s;
+        }
+      `}</style>
 
       {/* Info Header Bar (below banner) */}
   <section className="text-white" style={{ backgroundColor: 'rgb(17, 70, 85)' }}>
@@ -135,7 +241,7 @@ const Home = () => {
                 <path d="M10 7v10" strokeDasharray="2 2" />
               </svg>
               <div className="text-base md:text-lg font-semibold">Adults $25, Children $16</div>
-              <Link to="/tickets/checkout" className="group inline-flex items-center text-white/90">
+              <Link to="/visit#ticket-section" className="group inline-flex items-center text-white/90">
                 <span>See Tickets</span>
                 <svg className="ml-1 w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
               </Link>
@@ -189,7 +295,10 @@ const Home = () => {
         {/* Explore more button centered at end */}
         {!loading && !error && currentTop3.length > 0 && (
           <div className="mt-25 flex justify-center">
-            <Link to="/calendar" className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg">
+            <Link
+              to="/calendar"
+              className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
+            >
               Explore More
             </Link>
           </div>
@@ -230,7 +339,10 @@ const Home = () => {
               ))}
             </div>
             <div className="mt-10 flex justify-center">
-              <Link to="/artworks" className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg">
+              <Link
+                to="/artworks"
+                className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
+              >
                 Explore More
               </Link>
             </div>
@@ -251,7 +363,7 @@ const Home = () => {
               </div>
               <div className="mt-4 md:mt-0">
                 <Link
-                  to="/membership"
+                  to="/membershipinfo"
                   className="px-6 py-3 bg-white text-[rgb(25,102,124)] hover:bg-yellow-300 font-bold"
                 >
                   Explore Membership

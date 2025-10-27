@@ -25,6 +25,7 @@ import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
 import EventRSVP from './components/EventRSVP.jsx'
 import PasswordChangeGuard from "./components/PasswordChangeGuard.jsx"
+import ScrollToTop from './components/ScrollToTop'
 
 // Employee Portal Components
 import EmployeePOS from "./components/employee/EmployeePOS"
@@ -38,6 +39,7 @@ function App() {
   return (
     <CartProvider>
       <PasswordChangeGuard />
+      <ScrollToTop />
       <div className="min-h-screen bg-white">
         <NavBar />
         <Routes>

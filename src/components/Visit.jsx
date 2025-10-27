@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ticketService } from '../services/ticketService';
 import '../components/Visit.css';
 
 function Visit() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +29,18 @@ function Visit() {
 
     fetchTicketTypes();
   }, []);
+
+  // Handle hash navigation
+  useEffect(() => {
+    if (location.hash) {
+      const element = document.querySelector(location.hash);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, [location]);
 
   return (
     <div>
@@ -89,7 +102,7 @@ function Visit() {
         <p className="ticket-notes">
           General Admission — Enjoy access to all current exhibitions on the day of your visit.
         </p>
-        <div className="ticket-section" id='ticket-section'>
+        <div className="ticket-section">
           <table className="ticket-table">
             <tbody>
               {loading ? (
