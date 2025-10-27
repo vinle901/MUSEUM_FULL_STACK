@@ -89,6 +89,7 @@ const ArtworkDetail = () => {
                 alt={artwork.title}
                 className="w-full h-auto object-contain max-h-[800px] mx-auto bg-white rounded-xl"
               />
+              {console.log(getImageUrl(artwork.picture_url))}
             </div>
 
             {/* Description Section */}
