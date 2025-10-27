@@ -737,6 +737,22 @@ body {
   position: relative;
 }
 
+/* Admin-specific navbar behavior: hide center links and always allow mobile menu */
+.navbar.is-admin .navbar-links {
+  display: none !important;
+}
+.navbar.is-admin .mobile-menu-toggle {
+  display: block !important;
+}
+/* Ensure panel/backdrop are visible when toggled, even on wide screens */
+.navbar.is-admin + .mobile-menu-backdrop,
+.navbar.is-admin .mobile-menu-backdrop {
+  display: block;
+}
+.navbar.is-admin .mobile-menu {
+  display: block;
+}
+
 .employee-pos-container .pos-header::after,
 .admin-portal-container .portal-header::after,
 .analyst-reports-container .reports-header::after {

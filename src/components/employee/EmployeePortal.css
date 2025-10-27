@@ -648,6 +648,7 @@
   align-items: center;
   gap: 10px;
   background: white;
+  color: #0a3847; /* ensure text is visible on white */
   padding: 10px 15px;
   border-radius: 8px;
 }
@@ -656,6 +657,8 @@
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 5px;
+  color: #0a3847; /* override white text inherited from header */
+  background: #ffffff;
 }
 
 .export-btn {

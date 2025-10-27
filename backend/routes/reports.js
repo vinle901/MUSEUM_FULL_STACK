@@ -6,13 +6,30 @@ import middleware from '../utils/middleware.js';
 
 const router = express.Router();
 
-// All reports require employee or admin role
-router.use(middleware.requireRole('employee', 'admin'));
+// All reports require appropriate role access
+// Allow analysts to view reports in addition to employees and admins
+router.use(middleware.requireRole('employee', 'admin', 'analyst'));
+
+// Helper to clamp endDate to today's date (YYYY-MM-DD)
+const clampDateRange = (startDate, endDate) => {
+  const today = new Date().toISOString().split('T')[0];
+  const safeEnd = !endDate || endDate > today ? today : endDate;
+  let safeStart = startDate && startDate <= safeEnd ? startDate : null;
+  if (!safeStart) {
+    const endObj = new Date(safeEnd);
+    const startObj = new Date(endObj);
+    startObj.setDate(startObj.getDate() - 30);
+    safeStart = startObj.toISOString().split('T')[0];
+  }
+  if (safeStart > safeEnd) safeStart = safeEnd;
+  return { startDate: safeStart, endDate: safeEnd };
+};
 
 // GET /api/reports/sales - Sales analysis report
 router.get('/sales', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate: s, endDate: e } = req.query;
+    const { startDate, endDate } = clampDateRange(s, e);
     
     // Get total sales for the period
     const [totalSalesResult] = await db.query(`
@@ -57,7 +74,8 @@ router.get('/sales', async (req, res) => {
       WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
         AND t.transaction_status = 'Completed'
       UNION ALL
-      SELECT 'Memberships' as category, SUM(mp.amount_paid) as value
+      -- For memberships, sum the transaction total for transactions that include a membership purchase
+      SELECT 'Memberships' as category, SUM(t.total_price) as value
       FROM Membership_Purchase mp
       JOIN Transactions t ON mp.transaction_id = t.transaction_id
       WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
@@ -86,67 +104,85 @@ router.get('/sales', async (req, res) => {
 // GET /api/reports/attendance - Visitor attendance report
 router.get('/attendance', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate: s, endDate: e, usedOnly } = req.query;
+    const { startDate, endDate } = clampDateRange(s, e);
+    const usedFilter = usedOnly === 'true' ? ' AND tp.is_used = TRUE' : '';
     
-    // Get total visitors (ticket purchases)
+    // Get total visitors as the sum of ticket quantities in the date range
     const [totalVisitorsResult] = await db.query(`
       SELECT 
-        COUNT(DISTINCT t.user_id) as totalVisitors,
-        COUNT(*) / GREATEST(1, DATEDIFF(?, ?) + 1) as averageDailyVisitors
+        COALESCE(SUM(tp.quantity), 0) as totalVisitors,
+        COALESCE(SUM(tp.quantity), 0) / GREATEST(1, DATEDIFF(?, ?) + 1) as averageDailyVisitors
       FROM Ticket_Purchase tp
       JOIN Transactions t ON tp.transaction_id = t.transaction_id
       WHERE tp.visit_date >= ? AND tp.visit_date <= ?
-        AND tp.is_used = TRUE
-    `, [endDate, startDate, startDate, endDate]);
+        AND t.transaction_status = 'Completed'${'${usedFilter}'}
+    `.replace('${usedFilter}', usedFilter), [endDate, startDate, startDate, endDate]);
 
-    // Get daily attendance
+    // Get daily attendance (sum of quantities per visit_date)
     const [dailyAttendance] = await db.query(`
       SELECT 
         tp.visit_date as date,
-        COUNT(DISTINCT t.user_id) as visitors
+        COALESCE(SUM(tp.quantity), 0) as visitors
       FROM Ticket_Purchase tp
       JOIN Transactions t ON tp.transaction_id = t.transaction_id
       WHERE tp.visit_date >= ? AND tp.visit_date <= ?
-        AND tp.is_used = TRUE
+        AND t.transaction_status = 'Completed'${'${usedFilter}'}
       GROUP BY tp.visit_date
       ORDER BY tp.visit_date
-    `, [startDate, endDate]);
+    `.replace('${usedFilter}', usedFilter), [startDate, endDate]);
 
-    // Get peak day
+    // Get peak day by total quantity used
     const [peakDayResult] = await db.query(`
       SELECT 
         DAYNAME(tp.visit_date) as peakDay,
-        COUNT(*) as count
+        COALESCE(SUM(tp.quantity), 0) as count
       FROM Ticket_Purchase tp
+      JOIN Transactions t ON tp.transaction_id = t.transaction_id
       WHERE tp.visit_date >= ? AND tp.visit_date <= ?
-        AND tp.is_used = TRUE
+        AND t.transaction_status = 'Completed'${'${usedFilter}'}
       GROUP BY DAYNAME(tp.visit_date)
       ORDER BY count DESC
       LIMIT 1
-    `, [startDate, endDate]);
+    `.replace('${usedFilter}', usedFilter), [startDate, endDate]);
 
-    // Hourly distribution (simulated based on transaction times)
+    // Hourly distribution (based on transaction times; sum quantities)
     const [hourlyDistribution] = await db.query(`
       SELECT 
         HOUR(t.transaction_date) as hour,
-        COUNT(*) as visitors
+        COALESCE(SUM(tp.quantity), 0) as visitors
       FROM Ticket_Purchase tp
       JOIN Transactions t ON tp.transaction_id = t.transaction_id
       WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-        AND tp.is_used = TRUE
+        AND t.transaction_status = 'Completed'${'${usedFilter}'}
       GROUP BY HOUR(t.transaction_date)
       ORDER BY hour
-    `, [startDate, endDate]);
+    `.replace('${usedFilter}', usedFilter), [startDate, endDate]);
+
+    // Ticket type breakdown (sum of quantities per ticket type)
+    const [ticketTypeBreakdown] = await db.query(`
+      SELECT 
+        COALESCE(tt.ticket_name, CONCAT('Type ', tp.ticket_type_id)) as type,
+        COALESCE(SUM(tp.quantity), 0) as visitors
+      FROM Ticket_Purchase tp
+      JOIN Transactions t ON tp.transaction_id = t.transaction_id
+      LEFT JOIN Ticket_Types tt ON tt.ticket_type_id = tp.ticket_type_id
+      WHERE tp.visit_date BETWEEN ? AND ?
+        AND t.transaction_status = 'Completed'${'${usedFilter}'}
+      GROUP BY tp.ticket_type_id, tt.ticket_name
+      ORDER BY visitors DESC
+    `.replace('${usedFilter}', usedFilter), [startDate, endDate]);
 
     res.json({
-      totalVisitors: totalVisitorsResult[0].totalVisitors || 0,
-      averageDailyVisitors: Math.round(totalVisitorsResult[0].averageDailyVisitors) || 0,
+  totalVisitors: Number(totalVisitorsResult[0].totalVisitors) || 0,
+  averageDailyVisitors: Math.round(Number(totalVisitorsResult[0].averageDailyVisitors) || 0),
       peakDay: peakDayResult[0]?.peakDay || 'N/A',
       dailyAttendance: dailyAttendance,
       hourlyDistribution: hourlyDistribution.map(h => ({
         hour: `${h.hour}:00`,
         visitors: h.visitors
-      }))
+      })),
+      ticketTypeBreakdown
     });
   } catch (error) {
     console.error('Attendance report error:', error);
@@ -157,7 +193,8 @@ router.get('/attendance', async (req, res) => {
 // GET /api/reports/popular-items - Popular items report
 router.get('/popular-items', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate: s, endDate: e } = req.query;
+    const { startDate, endDate } = clampDateRange(s, e);
     
     // Get top gift shop items
     const [giftShopItems] = await db.query(`
@@ -210,7 +247,8 @@ router.get('/popular-items', async (req, res) => {
 // GET /api/reports/revenue - Revenue breakdown report
 router.get('/revenue', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate: s, endDate: e } = req.query;
+    const { startDate, endDate } = clampDateRange(s, e);
     
     // Get total revenue
     const [totalRevenueResult] = await db.query(`
@@ -242,7 +280,8 @@ router.get('/revenue', async (req, res) => {
         WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
           AND t.transaction_status = 'Completed'
         UNION ALL
-        SELECT 'Memberships' as source, SUM(amount_paid) as amount
+        -- For memberships, some schemas may not have amount_paid; use transaction total
+        SELECT 'Memberships' as source, SUM(t.total_price) as amount
         FROM Membership_Purchase mp
         JOIN Transactions t ON mp.transaction_id = t.transaction_id
         WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
@@ -251,10 +290,11 @@ router.get('/revenue', async (req, res) => {
       GROUP BY source
     `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
 
-    // Get monthly trend
+    // Get monthly trend (ONLY_FULL_GROUP_BY-safe)
     const [monthlyTrend] = await db.query(`
       SELECT 
-        DATE_FORMAT(transaction_date, '%b') as month,
+        DATE_FORMAT(transaction_date, '%Y-%m') as period,
+        DATE_FORMAT(MIN(transaction_date), '%b') as month,
         SUM(total_price) as revenue
       FROM Transactions
       WHERE DATE(transaction_date) >= DATE_SUB(DATE(?), INTERVAL 6 MONTH)
@@ -289,7 +329,8 @@ router.get('/revenue', async (req, res) => {
 // GET /api/reports/membership - Membership analytics report
 router.get('/membership', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate: s, endDate: e } = req.query;
+    const { startDate, endDate } = clampDateRange(s, e);
     
     // Get total active members
     const [totalMembersResult] = await db.query(`
@@ -327,10 +368,11 @@ router.get('/membership', async (req, res) => {
       GROUP BY membership_type
     `);
 
-    // Get monthly growth
+    // Get monthly growth (ONLY_FULL_GROUP_BY-safe)
     const [monthlyGrowth] = await db.query(`
       SELECT 
-        DATE_FORMAT(m.start_date, '%b') as month,
+        DATE_FORMAT(m.start_date, '%Y-%m') as period,
+        DATE_FORMAT(MIN(m.start_date), '%b') as month,
         COUNT(CASE WHEN mp.is_renewal = FALSE THEN 1 END) as new,
         COUNT(CASE WHEN mp.is_renewal = TRUE THEN 1 END) as renewals
       FROM Membership m
@@ -338,7 +380,7 @@ router.get('/membership', async (req, res) => {
       WHERE m.start_date >= DATE_SUB(?, INTERVAL 6 MONTH)
         AND m.start_date <= ?
       GROUP BY DATE_FORMAT(m.start_date, '%Y-%m')
-      ORDER BY m.start_date
+      ORDER BY DATE_FORMAT(m.start_date, '%Y-%m')
       LIMIT 6
     `, [endDate, endDate]);
 

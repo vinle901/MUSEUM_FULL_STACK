@@ -24,6 +24,7 @@ import eventHostingRoutes from './routes/event-hosting.js'
 import benefitsRoutes from './routes/benefits.js'
 import middleware from './utils/middleware.js'
 import reportsRoutes from './routes/reports.js'  // Add with other imports
+import donationsRoutes from './routes/donations.js'
 import db from './config/database.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -62,6 +63,7 @@ app.use('/api/event-hosting', eventHostingRoutes)
 app.use('/api/giftshop', giftShopRoutes)
 app.use('/api/cafeteria', cafeteriaRoutes)
 app.use('/api/benefits', benefitsRoutes)
+app.use('/api/donations', donationsRoutes)
 
 // Transaction routes - gift-shop-checkout is public, others may require auth
 // IMPORTANT: Place BEFORE protected routes to allow guest checkout

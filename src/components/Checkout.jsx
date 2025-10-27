@@ -471,7 +471,7 @@ const Checkout = () => {
               onClick={() => navigate('/gift-shop')}
               className="bg-brand text-white px-8 py-3 rounded-lg font-semibold hover:bg-brand-dark transition-colors"
             >
-              Continue Shopping
+              Visit Gift Shop
             </button>
             <button
               onClick={() => navigate('/')}
