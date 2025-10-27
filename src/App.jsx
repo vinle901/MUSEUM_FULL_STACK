@@ -24,7 +24,6 @@ import Membership from "./components/Membership.jsx"
 import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
 import EventRSVP from './components/EventRSVP.jsx'
-import Register from "./components/Register.jsx"
 import PasswordChangeGuard from "./components/PasswordChangeGuard.jsx"
 
 // Employee Portal Components
