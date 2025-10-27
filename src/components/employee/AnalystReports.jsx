@@ -733,11 +733,15 @@ function AnalystReports() {
       case 'revenue': {
         const totalRevenue = Number(reportData.totalRevenue || 0);
         const monthlyGrowth = Number(reportData.monthlyGrowth || 0);
-        const breakdown = (reportData.breakdown || []).map(b => ({
-          source: b.source,
-          amount: Number(b.amount) || 0,
-          percentage: Number(b.percentage) || 0,
-        }));
+        // Defensive: ensure breakdown is a valid array of objects with source and amount
+        let breakdown = Array.isArray(reportData.breakdown) ? reportData.breakdown : [];
+        breakdown = breakdown
+          .map(b => ({
+            source: b?.source ?? '',
+            amount: Number(b?.amount) || 0,
+            percentage: Number(b?.percentage) || 0,
+          }))
+          .filter(b => b.source && !isNaN(b.amount));
         const monthlyTrend = (reportData.monthlyTrend || []).map(m => ({
           month: m.month,
           revenue: Number(m.revenue) || 0,
@@ -758,24 +762,28 @@ function AnalystReports() {
 
             <div className="chart-section">
               <h3>Revenue Breakdown</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={breakdown}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={(e) => `${e.source}: $${e.amount.toLocaleString()} (${e.percentage}%)`}
-                    outerRadius={100}
-                    dataKey="amount"
-                  >
-                    {breakdown.map((entry, index) => (
-                      <Cell key={`rbd-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(val, name, props) => [`$${Number(val || 0).toLocaleString()}`, props.payload.source]} />
-                </PieChart>
-              </ResponsiveContainer>
+              {breakdown.length === 0 ? (
+                <div className="no-items">No revenue breakdown data to display</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={breakdown}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(e) => `${e.source}: $${e.amount.toLocaleString()} (${e.percentage}%)`}
+                      outerRadius={100}
+                      dataKey="amount"
+                    >
+                      {breakdown.map((entry, index) => (
+                        <Cell key={`rbd-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val, name, props) => [`$${Number(val || 0).toLocaleString()}`, props.payload.source]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             <div className="chart-section">
