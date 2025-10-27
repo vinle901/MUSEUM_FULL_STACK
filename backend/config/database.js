@@ -12,6 +12,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  timezone: '+00:00',
   // Azure MySQL requires SSL
   ssl: {
     rejectUnauthorized: false, // For Azure MySQL flexible server

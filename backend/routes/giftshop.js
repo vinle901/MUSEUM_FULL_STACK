@@ -18,13 +18,13 @@ const convertItemTypes = (item) => ({
   is_available: Boolean(item.is_available)
 })
 
-// GET all gift shop items
+// GET all gift shop items (returns all items including unavailable for POS display)
 router.get('/', async (req, res) => {
   try {
     console.log('Fetching gift shop items from database...')
 
     const [items] = await db.query(
-      'SELECT * FROM Gift_Shop_Items WHERE is_available = TRUE ORDER BY category, item_name'
+      'SELECT * FROM Gift_Shop_Items ORDER BY category, item_name'
     )
 
     // Convert numeric string fields to proper numbers

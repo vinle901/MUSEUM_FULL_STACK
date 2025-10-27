@@ -7,10 +7,10 @@ const router = express.Router()
 
 // Public routes - Anyone can browse cafeteria menu
 
-// GET all cafeteria items - Public
+// GET all cafeteria items - Public (returns all items including unavailable for POS display)
 router.get('/', async (req, res) => {
   try {
-    const [items] = await db.query('SELECT * FROM Cafeteria_Items WHERE is_available = TRUE')
+    const [items] = await db.query('SELECT * FROM Cafeteria_Items ORDER BY category, item_name')
     res.json(items)
   } catch (error) {
     res.status(500).json({ error: error.message })

@@ -25,6 +25,7 @@ import benefitsRoutes from './routes/benefits.js'
 import middleware from './utils/middleware.js'
 import reportsRoutes from './routes/reports.js'  // Add with other imports
 import donationsRoutes from './routes/donations.js'
+import notificationRoutes from './routes/notifications.js'
 import db from './config/database.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -96,6 +97,9 @@ app.use('/api/users', userRoutes)
 
 // Admin only routes - All operations require admin role
 app.use('/api/employees', employeeRoutes)
+
+// Notification routes - Admin/Employee only
+app.use('/api/notifications', notificationRoutes)
 
 // Health check route
 app.get('/api/health', (req, res) => {

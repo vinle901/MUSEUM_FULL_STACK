@@ -584,6 +584,8 @@ function EmployeePOS() {
                   setCart([]);
                   setPaymentMethod('Credit Card');
                   setReceipt(null);
+                  // Refresh items to get updated stock quantities and availability
+                  fetchAllItems();
                 }}
                 style={{
                   width: '100%',
@@ -855,7 +857,15 @@ function EmployeePOS() {
               const nameField = currentDept.nameField;
               const priceField = currentDept.priceField;
               const availField = currentDept.availabilityField;
-              const isAvailable = item[availField] === true || item[availField] === 1 || item[availField] === '1';
+
+              // Check availability based on department
+              let isAvailable = item[availField] === true || item[availField] === 1 || item[availField] === '1';
+
+              // For gift shop, also check if stock is available
+              if (activeDepartment === 'giftshop') {
+                const stockQuantity = parseInt(item.stock_quantity) || 0;
+                isAvailable = isAvailable && stockQuantity > 0;
+              }
 
               // Check if this is a member ticket using Benefits table
               const ticketName = item[nameField]?.toLowerCase() || '';
@@ -884,38 +894,21 @@ function EmployeePOS() {
               return (
                 <div
                   key={item[idField]}
-                  className={`menu-item-card ${isDisabled ? 'unavailable' : ''}`}
+                  className={`menu-item-card ${isDisabled ? 'disabled' : ''}`}
                   onClick={() => !isDisabled && addToCart(item)}
-                  style={{
-                    opacity: isDisabled ? 0.5 : 1,
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    position: 'relative',
-                    padding: '14px',
-                    borderRadius: '8px',
-                    border: '2px solid #e5e7eb',
-                    background: '#fff',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isDisabled) {
-                      e.currentTarget.style.borderColor = '#19667C';
-                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(25,102,124,0.15)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                  }}
                 >
-                  <div className="item-name" style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{item[nameField]}</div>
-                  <div className="item-price" style={{ fontSize: 16, fontWeight: 700, color: '#19667C' }}>${parseFloat(item[priceField]).toFixed(2)}</div>
+                  <div className="item-name">{item[nameField]}</div>
+                  <div className="item-price">${parseFloat(item[priceField]).toFixed(2)}</div>
                   {memberTicketDisabled ? (
-                    <span className="availability unavailable" style={{ fontSize: 11, marginTop: 4, display: 'block', color: '#dc2626' }}>Member Verification Required</span>
+                    <span className="availability unavailable" style={{ marginTop: 4, display: 'block' }}>Member Verification Required</span>
                   ) : isAvailable ? (
-                    <span className="availability available">Available</span>
+                    <span className="availability available" style={{ marginTop: 4, display: 'block' }}>
+                      {activeDepartment === 'giftshop' ? `In Stock (${item.stock_quantity})` : 'Available'}
+                    </span>
                   ) : (
-                    <span className="availability unavailable">Unavailable</span>
+                    <span className="availability unavailable" style={{ marginTop: 4, display: 'block' }}>
+                      {activeDepartment === 'giftshop' && parseInt(item.stock_quantity || 0) === 0 ? 'Out of Stock' : 'Unavailable'}
+                    </span>
                   )}
                   {activeDepartment !== 'tickets' && (
                     <div className="item-actions">
@@ -952,14 +945,32 @@ function EmployeePOS() {
                   </>
                 )}
                 {previewItem.department === 'giftshop' && (
-                  <div className="modal-row"><strong>Stock:</strong> <span>{previewItem.stock_quantity ?? 'N/A'}</span></div>
+                  <div className="modal-row">
+                    <strong>Stock:</strong>
+                    <span style={{ color: parseInt(previewItem.stock_quantity || 0) === 0 ? '#c62828' : 'inherit', fontWeight: parseInt(previewItem.stock_quantity || 0) === 0 ? '600' : 'normal' }}>
+                      {parseInt(previewItem.stock_quantity || 0) === 0 ? 'Out of Stock' : previewItem.stock_quantity ?? 'N/A'}
+                    </span>
+                  </div>
                 )}
               </div>
               <div className="modal-actions">
                 <button
                   className="process-order-btn"
                   onClick={() => { addToCart(previewItem); closePreview(); }}
-                  disabled={!previewItem[departments[previewItem.department].availabilityField]}
+                  disabled={(() => {
+                    const dept = departments[previewItem.department];
+                    const isAvailable = previewItem[dept.availabilityField] === true ||
+                                       previewItem[dept.availabilityField] === 1 ||
+                                       previewItem[dept.availabilityField] === '1';
+
+                    // For gift shop, also check stock quantity
+                    if (previewItem.department === 'giftshop') {
+                      const stockQuantity = parseInt(previewItem.stock_quantity) || 0;
+                      return !isAvailable || stockQuantity <= 0;
+                    }
+
+                    return !isAvailable;
+                  })()}
                 >
                   Add to Order
                 </button>

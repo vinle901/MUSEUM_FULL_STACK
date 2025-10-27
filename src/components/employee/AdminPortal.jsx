@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaKey } from 'react-icons/fa';
 import api from '../../services/api';
 import './EmployeePortal.css';
+import NotificationBell from './NotificationBell';
 
 function AdminPortal() {
   const [activeTab, setActiveTab] = useState('employees');
@@ -1737,8 +1738,11 @@ function AdminPortal() {
   return (
     <div className="admin-portal-container">
       <div className="portal-header">
-        <h1>Admin Portal</h1>
-        <p>Manage Museum Database</p>
+        <div>
+          <h1>Admin Portal</h1>
+          <p>Manage Museum Database</p>
+        </div>
+        <NotificationBell />
       </div>
 
       <div className="admin-tabs">

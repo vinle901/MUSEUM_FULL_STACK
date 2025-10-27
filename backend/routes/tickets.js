@@ -3,10 +3,10 @@ import db from '../config/database.js'
 
 const router = express.Router()
 
-// GET all ticket types
+// GET all ticket types (returns all including unavailable for POS display)
 router.get('/types', async (req, res) => {
   try {
-    const [types] = await db.query('SELECT * FROM Ticket_Types WHERE is_available = TRUE')
+    const [types] = await db.query('SELECT * FROM Ticket_Types ORDER BY ticket_name')
     res.json(types)
   } catch (error) {
     res.status(500).json({ error: error.message })

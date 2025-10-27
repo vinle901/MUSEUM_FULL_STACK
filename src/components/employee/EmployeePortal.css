@@ -92,6 +92,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  min-height: 160px;
+  justify-content: space-between;
 }
 
 .menu-item-card:hover {
@@ -100,18 +104,33 @@
   border-color: #164e63;
 }
 
+.menu-item-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.menu-item-card.disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e0e0e0;
+}
+
 .item-name {
   font-weight: 600;
-  margin-bottom: 8px;
   font-size: 0.95rem;
   color: #333;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
 }
 
 .item-price {
   color: #164e63;
   font-size: 1.2rem;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .availability {

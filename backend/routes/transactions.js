@@ -1243,7 +1243,7 @@ router.post('/giftshop-pos', async (req, res) => {
     const itemIds = items.map(item => item.item_id);
     const placeholders = itemIds.map(() => '?').join(',');
     const [dbItems] = await connection.query(
-      `SELECT item_id, item_name, price, is_available
+      `SELECT item_id, item_name, price, stock_quantity, is_available
        FROM Gift_Shop_Items
        WHERE item_id IN (${placeholders})`,
       itemIds
@@ -1258,16 +1258,25 @@ router.post('/giftshop-pos', async (req, res) => {
 
     const itemMap = {};
     dbItems.forEach(item => {
-      itemMap[item.item_id] = item;
-    });
+      itemMap[item.item_id] = {
+        ...item,
+        stock_quantity: parseInt(item.stock_quantity, 10)
+      }
+    })
 
-    // Validate availability
+    // Validate availability and stock
     for (const cartItem of items) {
       const dbItem = itemMap[cartItem.item_id];
       if (!dbItem.is_available) {
         await connection.rollback();
         return res.status(400).json({
           error: `Item "${dbItem.item_name}" is not available`
+        });
+      }
+      if (dbItem.stock_quantity < cartItem.quantity) {
+        await connection.rollback();
+        return res.status(400).json({
+          error: `Insufficient stock for item "${dbItem.item_name}". Available: ${dbItem.stock_quantity}, Requested: ${cartItem.quantity}`
         });
       }
     }
@@ -1304,7 +1313,7 @@ router.post('/giftshop-pos', async (req, res) => {
 
     const transactionId = transactionResult.insertId;
 
-    // Insert Giftshop_Purchase records
+    // Insert Giftshop_Purchase records and update stock
     const purchaseRecords = [];
     for (const cartItem of items) {
       const dbItem = itemMap[cartItem.item_id];
@@ -1332,6 +1341,14 @@ router.post('/giftshop-pos', async (req, res) => {
         unit_price: cartItem.unit_price,
         line_total: lineTotal
       });
+
+      // Update stock quantity
+      await connection.query(
+        `UPDATE Gift_Shop_Items
+         SET stock_quantity = stock_quantity - ?
+         WHERE item_id = ?`,
+        [cartItem.quantity, cartItem.item_id]
+      )
     }
 
     await connection.commit();
@@ -1627,7 +1644,7 @@ router.post('/unified-pos', async (req, res) => {
       const giftIds = giftshopItems.map(item => item.item_id);
       const placeholders = giftIds.map(() => '?').join(',');
       const [dbItems] = await connection.query(
-        `SELECT item_id, item_name, price, is_available FROM Gift_Shop_Items WHERE item_id IN (${placeholders})`,
+        `SELECT item_id, item_name, price, stock_quantity, is_available FROM Gift_Shop_Items WHERE item_id IN (${placeholders})`,
         giftIds
       );
 
@@ -1637,14 +1654,24 @@ router.post('/unified-pos', async (req, res) => {
       }
 
       dbItems.forEach(item => {
-        giftshopMap[item.item_id] = item;
-      });
+        giftshopMap[item.item_id] = {
+          ...item,
+          stock_quantity: parseInt(item.stock_quantity, 10)
+        }
+      })
 
       for (const item of giftshopItems) {
-        if (!giftshopMap[item.item_id].is_available) {
+        const dbItem = giftshopMap[item.item_id];
+        if (!dbItem.is_available) {
           await connection.rollback();
           return res.status(400).json({
-            error: `Gift shop item "${giftshopMap[item.item_id].item_name}" is not available`
+            error: `Gift shop item "${dbItem.item_name}" is not available`
+          });
+        }
+        if (dbItem.stock_quantity < item.quantity) {
+          await connection.rollback();
+          return res.status(400).json({
+            error: `Insufficient stock for item "${dbItem.item_name}". Available: ${dbItem.stock_quantity}, Requested: ${item.quantity}`
           });
         }
       }
@@ -1743,7 +1770,7 @@ router.post('/unified-pos', async (req, res) => {
       });
     }
 
-    // Insert Gift_Shop_Purchase records
+    // Insert Gift_Shop_Purchase records and update stock
     for (const item of giftshopItems) {
       const dbItem = giftshopMap[item.item_id];
       const lineTotal = parseFloat((parseFloat(item.unit_price) * item.quantity).toFixed(2));
@@ -1763,6 +1790,14 @@ router.post('/unified-pos', async (req, res) => {
         unit_price: item.unit_price,
         line_total: lineTotal
       });
+
+      // Update stock quantity
+      await connection.query(
+        `UPDATE Gift_Shop_Items
+         SET stock_quantity = stock_quantity - ?
+         WHERE item_id = ?`,
+        [item.quantity, item.item_id]
+      )
     }
 
     // Insert Ticket_Purchase records

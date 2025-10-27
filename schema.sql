@@ -416,3 +416,18 @@ CREATE TABLE `Donation`(
 ALTER TABLE `Donation`
 ADD CONSTRAINT `fk_donation_transaction`
     FOREIGN KEY(`transaction_id`) REFERENCES `Transactions`(`transaction_id`) ON DELETE RESTRICT;
+    
+CREATE TABLE IF NOT EXISTS `message_queue` (
+    `message_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `item_id` INT UNSIGNED NOT NULL,
+    `item_name` VARCHAR(255) NOT NULL,
+    `message` TEXT NOT NULL,
+    `resolved` BOOLEAN NOT NULL DEFAULT FALSE,
+    `created_at` TIMESTAMP DEFAULT UTC_TIMESTAMP(),
+    `resolved_at` TIMESTAMP NULL,
+    PRIMARY KEY(`message_id`),
+    INDEX `idx_item` (`item_id`),
+    INDEX `idx_unresolved` (`resolved`, `created_at`),
+    INDEX `idx_item_unresolved` (`item_id`, `resolved`),
+    FOREIGN KEY(`item_id`) REFERENCES `Gift_Shop_Items`(`item_id`) ON DELETE CASCADE
+);
