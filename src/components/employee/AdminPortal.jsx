@@ -1,12 +1,13 @@
 // File: src/components/employee/AdminPortal.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaKey } from 'react-icons/fa';
 import api from '../../services/api';
 import './EmployeePortal.css';
 import NotificationBell from './NotificationBell';
 
 function AdminPortal() {
+  // ---------- core state ----------
   const [activeTab, setActiveTab] = useState('employees');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,12 +17,21 @@ function AdminPortal() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [artists, setArtists] = useState([]);
   const [exhibitions, setExhibitions] = useState([]);
+
+  // password modal
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordChangeEmployee, setPasswordChangeEmployee] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  // membership sign-ups report specific
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const twoWeeksAgoISO = new Date(Date.now() - 13 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(twoWeeksAgoISO);
+  const [endDate, setEndDate] = useState(todayISO);
+  const [memberSummary, setMemberSummary] = useState({ signupCount: 0, totalAmount: 0 });
 
   const tabs = [
     // Core data - needed by other entities
@@ -37,6 +47,9 @@ function AdminPortal() {
     { id: 'tickets', label: 'Ticket Types', endpoint: '/api/tickets/types' },
     { id: 'giftshop', label: 'Gift Shop Items', endpoint: '/api/giftshop' },
     { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
+
+    // Reports (read-only)
+    { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
   ];
 
   useEffect(() => {
@@ -45,13 +58,27 @@ function AdminPortal() {
     if (activeTab === 'artworks' || activeTab === 'events') {
       fetchArtistsAndExhibitions();
     }
+    // reset any editor bits when tab changes
+    setShowAddForm(false);
+    setEditingItem(null);
+    setSelectedImageFile(null);
   }, [activeTab]);
+
+  // Re-run report when date range changes (only on membership tab)
+  useEffect(() => {
+    if (activeTab === 'membersignups') fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate]);
+
+  // ---------- helpers ----------
+  const fmtMoney = (n) =>
+    Number(n || 0).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 
   const fetchArtistsAndExhibitions = async () => {
     try {
       const [artistsRes, exhibitionsRes] = await Promise.all([
         api.get('/api/artists'),
-        api.get('/api/exhibitions')
+        api.get('/api/exhibitions?include_inactive=true'),
       ]);
       setArtists(artistsRes.data);
       setExhibitions(exhibitionsRes.data);
@@ -73,8 +100,17 @@ function AdminPortal() {
         url = `${endpoint}?include_cancelled=true`;
       }
 
-      const response = await api.get(url);
-      setItems(response.data);
+      if (activeTab === 'membersignups') {
+        const { data } = await api.get(url, { params: { startDate, endDate } });
+        setItems(data.rows || []);
+        setMemberSummary({
+          signupCount: Number(data?.summary?.signupCount || 0),
+          totalAmount: Number(data?.summary?.totalAmount || 0),
+        });
+      } else {
+        const { data } = await api.get(url);
+        setItems(data);
+      }
     } catch (error) {
       console.error('Error fetching items:', error);
       alert('Error loading data');
@@ -82,6 +118,25 @@ function AdminPortal() {
       setLoading(false);
     }
   };
+
+  // membership sign-ups aggregation by day (client-side grouping)
+  const membershipAgg = useMemo(() => {
+    if (activeTab !== 'membersignups') return { groups: [], overall: 0 };
+
+    const map = new Map();
+    let overall = 0;
+
+    for (const r of items || []) {
+      const when = r.purchased_at || r.created_at;
+      const key = new Date(when).toISOString().slice(0, 10); // YYYY-MM-DD
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
+      overall += Number(r.line_total ?? r.amount_paid ?? 0);
+    }
+
+    const groups = Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    return { groups, overall };
+  }, [activeTab, items]);
 
   const handleEdit = (item) => {
     setEditingItem(item);
@@ -91,7 +146,6 @@ function AdminPortal() {
 
     // Format date fields based on active tab
     if (activeTab === 'artworks') {
-
       if (formattedItem.acquisition_date) {
         formattedItem.acquisition_date = new Date(formattedItem.acquisition_date).toISOString().split('T')[0];
       }
@@ -174,18 +228,15 @@ function AdminPortal() {
   };
 
   const handleDelete = async (itemId) => {
+    const tab = tabs.find((t) => t.id === activeTab);
+    if (tab.readonly) return;
+    
     if (!window.confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      const tab = tabs.find(tab => tab.id === activeTab);
       let endpoint = tab.endpoint;
-
-      // For tickets, the endpoint needs /types appended for the ID route
-      if (activeTab === 'tickets') {
-        endpoint = `${endpoint}/${itemId}`;
-      } else {
-        endpoint = `${endpoint}/${itemId}`;
-      }
+      // ID route format is consistent across our endpoints here
+      endpoint = `${endpoint}/${itemId}`;
 
       await api.delete(endpoint);
       await fetchItems();
@@ -518,6 +569,7 @@ function AdminPortal() {
     }
   };
 
+  // ---------- forms ----------
   const renderForm = () => {
     // Dynamic form based on active tab
     switch (activeTab) {
@@ -1394,9 +1446,87 @@ function AdminPortal() {
     }
   };
 
+  // ---------- tables ----------
   const renderItemsTable = () => {
     if (loading) return <div className="loading">Loading...</div>;
     
+    // Membership Sign-ups report (read-only)
+    if (activeTab === 'membersignups') {
+      const groups = membershipAgg.groups;
+      const overallClient = membershipAgg.overall;
+      const overallServer = memberSummary.totalAmount;
+      const overall = (overallServer || overallClient);
+
+      return (
+        <>
+          <div className="d-flex align-items-end gap-3 flex-wrap justify-content-between" style={{ marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ maxWidth: '180px', width: '100%' }}>
+                <label className="form-label mb-1">Start date</label>
+                <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </div>
+              <div style={{ maxWidth: '180px', width: '100%' }}>
+                <label className="form-label mb-1">End date</label>
+                <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+              <button className="btn btn-primary" style={{ height: '38px', marginTop: '22px' }} onClick={fetchItems}>Apply</button>
+              <div style={{ marginLeft: 'auto', fontWeight: '700', textAlign: 'right', marginRight: '30px', fontSize: '1.1rem', lineHeight: '1.2' }}>
+                Overall Total: {fmtMoney(overall)} &nbsp;•&nbsp; Sign-ups: {memberSummary.signupCount}
+              </div>
+            </div>
+          </div>
+
+          {groups.length === 0 ? (
+            <div className="no-items">No sign-ups in this range</div>
+          ) : (
+            groups.map(([date, rows]) => {
+              const dayTotal = rows.reduce((s, r) => s + Number(r.line_total ?? r.amount_paid ?? 0), 0);
+              return (
+                <div key={date} style={{ marginBottom: '1.25rem' }}>
+                  <div className="d-flex align-items-center" style={{ marginBottom: '1rem' }}>
+                    <h3 className="mb-0" style={{ fontSize: '1.05rem' }}>{date}</h3>
+                    <div className="ms-auto small text-muted">
+                      {rows.length} sign-up{rows.length !== 1 ? 's' : ''} • Total {fmtMoney(dayTotal)}
+                    </div>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Phone</th>
+                          <th>Plan</th>
+                          <th>Newsletter</th>
+                          <th>Amount</th>
+                          <th>Purchased At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => (
+                          <tr key={r.purchase_id ?? `${date}-${i}`}>
+                            <td>{r.purchase_id ?? '—'}</td>
+                            <td>{r.first_name} {r.last_name}</td>
+                            <td>{r.email}</td>
+                            <td>{r.phone_number ?? '—'}</td>
+                            <td>{r.membership_type}</td>
+                            <td>{r.subscribe_to_newsletter ? 'Yes' : 'No'}</td>
+                            <td>{fmtMoney(r.line_total ?? r.amount_paid)}</td>
+                            <td>{new Date(r.purchased_at || r.created_at).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </>
+      );
+    }
+
     if (items.length === 0) {
       return <div className="no-items">No items found</div>;
     }
@@ -1735,6 +1865,10 @@ function AdminPortal() {
     }
   };
 
+  const currentTab = tabs.find((t) => t.id === activeTab);
+
+  // ---------- render ----------
+
   return (
     <div className="admin-portal-container">
       <div className="portal-header">
@@ -1763,17 +1897,19 @@ function AdminPortal() {
       </div>
 
       <div className="admin-content">
-        <div className="admin-actions">
-          <button
-            onClick={() => {
-              setShowAddForm(true);
-              setSelectedImageFile(null);
-            }}
-            className="add-item-btn"
-          >
-            <FaPlus /> Add New Item
-          </button>
-        </div>
+        {activeTab !== 'membersignups' && (
+          <div className="admin-actions">
+            <button
+              onClick={() => {
+                setShowAddForm(true);
+                setSelectedImageFile(null);
+              }}
+              className="add-item-btn"
+            >
+              <FaPlus /> Add New Item
+            </button>
+          </div>
+        )}
 
         {(showAddForm || editingItem) && renderForm()}
         

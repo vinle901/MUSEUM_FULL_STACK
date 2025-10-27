@@ -929,3 +929,128 @@
     font-size: 0.85rem;
   }
 }
+
+:root{
+  --brand: var(--color-brand, #19667C);
+  --brand-dark: var(--color-brand-dark, #145261);
+  --brand-darker: var(--color-brand-darker, #08323E);
+  --ink:#0f172a; --muted:#475569; --line:#e5e7eb;
+}
+
+/* Tabs row (chips) */
+.admin-portal-container .admin-tabs{
+  display:flex; flex-wrap:wrap; gap:10px;
+  padding:12px; background:#fff; border:1px solid var(--line);
+  border-radius:12px; box-shadow:0 6px 18px rgba(15,23,42,.06);
+  margin-bottom:14px;
+}
+.admin-portal-container .admin-tab{
+  appearance:none; border:1px solid #e2e8f0; background:#f3f7f9; color:#0f172a;
+  border-radius:9999px; padding:.55rem .9rem; font-weight:800; cursor:pointer;
+}
+.admin-portal-container .admin-tab.active{
+  background:var(--brand); color:#fff; border-color:var(--brand-darker);
+}
+
+/* Filters card */
+.admin-portal-container .report-filters{
+  display:grid; grid-template-columns:1fr auto; gap:14px; align-items:end;
+  background:#fff; border:1px solid var(--line); border-radius:14px;
+  box-shadow:0 8px 24px rgba(15,23,42,.06); padding:14px; margin:10px 0 14px;
+}
+.admin-portal-container .rf-fields{
+  display:grid; grid-template-columns:repeat(2, minmax(220px, 1fr)); gap:12px 14px;
+}
+.admin-portal-container .rf-field{ display:grid; gap:6px; }
+.admin-portal-container .rf-label{ font:700 .95rem/1 'Montserrat',sans-serif; color:var(--ink); }
+.admin-portal-container input[type="date"]{
+  appearance:none; width:100%; padding:.7rem .85rem; border:1px solid var(--line);
+  border-radius:12px; background:#fff; outline:none; font-variant-numeric:tabular-nums;
+  transition: box-shadow .15s, border-color .15s, background .2s;
+}
+.admin-portal-container .report-filters input[type="date"] {
+  display: block;
+  width: 160px;             /* <<< compact width */
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  transition: 0.2s ease;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+}
+
+.admin-portal-container .report-filters input[type="date"]:focus {
+  border-color: var(--brand-dark);
+  box-shadow: 0 0 0 3px rgba(25, 102, 124, 0.25);
+}
+
+/* Apply button (pill) */
+/* Apply button = same look as the active category tab */
+.admin-portal-container .rf-apply{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.5rem;
+
+  /* chip sizing to match the tab */
+  height: 42px;
+  padding: 10px 20px;
+  border-radius: 25px;
+
+  /* colors like the active Membership chip */
+  border: 2px solid #164e63;
+  background: #164e63;
+  color: #fff;
+
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  letter-spacing:.1px;
+  cursor: pointer;
+
+  transition: background .2s ease, border-color .2s ease, transform .05s ease;
+  box-shadow: 0 2px 8px rgba(22, 78, 99, 0.25);
+}
+.admin-portal-container .rf-apply:hover{
+  background:#0a3847;
+  border-color:#0a3847;
+}
+.admin-portal-container .rf-apply:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(22,78,99,.25);
+}
+
+/* Overall total chip */
+.admin-portal-container .report-summary{
+  display:inline-flex; align-items:center; gap:.55rem; font-weight:800;
+  padding:.5rem .85rem; border-radius:9999px; font-variant-numeric:tabular-nums;
+  background:linear-gradient(180deg,#e6f2f5,#d9edf2); color:var(--brand-darker);
+  border:1px solid #cfe6ec; box-shadow:0 8px 24px rgba(15,23,42,.06);
+  margin:4px 0 14px;
+}
+
+/* Table theming */
+.admin-portal-container .admin-table{
+  width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line);
+  border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(15,23,42,.06);
+}
+.admin-portal-container .admin-table thead th{
+  background:var(--brand-dark); color:#fff; text-align:left; font-weight:800;
+  padding:12px 14px; letter-spacing:.2px;
+}
+.admin-portal-container .admin-table tbody td{
+  padding:12px 14px; border-top:1px solid var(--line); color:#111827; vertical-align:middle;
+}
+.admin-portal-container .admin-table tbody tr:nth-child(even){ background:#f9fbfd; }
+.admin-portal-container .admin-table tbody tr:hover{ background:#f2f7fa; }
+.admin-portal-container .admin-table td:nth-last-child(2),
+.admin-portal-container .admin-table td:nth-last-child(1){
+  font-variant-numeric:tabular-nums;
+}
+
+/* Responsive */
+@media (max-width:900px){
+  .admin-portal-container .report-filters{ grid-template-columns:1fr; padding:12px; }
+  .admin-portal-container .rf-fields{ grid-template-columns:1fr; }
+  .admin-portal-container .rf-apply{ justify-self:stretch; text-align:center; }
+}
