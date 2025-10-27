@@ -434,6 +434,36 @@ body {
   .mobile-menu {
     display: block;
   }
+
+  /* Move employee portals to bottom-right as floating buttons */
+  .employee-portals {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    flex-direction: column;
+    gap: 12px;
+    border-right: none;
+    z-index: 999;
+  }
+
+  .employee-portal-link {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .employee-portal-link span {
+    display: none;
+  }
+
+  .employee-portal-link svg {
+    font-size: 24px;
+  }
 }
 
 @media (max-width: 1024px) {

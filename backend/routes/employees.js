@@ -1,6 +1,7 @@
 import express from 'express'
 import db from '../config/database.js'
 import middleware from '../utils/middleware.js'
+import { hashPassword } from '../utils/authService.js'
 
 const router = express.Router()
 
@@ -15,6 +16,7 @@ router.get('/', middleware.requireRole('admin'), async (req, res) => {
         e.user_id,
         e.manager_id,
         e.role,
+        e.ssn,
         e.hire_date,
         e.salary,
         e.responsibility,
@@ -25,13 +27,17 @@ router.get('/', middleware.requireRole('admin'), async (req, res) => {
         u.last_name,
         u.email,
         u.phone_number,
-        m.first_name as manager_first_name,
-        m.last_name as manager_last_name
+        u.address,
+        u.birthdate,
+        u.sex,
+        CASE 
+          WHEN m.first_name IS NOT NULL THEN CONCAT(m.first_name, ' ', m.last_name)
+          ELSE NULL
+        END as manager_name
       FROM Employee e
       JOIN users u ON e.user_id = u.user_id
       LEFT JOIN Employee me ON e.manager_id = me.employee_id
       LEFT JOIN users m ON me.user_id = m.user_id
-      WHERE e.is_active = TRUE
       ORDER BY e.employee_id
     `)
 
@@ -147,6 +153,147 @@ router.get('/:id/subordinates', middleware.requireRole('admin'), async (req, res
 
 // Protected routes - Only admin can modify employees
 
+// POST change employee password - Admin only
+router.post('/:id/change-password', middleware.requireRole('admin'), async (req, res) => {
+  try {
+    const { newPassword } = req.body
+    const employeeId = req.params.id
+
+    // Validate
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' })
+    }
+
+    // Get employee's user_id
+    const [employees] = await db.query(
+      'SELECT user_id FROM Employee WHERE employee_id = ?',
+      [employeeId],
+    )
+
+    if (employees.length === 0) {
+      return res.status(404).json({ error: 'Employee not found' })
+    }
+
+    const userId = employees[0].user_id
+
+    // Hash the new password
+    const hashedPassword = await hashPassword(newPassword)
+
+    // Update password and set password_must_change flag
+    await db.query(
+      'UPDATE users SET password = ?, password_must_change = TRUE WHERE user_id = ?',
+      [hashedPassword, userId],
+    )
+
+    res.json({
+      message: 'Password changed successfully. Employee will be required to change it on next login.',
+      user_id: userId,
+    })
+  } catch (error) {
+    console.error('Error changing employee password:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// POST create new employee with user account - Admin only
+router.post('/create-with-account', middleware.requireRole('admin'), async (req, res) => {
+  const connection = await db.getConnection()
+
+  try {
+    await connection.beginTransaction()
+
+    const {
+      first_name,
+      last_name,
+      email,
+      password,
+      phone_number,
+      address,
+      birthdate,
+      sex,
+      role,
+      ssn,
+      hire_date,
+      salary,
+      responsibility,
+      manager_id,
+    } = req.body
+
+    // Validate required fields
+    if (!first_name || !last_name || !email || !password || !birthdate || !sex) {
+      await connection.rollback()
+      connection.release()
+      return res.status(400).json({
+        error: 'first_name, last_name, email, password, birthdate, and sex are required for user account',
+      })
+    }
+
+    if (!role || !ssn || !hire_date || !salary || !responsibility) {
+      await connection.rollback()
+      connection.release()
+      return res.status(400).json({
+        error: 'role, ssn, hire_date, salary, and responsibility are required for employee',
+      })
+    }
+
+    // Check if email already exists
+    const [existingUsers] = await connection.query(
+      'SELECT user_id FROM users WHERE email = ?',
+      [email],
+    )
+    if (existingUsers.length > 0) {
+      await connection.rollback()
+      connection.release()
+      return res.status(409).json({ error: 'Email already registered' })
+    }
+
+    // Check if SSN already exists
+    const [existingSSN] = await connection.query(
+      'SELECT employee_id FROM Employee WHERE ssn = ?',
+      [ssn],
+    )
+    if (existingSSN.length > 0) {
+      await connection.rollback()
+      connection.release()
+      return res.status(409).json({ error: 'SSN already registered' })
+    }
+
+    // Hash password
+    const passwordHash = await hashPassword(password)
+
+    // Create user account
+    const [userResult] = await connection.query(
+      `INSERT INTO users (email, password, first_name, last_name, phone_number, address,
+       birthdate, sex, password_must_change)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+      [email, passwordHash, first_name, last_name, phone_number || null, address || null, birthdate, sex],
+    )
+
+    const userId = userResult.insertId
+
+    // Create employee record
+    const [employeeResult] = await connection.query(
+      `INSERT INTO Employee (user_id, manager_id, role, ssn, hire_date, salary, responsibility)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, manager_id || null, role, ssn, hire_date, salary, responsibility],
+    )
+
+    await connection.commit()
+    connection.release()
+
+    res.status(201).json({
+      message: 'Employee account created successfully',
+      employee_id: employeeResult.insertId,
+      user_id: userId,
+    })
+  } catch (error) {
+    await connection.rollback()
+    connection.release()
+    console.error('Employee creation error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // POST create new employee (promote user) - Admin only
 router.post('/', middleware.requireRole('admin'), async (req, res) => {
   try {
@@ -208,69 +355,151 @@ router.post('/', middleware.requireRole('admin'), async (req, res) => {
 
 // PUT update employee - Admin only
 router.put('/:id', middleware.requireRole('admin'), async (req, res) => {
+  const connection = await db.getConnection()
+  
   try {
+    await connection.beginTransaction()
+
     const {
-      manager_id, role, salary, responsibility,
+      manager_id, role, salary, responsibility, hire_date, ssn,
+      first_name, last_name, email, phone_number, address, birthdate, sex,
     } = req.body
 
-    // Check if employee exists
-    const [employees] = await db.query('SELECT employee_id FROM Employee WHERE employee_id = ?', [req.params.id])
+    // Check if employee exists and get user_id
+    const [employees] = await connection.query(
+      'SELECT employee_id, user_id FROM Employee WHERE employee_id = ?',
+      [req.params.id],
+    )
     if (employees.length === 0) {
+      await connection.rollback()
+      connection.release()
       return res.status(404).json({ error: 'Employee not found' })
     }
 
+    const userId = employees[0].user_id
+
     // Check if manager exists (if provided)
-    if (manager_id !== undefined && manager_id !== null) {
+    if (manager_id !== undefined && manager_id !== null && manager_id !== '') {
       // Prevent self-referencing
       if (parseInt(manager_id, 10) === parseInt(req.params.id, 10)) {
+        await connection.rollback()
+        connection.release()
         return res.status(400).json({ error: 'Employee cannot be their own manager' })
       }
 
-      const [managers] = await db.query('SELECT employee_id FROM Employee WHERE employee_id = ?', [manager_id])
+      const [managers] = await connection.query('SELECT employee_id FROM Employee WHERE employee_id = ?', [manager_id])
       if (managers.length === 0) {
+        await connection.rollback()
+        connection.release()
         return res.status(404).json({ error: 'Manager not found' })
       }
     }
 
     // Validate salary if provided
     if (salary !== undefined && salary <= 0) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({ error: 'Salary must be greater than 0' })
     }
 
-    // Build dynamic update query
-    const updates = []
-    const values = []
+    // Update Employee table fields
+    const employeeUpdates = []
+    const employeeValues = []
 
     if (manager_id !== undefined) {
-      updates.push('manager_id = ?')
-      values.push(manager_id)
+      employeeUpdates.push('manager_id = ?')
+      employeeValues.push(manager_id || null)
     }
     if (role !== undefined) {
-      updates.push('role = ?')
-      values.push(role)
+      employeeUpdates.push('role = ?')
+      employeeValues.push(role)
     }
     if (salary !== undefined) {
-      updates.push('salary = ?')
-      values.push(salary)
+      employeeUpdates.push('salary = ?')
+      employeeValues.push(salary)
     }
     if (responsibility !== undefined) {
-      updates.push('responsibility = ?')
-      values.push(responsibility)
+      employeeUpdates.push('responsibility = ?')
+      employeeValues.push(responsibility)
+    }
+    if (hire_date !== undefined) {
+      employeeUpdates.push('hire_date = ?')
+      employeeValues.push(hire_date)
+    }
+    if (ssn !== undefined) {
+      employeeUpdates.push('ssn = ?')
+      employeeValues.push(ssn)
     }
 
-    if (updates.length === 0) {
+    if (employeeUpdates.length > 0) {
+      employeeValues.push(req.params.id)
+      await connection.query(
+        `UPDATE Employee SET ${employeeUpdates.join(', ')} WHERE employee_id = ?`,
+        employeeValues,
+      )
+    }
+
+    // Update users table fields
+    const userUpdates = []
+    const userValues = []
+
+    if (first_name !== undefined) {
+      userUpdates.push('first_name = ?')
+      userValues.push(first_name)
+    }
+    if (last_name !== undefined) {
+      userUpdates.push('last_name = ?')
+      userValues.push(last_name)
+    }
+    if (email !== undefined) {
+      userUpdates.push('email = ?')
+      userValues.push(email)
+    }
+    if (phone_number !== undefined) {
+      userUpdates.push('phone_number = ?')
+      userValues.push(phone_number)
+    }
+    if (address !== undefined) {
+      userUpdates.push('address = ?')
+      userValues.push(address)
+    }
+    if (birthdate !== undefined) {
+      userUpdates.push('birthdate = ?')
+      userValues.push(birthdate)
+    }
+    if (sex !== undefined) {
+      userUpdates.push('sex = ?')
+      userValues.push(sex)
+    }
+
+    if (userUpdates.length > 0) {
+      userValues.push(userId)
+      await connection.query(
+        `UPDATE users SET ${userUpdates.join(', ')} WHERE user_id = ?`,
+        userValues,
+      )
+    }
+
+    if (employeeUpdates.length === 0 && userUpdates.length === 0) {
+      await connection.rollback()
+      connection.release()
       return res.status(400).json({ error: 'No fields to update' })
     }
 
-    values.push(req.params.id)
-
-    await db.query(
-      `UPDATE Employee SET ${updates.join(', ')} WHERE employee_id = ?`,
-      values,
-    )
+    await connection.commit()
+    connection.release()
 
     res.json({ message: 'Employee updated successfully' })
   } catch (error) {
+    await connection.rollback()
+    connection.release()
+    
+    // Handle duplicate email error
+    if (error.code === 'ER_DUP_ENTRY') {
+      if (error.message.includes('email')) {
+        return res.status(409).json({ error: 'Email already exists' })
+      }
+    }
     res.status(500).json({ error: error.message })
   }
 })

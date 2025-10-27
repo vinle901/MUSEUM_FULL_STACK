@@ -3,6 +3,30 @@ import db from '../config/database.js'
 
 const router = express.Router()
 
+// GET membership by email (for POS discount lookup)
+router.get('/by-email/:email', async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email)
+
+    const [memberships] = await db.query(`
+      SELECT m.*, b.discount_percentage
+      FROM Membership m
+      JOIN users u ON m.user_id = u.user_id
+      JOIN Benefits b ON m.membership_type = b.membership_type
+      WHERE u.email = ? AND m.is_active = TRUE AND m.expiration_date >= CURDATE()
+      LIMIT 1
+    `, [email])
+
+    if (memberships.length === 0) {
+      return res.status(404).json({ error: 'No active membership found for this email' })
+    }
+
+    res.json(memberships[0])
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // GET user's memberships
 router.get('/user/:userId', async (req, res) => {
   try {

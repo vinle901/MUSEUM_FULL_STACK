@@ -97,7 +97,7 @@ export default function Login() {
               <button
                 type="button"
                 className="link-button"
-                onClick={() => alert("Hook this up to your password reset flow")}
+                onClick={() => alert("No mail service to confirm, please contact support.")}
               >
                 Forgot password?
               </button>

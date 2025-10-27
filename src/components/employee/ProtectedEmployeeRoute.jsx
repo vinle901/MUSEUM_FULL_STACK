@@ -18,13 +18,12 @@ function ProtectedEmployeeRoute({ children, allowedTypes = [] }) {
   }
 
   // Check if employee has the right type for this route
-  if (allowedTypes.length > 0 && !allowedTypes.includes(user.employeeType)) {
+  // Admins can access all routes, so skip the type check for them
+  if (allowedTypes.length > 0 && user.employeeType !== 'admin' && !allowedTypes.includes(user.employeeType)) {
     // Redirect to appropriate portal based on their type
     switch (user.employeeType) {
       case 'cafeteria':
         return <Navigate to="/employee/pos" replace />;
-      case 'admin':
-        return <Navigate to="/employee/admin" replace />;
       case 'analyst':
         return <Navigate to="/employee/reports" replace />;
       default:

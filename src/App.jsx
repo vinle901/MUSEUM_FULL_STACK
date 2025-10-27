@@ -1,5 +1,6 @@
 // File: src/App.jsx
 
+import { useState, useEffect } from 'react'
 import Artwork from './components/Artwork'
 import ArtworkDetail from './components/ArtworkDetail'
 import { Route, Routes, Navigate } from 'react-router-dom'
@@ -23,6 +24,8 @@ import Membership from "./components/Membership.jsx"
 import Membershipinfo from "./components/Membershipinfo"
 import Profile from "./components/Profile.jsx"
 import EventRSVP from './components/EventRSVP.jsx'
+import Register from "./components/Register.jsx"
+import PasswordChangeGuard from "./components/PasswordChangeGuard.jsx"
 
 // Employee Portal Components
 import EmployeePOS from "./components/employee/EmployeePOS"
@@ -30,9 +33,12 @@ import AdminPortal from "./components/employee/AdminPortal"
 import AnalystReports from "./components/employee/AnalystReports"
 import ProtectedEmployeeRoute from "./components/employee/ProtectedEmployeeRoute"
 
+import api from './services/api'
+
 function App() {
   return (
     <CartProvider>
+      <PasswordChangeGuard />
       <div className="min-h-screen bg-white">
         <NavBar />
         <Routes>
@@ -52,10 +58,11 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/membership" element={<Membershipinfo />} />
+          <Route path="/membershipinfo" element={<Membershipinfo />} />
+          <Route path="/membership" element={<Membership />} />
           {/* Dedicated membership checkout route */}
           <Route path="/checkout/membership" element={<CheckoutMem />} />
-          <Route path="/membership-info" element={<Navigate to="/membership" replace />} />
+          <Route path="/membership-info" element={<Navigate to="/membershipinfo" replace />} />
           <Route path="/cafeteria" element={<Cafeteria />} />
           
           {/* Employee Portal Routes */}
@@ -72,14 +79,6 @@ function App() {
           <Route path="/employee/reports" element={
             <ProtectedEmployeeRoute allowedTypes={['analyst']}>
               <AnalystReports />
-            </ProtectedEmployeeRoute>
-          } />
-          <Route path="/employee" element={
-            <ProtectedEmployeeRoute>
-              <div style={{ padding: '40px', textAlign: 'center' }}>
-                <h1>Employee Portal</h1>
-                <p>Welcome to the employee portal. Access your designated area from the navigation.</p>
-              </div>
             </ProtectedEmployeeRoute>
           } />
         </Routes>

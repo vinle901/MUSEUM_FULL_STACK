@@ -81,7 +81,8 @@ router.get('/:id', async (req, res) => {
         gsp.*,
         gsi.category,
         gsi.description,
-        gsi.image_url
+        gsi.image_url,
+        gsi.price as current_price
        FROM Gift_Shop_Purchase gsp
        LEFT JOIN Gift_Shop_Items gsi ON gsp.gift_item_id = gsi.item_id
        WHERE gsp.transaction_id = ?`,
@@ -96,7 +97,7 @@ router.get('/:id', async (req, res) => {
         ci.description,
         ci.is_vegetarian,
         ci.is_vegan,
-        ci.allergen_info
+        ci.price as current_price
        FROM Cafeteria_Purchase cp
        LEFT JOIN Cafeteria_Items ci ON cp.cafeteria_item_id = ci.item_id
        WHERE cp.transaction_id = ?`,
@@ -302,29 +303,34 @@ router.post('/gift-shop-checkout', async (req, res) => {
       console.log('Skipping membership discount: unauthenticated, mismatched user, or guest checkout')
     }
 
-    // Step 3: Calculate total items and apply discount
+    // Step 3: Calculate total items and subtotal
     const total_items = cart_items.reduce((sum, item) => sum + item.quantity, 0)
     console.log(`Total items: ${total_items}`)
-    
-    // Calculate discounted total price
-    let calculatedTotalPrice = 0
+
+    // Calculate subtotal (line_total does NOT include tax)
+    let subtotal = 0
+
     for (const cartItem of cart_items) {
       const dbItem = itemMap[cartItem.item_id]
       const originalPrice = dbItem.price
-      const discountedPrice = originalPrice * (1 - discountPercentage / 100)
-      const lineTotal = discountedPrice * cartItem.quantity
-      calculatedTotalPrice += lineTotal
+      const discountedUnitPrice = parseFloat((originalPrice * (1 - discountPercentage / 100)).toFixed(2))
+      const lineTotal = parseFloat((discountedUnitPrice * cartItem.quantity).toFixed(2))
+      subtotal += lineTotal
     }
-    
-    // Round to 2 decimal places
-    calculatedTotalPrice = parseFloat(calculatedTotalPrice.toFixed(2))
-    console.log(`Calculated total price with discount: ${calculatedTotalPrice}`)
 
+    subtotal = parseFloat(subtotal.toFixed(2))
+    console.log(`Calculated subtotal: ${subtotal}`)
 
-    // Step 4: Insert Transaction record (using calculated price with discount)
+    // Calculate tax on total
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const calculatedTotalPrice = parseFloat((subtotal + taxAmount).toFixed(2))
+    console.log(`Calculated total price with tax: ${calculatedTotalPrice}`)
+
+    // Step 4: Insert Transaction record (using calculated price with discount and tax)
     const [transactionResult] = await connection.query(
-      `INSERT INTO Transactions 
-       (user_id, total_price, total_items, payment_method, transaction_status, employee_id) 
+      `INSERT INTO Transactions
+       (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
        VALUES (?, ?, ?, ?, 'Completed', NULL)`,
       [user_id, calculatedTotalPrice, total_items, payment_method]
     )
@@ -334,7 +340,7 @@ router.post('/gift-shop-checkout', async (req, res) => {
 
     // Step 5: Insert Gift_Shop_Purchase records and update stock
     const purchaseRecords = []
-    
+
     for (const cartItem of cart_items) {
       const dbItem = itemMap[cartItem.item_id]
       // Apply membership discount to the unit price
@@ -344,8 +350,8 @@ router.post('/gift-shop-checkout', async (req, res) => {
 
       // Insert purchase record with discounted prices
       const [purchaseResult] = await connection.query(
-        `INSERT INTO Gift_Shop_Purchase 
-         (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total) 
+        `INSERT INTO Gift_Shop_Purchase
+         (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
           transaction_id,
@@ -494,28 +500,37 @@ router.post('/ticket-checkout', async (req, res) => {
 
     // Step 4: Compute totals
     const totalItems = items.reduce((sum, it) => sum + it.quantity, 0)
-    let totalPrice = 0
+    let subtotal = 0
 
     const purchaseRows = []
+
     for (const it of items) {
       const dbType = typeMap[it.ticket_type_id]
-  const base = dbType.base_price
-  const final = base
-  const discount = 0
-      const line = parseFloat((final * it.quantity).toFixed(2))
-      totalPrice += line
+      const base = dbType.base_price
+      const final = base
+      const discount = 0
+      const lineTotal = parseFloat((final * it.quantity).toFixed(2))
+
+      subtotal += lineTotal
+
       purchaseRows.push({
         ticket_type_id: it.ticket_type_id,
         quantity: it.quantity,
         base_price: base,
         discount_amount: discount,
         final_price: final,
-        line_total: line
+        line_total: lineTotal
       })
     }
-    totalPrice = parseFloat(totalPrice.toFixed(2))
 
-    // Step 5: Insert Transaction
+    subtotal = parseFloat(subtotal.toFixed(2))
+
+    // Calculate tax on total
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const totalPrice = parseFloat((subtotal + taxAmount).toFixed(2))
+
+    // Step 5: Insert Transaction (only total_price stored in DB)
     const [tx] = await connection.query(
       `INSERT INTO Transactions (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
        VALUES (?, ?, ?, ?, 'Completed', NULL)`,
@@ -701,11 +716,12 @@ router.post('/combined-checkout', async (req, res) => {
           await connection.rollback()
           return res.status(400).json({ error: 'visit_date is required for ticket items' })
         }
-  const base = dbType.base_price
-  const final = base
-  const discount = 0
-        const line = parseFloat((final * ti.quantity).toFixed(2))
-        ticketTotal += line
+        const base = dbType.base_price
+        const final = base
+        const discount = 0
+        const lineTotal = parseFloat((final * ti.quantity).toFixed(2))
+
+        ticketTotal += lineTotal
         ticketCount += ti.quantity
 
         ticketPurchaseRows.push({
@@ -714,14 +730,22 @@ router.post('/combined-checkout', async (req, res) => {
           base_price: base,
           discount_amount: discount,
           final_price: final,
-          line_total: line,
+          line_total: lineTotal,
           visit_date: ti.visit_date
         })
       }
     }
 
-    const grandTotal = parseFloat((giftTotal + ticketTotal).toFixed(2))
+    // Calculate subtotal and grand total
     const totalItems = giftCount + ticketCount
+    const subtotal = parseFloat((giftTotal + ticketTotal).toFixed(2))
+
+    // Calculate tax on total
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const grandTotal = parseFloat((subtotal + taxAmount).toFixed(2))
+
+    console.log(`Combined checkout - Gift total: ${giftTotal}, Ticket total: ${ticketTotal}, Subtotal: ${subtotal}, Tax: ${taxAmount}, Grand Total: ${grandTotal}`)
 
     // Create Transaction
     const [tx] = await connection.query(
@@ -873,8 +897,12 @@ router.post('/membership-checkout', async (req, res) => {
     }
 
     const membershipBenefit = benefits[0]
-    // Use total_paid from frontend (includes tax) if provided, otherwise use annual_fee
-    const totalPrice = total_paid ? parseFloat(total_paid) : parseFloat(membershipBenefit.annual_fee)
+    const annualFee = parseFloat(membershipBenefit.annual_fee)
+
+    // Calculate tax
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((annualFee * TAX_RATE).toFixed(2))
+    const totalPrice = parseFloat((annualFee + taxAmount).toFixed(2))
 
     // Step 2: Check if user already has an active membership
     const [existingMemberships] = await connection.query(
@@ -925,12 +953,12 @@ router.post('/membership-checkout', async (req, res) => {
     const membershipId = membershipResult.insertId
     console.log('Membership created:', membershipId)
 
-    // Step 5: Create membership purchase record
+    // Step 5: Create membership purchase record (line_total does NOT include tax)
     await connection.query(
       `INSERT INTO Membership_Purchase
-       (transaction_id, membership_id, amount_paid, is_renewal)
+       (transaction_id, membership_id, line_total, is_renewal)
        VALUES (?, ?, ?, ?)`,
-      [transactionId, membershipId, totalPrice, isRenewal],
+      [transactionId, membershipId, annualFee, isRenewal],
     )
 
     console.log('Membership purchase record created')
@@ -1008,26 +1036,19 @@ router.post('/cafeteria-pos', async (req, res) => {
     // Start database transaction
     await connection.beginTransaction();
 
-    // Step 1: Find or create user for walk-in customers
-    let userId = 1; // Default guest user ID (make sure you have a guest user with ID 1)
-    
+    // Step 1: Find user (only if they have membership, otherwise use guest)
+    let userId = 1; // Default guest user ID
+
     if (customerEmail && customerEmail !== 'walk-in@museum.org') {
       const [users] = await connection.query(
         'SELECT user_id FROM users WHERE email = ?',
         [customerEmail]
       );
-      
+
       if (users.length > 0) {
         userId = users[0].user_id;
-      } else {
-        // Create a minimal user record for the customer
-        const [userResult] = await connection.query(
-          `INSERT INTO users (email, password, first_name, last_name, birthdate, sex)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [customerEmail, 'not-set', 'Walk-in', 'Customer', '1990-01-01', 'Prefer not to say']
-        );
-        userId = userResult.insertId;
       }
+      // If no user found, use guest user (only members get discount anyway)
     }
 
     // Step 2: Validate all items exist and get their details
@@ -1068,10 +1089,15 @@ router.post('/cafeteria-pos', async (req, res) => {
 
     // Step 4: Calculate totals
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalPrice = items.reduce((sum, item) => {
+    const subtotal = items.reduce((sum, item) => {
       const dbItem = itemMap[item.cafeteria_item_id];
       return sum + (parseFloat(dbItem.price) * item.quantity);
     }, 0);
+
+    // Calculate tax
+    const TAX_RATE = 0.0825
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
+    const totalPrice = parseFloat((subtotal + taxAmount).toFixed(2))
 
     // Step 5: Get employee ID if this is an employee processing the order
     let employeeId = null;
@@ -1162,6 +1188,636 @@ router.post('/cafeteria-pos', async (req, res) => {
     });
   } finally {
     // Release connection back to pool
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+// POST /api/transactions/giftshop-pos - Process gift shop POS order
+router.post('/giftshop-pos', async (req, res) => {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    const {
+      customerEmail,
+      paymentMethod,
+      items, // Array of { item_id, quantity, unit_price }
+    } = req.body;
+
+    console.log('Gift shop POS checkout request:', { customerEmail, paymentMethod, items });
+
+    if (!paymentMethod || !items || items.length === 0) {
+      return res.status(400).json({
+        error: 'Missing required fields: paymentMethod and items'
+      });
+    }
+
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment'];
+    if (!validPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}`
+      });
+    }
+
+    await connection.beginTransaction();
+
+    // Find user (only if they have membership, otherwise use guest)
+    let userId = 1; // Default guest user ID
+
+    if (customerEmail && customerEmail !== 'walk-in@museum.org') {
+      const [users] = await connection.query(
+        'SELECT user_id FROM users WHERE email = ?',
+        [customerEmail]
+      );
+
+      if (users.length > 0) {
+        userId = users[0].user_id;
+      }
+      // If no user found, use guest user (only members get discount anyway)
+    }
+
+    // Validate items
+    const itemIds = items.map(item => item.item_id);
+    const placeholders = itemIds.map(() => '?').join(',');
+    const [dbItems] = await connection.query(
+      `SELECT item_id, item_name, price, is_available
+       FROM Gift_Shop_Items
+       WHERE item_id IN (${placeholders})`,
+      itemIds
+    );
+
+    if (dbItems.length !== items.length) {
+      await connection.rollback();
+      return res.status(404).json({
+        error: 'One or more items not found in database'
+      });
+    }
+
+    const itemMap = {};
+    dbItems.forEach(item => {
+      itemMap[item.item_id] = item;
+    });
+
+    // Validate availability
+    for (const cartItem of items) {
+      const dbItem = itemMap[cartItem.item_id];
+      if (!dbItem.is_available) {
+        await connection.rollback();
+        return res.status(400).json({
+          error: `Item "${dbItem.item_name}" is not available`
+        });
+      }
+    }
+
+    // Calculate totals using the discounted unit_price from frontend
+    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+    const subtotal = items.reduce((sum, item) => {
+      return sum + (parseFloat(item.unit_price) * item.quantity);
+    }, 0);
+
+    const TAX_RATE = 0.0825;
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2));
+    const totalPrice = parseFloat((subtotal + taxAmount).toFixed(2));
+
+    // Get employee ID
+    let employeeId = null;
+    if (req.user && (req.user.role === 'employee' || req.user.role === 'admin')) {
+      const [employees] = await connection.query(
+        'SELECT employee_id FROM Employee WHERE user_id = ?',
+        [req.user.id]
+      );
+      if (employees.length > 0) {
+        employeeId = employees[0].employee_id;
+      }
+    }
+
+    // Insert Transaction
+    const [transactionResult] = await connection.query(
+      `INSERT INTO Transactions
+       (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
+       VALUES (?, ?, ?, ?, 'Completed', ?)`,
+      [userId, totalPrice, totalItems, paymentMethod, employeeId]
+    );
+
+    const transactionId = transactionResult.insertId;
+
+    // Insert Giftshop_Purchase records
+    const purchaseRecords = [];
+    for (const cartItem of items) {
+      const dbItem = itemMap[cartItem.item_id];
+      const lineTotal = parseFloat((parseFloat(cartItem.unit_price) * cartItem.quantity).toFixed(2));
+
+      const [purchaseResult] = await connection.query(
+        `INSERT INTO Gift_Shop_Purchase
+         (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          transactionId,
+          cartItem.item_id,
+          dbItem.item_name,
+          cartItem.quantity,
+          cartItem.unit_price,
+          lineTotal
+        ]
+      );
+
+      purchaseRecords.push({
+        purchase_id: purchaseResult.insertId,
+        item_id: cartItem.item_id,
+        item_name: dbItem.item_name,
+        quantity: cartItem.quantity,
+        unit_price: cartItem.unit_price,
+        line_total: lineTotal
+      });
+    }
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      message: 'Gift shop order processed successfully',
+      transactionId: transactionId,
+      transaction: {
+        transaction_id: transactionId,
+        user_id: userId,
+        total_price: totalPrice,
+        total_items: totalItems,
+        payment_method: paymentMethod,
+        transaction_status: 'Completed',
+        employee_id: employeeId
+      },
+      purchases: purchaseRecords
+    });
+
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Gift shop POS checkout error:', error);
+    res.status(500).json({
+      error: 'Transaction failed',
+      details: error.message
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+// POST /api/transactions/ticket-pos - Process ticket POS order
+router.post('/ticket-pos', async (req, res) => {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    const {
+      customerEmail,
+      paymentMethod,
+      tickets, // Array of { ticket_type_id, quantity, unit_price }
+    } = req.body;
+
+    console.log('Ticket POS checkout request:', { customerEmail, paymentMethod, tickets });
+
+    if (!paymentMethod || !tickets || tickets.length === 0) {
+      return res.status(400).json({
+        error: 'Missing required fields: paymentMethod and tickets'
+      });
+    }
+
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment'];
+    if (!validPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}`
+      });
+    }
+
+    await connection.beginTransaction();
+
+    // Find user (only if they have membership, otherwise use guest)
+    let userId = 1; // Default guest user ID
+
+    if (customerEmail && customerEmail !== 'walk-in@museum.org') {
+      const [users] = await connection.query(
+        'SELECT user_id FROM users WHERE email = ?',
+        [customerEmail]
+      );
+
+      if (users.length > 0) {
+        userId = users[0].user_id;
+      }
+      // If no user found, use guest user (only members get discount anyway)
+    }
+
+    // Validate ticket types
+    const ticketTypeIds = tickets.map(t => t.ticket_type_id);
+    const placeholders = ticketTypeIds.map(() => '?').join(',');
+    const [dbTicketTypes] = await connection.query(
+      `SELECT ticket_type_id, ticket_name, base_price, is_available
+       FROM Ticket_Types
+       WHERE ticket_type_id IN (${placeholders})`,
+      ticketTypeIds
+    );
+
+    if (dbTicketTypes.length !== tickets.length) {
+      await connection.rollback();
+      return res.status(404).json({
+        error: 'One or more ticket types not found'
+      });
+    }
+
+    const ticketMap = {};
+    dbTicketTypes.forEach(tt => {
+      ticketMap[tt.ticket_type_id] = tt;
+    });
+
+    // Validate availability
+    for (const cartTicket of tickets) {
+      const dbTicket = ticketMap[cartTicket.ticket_type_id];
+      if (!dbTicket.is_available) {
+        await connection.rollback();
+        return res.status(400).json({
+          error: `Ticket type "${dbTicket.ticket_name}" is not available`
+        });
+      }
+    }
+
+    // Calculate totals
+    const totalItems = tickets.reduce((sum, t) => sum + t.quantity, 0);
+    const subtotal = tickets.reduce((sum, t) => {
+      return sum + (parseFloat(t.unit_price) * t.quantity);
+    }, 0);
+
+    const TAX_RATE = 0.0825;
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2));
+    const totalPrice = parseFloat((subtotal + taxAmount).toFixed(2));
+
+    // Get employee ID
+    let employeeId = null;
+    if (req.user && (req.user.role === 'employee' || req.user.role === 'admin')) {
+      const [employees] = await connection.query(
+        'SELECT employee_id FROM Employee WHERE user_id = ?',
+        [req.user.id]
+      );
+      if (employees.length > 0) {
+        employeeId = employees[0].employee_id;
+      }
+    }
+
+    // Insert Transaction
+    const [transactionResult] = await connection.query(
+      `INSERT INTO Transactions
+       (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
+       VALUES (?, ?, ?, ?, 'Completed', ?)`,
+      [userId, totalPrice, totalItems, paymentMethod, employeeId]
+    );
+
+    const transactionId = transactionResult.insertId;
+
+    // Insert Ticket_Purchase records
+    const purchaseRecords = [];
+    for (const cartTicket of tickets) {
+      // For POS, tickets are for today by default
+      const visitDate = new Date().toISOString().split('T')[0];
+      const basePrice = parseFloat(cartTicket.unit_price);
+      const lineTotal = basePrice * cartTicket.quantity;
+
+      const [purchaseResult] = await connection.query(
+        `INSERT INTO Ticket_Purchase
+         (transaction_id, ticket_type_id, quantity, visit_date, base_price, discount_amount, final_price, line_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          transactionId,
+          cartTicket.ticket_type_id,
+          cartTicket.quantity,
+          visitDate,
+          basePrice,
+          0, // No discount for tickets
+          basePrice,
+          lineTotal
+        ]
+      );
+
+      purchaseRecords.push({
+        purchase_id: purchaseResult.insertId,
+        ticket_type_id: cartTicket.ticket_type_id,
+        quantity: cartTicket.quantity,
+        visit_date: visitDate,
+        base_price: basePrice,
+        line_total: lineTotal
+      });
+    }
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      message: 'Ticket order processed successfully',
+      transactionId: transactionId,
+      transaction: {
+        transaction_id: transactionId,
+        user_id: userId,
+        total_price: totalPrice,
+        total_items: totalItems,
+        payment_method: paymentMethod,
+        transaction_status: 'Completed',
+        employee_id: employeeId
+      },
+      purchases: purchaseRecords
+    });
+
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Ticket POS checkout error:', error);
+    res.status(500).json({
+      error: 'Transaction failed',
+      details: error.message
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+// POST /api/transactions/unified-pos - Process combined POS order (cafeteria + giftshop + tickets)
+router.post('/unified-pos', async (req, res) => {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    const {
+      customerEmail,
+      paymentMethod,
+      cafeteriaItems = [],
+      giftshopItems = [],
+      ticketItems = []
+    } = req.body;
+
+    console.log('Unified POS checkout request:', { customerEmail, paymentMethod, cafeteriaItems, giftshopItems, ticketItems });
+
+    if (!paymentMethod || (cafeteriaItems.length === 0 && giftshopItems.length === 0 && ticketItems.length === 0)) {
+      return res.status(400).json({
+        error: 'Missing required fields: paymentMethod and at least one item'
+      });
+    }
+
+    const validPaymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Mobile Payment'];
+    if (!validPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        error: `Invalid payment_method. Must be one of: ${validPaymentMethods.join(', ')}`
+      });
+    }
+
+    await connection.beginTransaction();
+
+    // Find user (only if they have membership, otherwise use guest)
+    let userId = 1; // Default guest user ID
+
+    if (customerEmail && customerEmail !== 'walk-in@museum.org') {
+      const [users] = await connection.query(
+        'SELECT user_id FROM users WHERE email = ?',
+        [customerEmail]
+      );
+
+      if (users.length > 0) {
+        userId = users[0].user_id;
+      }
+    }
+
+    // Validate cafeteria items
+    let cafeteriaMap = {};
+    if (cafeteriaItems.length > 0) {
+      const cafIds = cafeteriaItems.map(item => item.cafeteria_item_id);
+      const placeholders = cafIds.map(() => '?').join(',');
+      const [dbItems] = await connection.query(
+        `SELECT item_id, item_name, price, is_available FROM Cafeteria_Items WHERE item_id IN (${placeholders})`,
+        cafIds
+      );
+
+      if (dbItems.length !== cafeteriaItems.length) {
+        await connection.rollback();
+        return res.status(404).json({ error: 'One or more cafeteria items not found' });
+      }
+
+      dbItems.forEach(item => {
+        cafeteriaMap[item.item_id] = item;
+      });
+
+      for (const item of cafeteriaItems) {
+        if (!cafeteriaMap[item.cafeteria_item_id].is_available) {
+          await connection.rollback();
+          return res.status(400).json({
+            error: `Cafeteria item "${cafeteriaMap[item.cafeteria_item_id].item_name}" is not available`
+          });
+        }
+      }
+    }
+
+    // Validate giftshop items
+    let giftshopMap = {};
+    if (giftshopItems.length > 0) {
+      const giftIds = giftshopItems.map(item => item.item_id);
+      const placeholders = giftIds.map(() => '?').join(',');
+      const [dbItems] = await connection.query(
+        `SELECT item_id, item_name, price, is_available FROM Gift_Shop_Items WHERE item_id IN (${placeholders})`,
+        giftIds
+      );
+
+      if (dbItems.length !== giftshopItems.length) {
+        await connection.rollback();
+        return res.status(404).json({ error: 'One or more gift shop items not found' });
+      }
+
+      dbItems.forEach(item => {
+        giftshopMap[item.item_id] = item;
+      });
+
+      for (const item of giftshopItems) {
+        if (!giftshopMap[item.item_id].is_available) {
+          await connection.rollback();
+          return res.status(400).json({
+            error: `Gift shop item "${giftshopMap[item.item_id].item_name}" is not available`
+          });
+        }
+      }
+    }
+
+    // Validate ticket types
+    let ticketMap = {};
+    if (ticketItems.length > 0) {
+      const ticketIds = ticketItems.map(t => t.ticket_type_id);
+      const placeholders = ticketIds.map(() => '?').join(',');
+      const [dbTickets] = await connection.query(
+        `SELECT ticket_type_id, ticket_name, base_price, is_available FROM Ticket_Types WHERE ticket_type_id IN (${placeholders})`,
+        ticketIds
+      );
+
+      if (dbTickets.length !== ticketItems.length) {
+        await connection.rollback();
+        return res.status(404).json({ error: 'One or more ticket types not found' });
+      }
+
+      dbTickets.forEach(ticket => {
+        ticketMap[ticket.ticket_type_id] = ticket;
+      });
+
+      for (const ticket of ticketItems) {
+        if (!ticketMap[ticket.ticket_type_id].is_available) {
+          await connection.rollback();
+          return res.status(400).json({
+            error: `Ticket type "${ticketMap[ticket.ticket_type_id].ticket_name}" is not available`
+          });
+        }
+      }
+    }
+
+    // Calculate totals
+    const cafSubtotal = cafeteriaItems.reduce((sum, item) => sum + (parseFloat(item.unit_price) * item.quantity), 0);
+    const giftSubtotal = giftshopItems.reduce((sum, item) => sum + (parseFloat(item.unit_price) * item.quantity), 0);
+    const ticketSubtotal = ticketItems.reduce((sum, item) => sum + (parseFloat(item.unit_price) * item.quantity), 0);
+
+    const subtotal = cafSubtotal + giftSubtotal + ticketSubtotal;
+    const totalItems = cafeteriaItems.reduce((sum, i) => sum + i.quantity, 0) +
+                       giftshopItems.reduce((sum, i) => sum + i.quantity, 0) +
+                       ticketItems.reduce((sum, i) => sum + i.quantity, 0);
+
+    const TAX_RATE = 0.0825;
+    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2));
+    const totalPrice = parseFloat((subtotal + taxAmount).toFixed(2));
+
+    // Get employee ID
+    let employeeId = null;
+    if (req.user && (req.user.role === 'employee' || req.user.role === 'admin')) {
+      const [employees] = await connection.query(
+        'SELECT employee_id FROM Employee WHERE user_id = ?',
+        [req.user.id]
+      );
+      if (employees.length > 0) {
+        employeeId = employees[0].employee_id;
+      }
+    }
+
+    // Insert single Transaction
+    const [transactionResult] = await connection.query(
+      `INSERT INTO Transactions
+       (user_id, total_price, total_items, payment_method, transaction_status, employee_id)
+       VALUES (?, ?, ?, ?, 'Completed', ?)`,
+      [userId, totalPrice, totalItems, paymentMethod, employeeId]
+    );
+
+    const transactionId = transactionResult.insertId;
+
+    const purchaseRecords = {
+      cafeteria: [],
+      giftshop: [],
+      tickets: []
+    };
+
+    // Insert Cafeteria_Purchase records
+    for (const item of cafeteriaItems) {
+      const dbItem = cafeteriaMap[item.cafeteria_item_id];
+      const lineTotal = parseFloat((parseFloat(item.unit_price) * item.quantity).toFixed(2));
+
+      const [purchaseResult] = await connection.query(
+        `INSERT INTO Cafeteria_Purchase
+         (transaction_id, cafeteria_item_id, item_name, quantity, unit_price, line_total)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [transactionId, item.cafeteria_item_id, dbItem.item_name, item.quantity, item.unit_price, lineTotal]
+      );
+
+      purchaseRecords.cafeteria.push({
+        purchase_id: purchaseResult.insertId,
+        cafeteria_item_id: item.cafeteria_item_id,
+        item_name: dbItem.item_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        line_total: lineTotal
+      });
+    }
+
+    // Insert Gift_Shop_Purchase records
+    for (const item of giftshopItems) {
+      const dbItem = giftshopMap[item.item_id];
+      const lineTotal = parseFloat((parseFloat(item.unit_price) * item.quantity).toFixed(2));
+
+      const [purchaseResult] = await connection.query(
+        `INSERT INTO Gift_Shop_Purchase
+         (transaction_id, gift_item_id, item_name, quantity, unit_price, line_total)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [transactionId, item.item_id, dbItem.item_name, item.quantity, item.unit_price, lineTotal]
+      );
+
+      purchaseRecords.giftshop.push({
+        purchase_id: purchaseResult.insertId,
+        gift_item_id: item.item_id,
+        item_name: dbItem.item_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        line_total: lineTotal
+      });
+    }
+
+    // Insert Ticket_Purchase records
+    for (const ticket of ticketItems) {
+      const visitDate = new Date().toISOString().split('T')[0];
+      const basePrice = parseFloat(ticket.unit_price);
+      const lineTotal = basePrice * ticket.quantity;
+
+      const [purchaseResult] = await connection.query(
+        `INSERT INTO Ticket_Purchase
+         (transaction_id, ticket_type_id, quantity, visit_date, base_price, discount_amount, final_price, line_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [transactionId, ticket.ticket_type_id, ticket.quantity, visitDate, basePrice, 0, basePrice, lineTotal]
+      );
+
+      purchaseRecords.tickets.push({
+        purchase_id: purchaseResult.insertId,
+        ticket_type_id: ticket.ticket_type_id,
+        quantity: ticket.quantity,
+        visit_date: visitDate,
+        base_price: basePrice,
+        line_total: lineTotal
+      });
+    }
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      message: 'Unified order processed successfully',
+      transactionId: transactionId,
+      transaction: {
+        transaction_id: transactionId,
+        user_id: userId,
+        total_price: totalPrice,
+        total_items: totalItems,
+        payment_method: paymentMethod,
+        transaction_status: 'Completed',
+        employee_id: employeeId,
+        subtotal: subtotal,
+        tax: taxAmount
+      },
+      purchases: purchaseRecords
+    });
+
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Unified POS checkout error:', error);
+    res.status(500).json({
+      error: 'Transaction failed',
+      details: error.message
+    });
+  } finally {
     if (connection) {
       connection.release();
     }

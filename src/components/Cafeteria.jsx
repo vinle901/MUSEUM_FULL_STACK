@@ -55,7 +55,7 @@ const Cafeteria = () => {
       price: parseFloat(item.price),
       cals: item.calories,
       prepTime: item.preparation_time_minutes,
-      img: getImageUrl(item.image_url) || 'https://via.placeholder.com/400x220?text=Menu+Item',
+      img: getImageUrl(item.picture_url) || 'https://via.placeholder.com/400x220?text=Menu+Item',
     };
 
     // Add dietary tags
