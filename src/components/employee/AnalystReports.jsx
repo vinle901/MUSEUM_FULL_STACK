@@ -335,8 +335,8 @@ function AnalystReports() {
           const match = categorySales.find(c => c.category === cat);
           return { label: cat, value: match ? match.value : 0 };
         });
-        // Categories available for transaction listing (include Memberships)
-        const categoriesForTransactions = ['Tickets', 'Gift Shop', 'Cafeteria', 'Memberships'];
+  // Categories available for transaction listing (exclude Memberships)
+  const categoriesForTransactions = ['Tickets', 'Gift Shop', 'Cafeteria'];
 
         return (
           <div className="report-content">
