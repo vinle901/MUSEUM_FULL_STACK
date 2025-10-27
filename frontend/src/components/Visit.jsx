@@ -92,7 +92,7 @@ function Visit() {
               </tr>
               <tr>
                 <td>Sunday</td>
-                <td>12:00 PM - 5:00 PM</td>
+                <td>10:00 PM - 5:00 PM</td>
               </tr>
             </tbody>
           </table>

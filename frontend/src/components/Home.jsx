@@ -75,6 +75,11 @@ const Home = () => {
     return pool.slice(0, 3)
   })()
 
+  // Determine today's open hours: Sun-Thu 10–5, Fri-Sat 10–8
+  const dayOfWeek = new Date().getDay() // 0=Sun ... 6=Sat
+  const isFriSat = dayOfWeek === 5 || dayOfWeek === 6
+  const openHoursToday = isFriSat ? '10:00 am – 8:00 pm' : '10:00 am – 5:00 pm'
+
   return (
     <div
       className="text-gray-800"
@@ -156,7 +161,7 @@ const Home = () => {
 
               <Link
                 to="/calendar"
-                className="group px-8 py-4 bg-white/20 backdrop-blur-md text-white font-semibold rounded-full border-2 border-white/50 hover:bg-white hover:text-[#164e63] transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                className="group px-8 py-4 bg-white/50 backdrop-blur-md text-gray-500 font-semibold rounded-full border-2 border-white/50 hover:bg-white hover:text-[#164e63] transition-all duration-300 hover:scale-105 hover:shadow-xl"
               >
                 <span className="flex items-center gap-2">
                   Explore Exhibitions
@@ -214,18 +219,18 @@ const Home = () => {
         }
       `}</style>
 
-      {/* Info Header Bar (below banner) */}
+      {/* Info Header Bar */}
   <section className="text-white" style={{ backgroundColor: 'rgb(17, 70, 85)' }}>
-        <div className="max-w-8xl mx-auto px-4">
+        <div className="max-w-8xl mx-auto px-4 py-2">
           <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/20">
             {/* Open Today */}
-            <div className="flex flex-col items-center justify-center text-center gap-1.5 py-4 md:py-5">
+            <div className="flex flex-col items-center justify-center text-center gap-1.4 py-4 md:py-5">
               {/* Clock icon */}
               <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <div className="text-base md:text-lg font-semibold">Open Today: 10:00 am – 5:00 pm</div>
+              <div className="text-base md:text-lg font-semibold">Open Today: {openHoursToday}</div>
               <Link to="/visit" className="group inline-flex items-center text-white/90">
                 <span>Plan a Visit</span>
                 <svg className="ml-1 w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
@@ -234,13 +239,13 @@ const Home = () => {
             </div>
 
             {/* Admission */}
-            <div className="flex flex-col items-center justify-center text-center gap-1.5 py-4 md:py-5">
+            <div className="flex flex-col items-center justify-center text-center gap-1.4 py-4 md:py-5">
               {/* Ticket icon */}
               <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M4 8a2 2 0 012-2h12a2 2 0 012 2v1a2.5 2.5 0 110 5v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a2.5 2.5 0 110-5V8z" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M10 7v10" strokeDasharray="2 2" />
               </svg>
-              <div className="text-base md:text-lg font-semibold">Adults $25, Children $16</div>
+              <div className="text-base md:text-lg font-semibold">Adults $25, Children $10</div>
               <Link to="/visit#ticket-section" className="group inline-flex items-center text-white/90">
                 <span>See Tickets</span>
                 <svg className="ml-1 w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
@@ -249,7 +254,7 @@ const Home = () => {
             </div>
 
             {/* Location */}
-            <div className="flex flex-col items-center justify-center text-center gap-1.5 py-4 md:py-5">
+            <div className="flex flex-col items-center justify-center text-center gap-1.4 py-4 md:py-5">
               {/* Pin icon */}
               <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M12 21s-6-5.686-6-10a6 6 0 1112 0c0 4.314-6 10-6 10z" />
