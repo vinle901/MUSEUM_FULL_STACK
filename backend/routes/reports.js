@@ -25,7 +25,7 @@ const clampDateRange = (startDate, endDate) => {
   return { startDate: safeStart, endDate: safeEnd };
 };
 
-// GET /api/reports/sales - Sales analysis report
+// ----------------------------- SALES ---------------------------------
 router.get('/sales', async (req, res) => {
   try {
     const { startDate: s, endDate: e } = req.query;
@@ -226,7 +226,7 @@ router.get('/sales/transaction/:id', async (req, res) => {
   }
 });
 
-// GET /api/reports/attendance - Visitor attendance report
+// --------------------------- ATTENDANCE ------------------------------
 router.get('/attendance', async (req, res) => {
   try {
     const { startDate: s, endDate: e, usedOnly } = req.query;
@@ -311,7 +311,7 @@ router.get('/attendance', async (req, res) => {
   }
 });
 
-// GET /api/reports/popular-items - Popular items report
+// ------------------------- POPULAR ITEMS -----------------------------
 router.get('/popular-items', async (req, res) => {
   try {
     const { startDate: s, endDate: e } = req.query;
@@ -365,7 +365,7 @@ router.get('/popular-items', async (req, res) => {
   }
 });
 
-// GET /api/reports/revenue - Revenue breakdown report
+// --------------------------- REVENUE --------------------------------
 router.get('/revenue', async (req, res) => {
   try {
     const { startDate: s, endDate: e } = req.query;
@@ -475,7 +475,7 @@ router.get('/revenue', async (req, res) => {
   }
 });
 
-// GET /api/reports/membership - Membership analytics report
+// -------------------------- MEMBERSHIP ------------------------------
 router.get('/membership', async (req, res) => {
   try {
     const { startDate: s, endDate: e } = req.query;
@@ -555,6 +555,91 @@ router.get('/membership', async (req, res) => {
     });
   } catch (error) {
     console.error('Membership report error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --------------------- MEMBERSHIP SIGN-UPS (DETAIL) ------------------
+
+// GET /api/reports/membership-signups?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+router.get('/membership-signups', async (req, res) => {
+  try {
+    const { startDate: s, endDate: e } = req.query;
+    if (!s || !e) {
+      return res.status(400).json({ error: 'startDate and endDate are required (YYYY-MM-DD)' });
+    }
+    const { startDate, endDate } = clampDateRange(s, e);
+
+    // Detail rows
+    const [rows] = await db.query(
+      `
+      SELECT
+        u.\`user_id\`,
+        u.\`first_name\`,
+        u.\`last_name\`,
+        u.\`email\`,
+        u.\`phone_number\`,
+        u.\`subscribe_to_newsletter\`,
+        m.\`membership_id\`,
+        m.\`membership_type\`,
+        COALESCE(mp.\`line_total\`, 0)                 AS line_total,
+        t.\`transaction_date\`                         AS purchased_at
+      FROM \`Membership\` m
+      JOIN \`users\` u                ON u.\`user_id\`         = m.\`user_id\`
+      JOIN \`Membership_Purchase\` mp ON mp.\`membership_id\`  = m.\`membership_id\`
+      JOIN \`Transactions\` t         ON t.\`transaction_id\`  = mp.\`transaction_id\`
+      WHERE DATE(t.\`transaction_date\`) >= ? 
+        AND DATE(t.\`transaction_date\`) <= ?
+        AND t.\`transaction_status\` = 'Completed'
+      ORDER BY t.\`transaction_date\` ASC, m.\`membership_id\` ASC
+      `,
+      [startDate, endDate]
+    );
+
+    // Summary totals
+    const [summary] = await db.query(
+      `
+      SELECT
+        COUNT(*)                                 AS signupCount,
+        SUM(COALESCE(mp.\`line_total\`, 0))      AS totalAmount
+      FROM \`Membership\` m
+      JOIN \`Membership_Purchase\` mp ON mp.\`membership_id\` = m.\`membership_id\`
+      JOIN \`Transactions\` t         ON t.\`transaction_id\` = mp.\`transaction_id\`
+      WHERE DATE(t.\`transaction_date\`) >= ? 
+        AND DATE(t.\`transaction_date\`) <= ?
+        AND t.\`transaction_status\` = 'Completed'
+      `,
+      [startDate, endDate]
+    );
+
+    res.json({
+      window: { startDate, endDate },
+      summary: {
+        signupCount: Number(summary[0]?.signupCount || 0),
+        totalAmount: Number(summary[0]?.totalAmount || 0),
+      },
+      rows: rows.map(r => ({
+        user_id: r.user_id,
+        first_name: r.first_name,
+        last_name: r.last_name,
+        email: r.email,
+        phone_number: r.phone_number,
+        subscribe_to_newsletter: !!r.subscribe_to_newsletter,
+        membership_id: r.membership_id,
+        membership_type: r.membership_type,
+        line_total: Number(r.line_total || 0),
+        purchased_at: r.purchased_at,
+      })),
+    });
+  } catch (error) {
+    console.error('Membership sign-ups report error:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage,
+      sql: error.sql,
+    });
     res.status(500).json({ error: error.message });
   }
 });
