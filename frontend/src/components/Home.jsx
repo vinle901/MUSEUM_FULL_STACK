@@ -272,42 +272,56 @@ const Home = () => {
       </section>
 
       {/* Current Exhibitions Section */}
-      <section className="mx-auto px-16 py-16">
-        <div className="flex items-end justify-between mb-6">
-          <div>
-            <h2 className="text-4xl font-bold text-left">Current Exhibitions</h2>
-            <p className="text-gray-500 text-2xl mt-5 mb-5">What’s on view now</p>
+      <section className="relative mx-auto px-8 sm:px-12 lg:px-16 py-16 bg-gradient-to-b from-white to-gray-50">
+        {/* Decorative background elements */}
+        <div className="absolute top-10 right-10 w-64 h-64 bg-[#164e63]/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 left-10 w-72 h-72 bg-yellow-100/30 rounded-full blur-3xl"></div>
+
+        <div className="relative max-w-7xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-12">
+            <div className="inline-block mb-4">
+              <span className="px-4 py-2 bg-[#164e63]/10 text-[#164e63] rounded-full text-sm font-semibold tracking-wide uppercase">
+                On View Now
+              </span>
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
+              Current Exhibitions
+            </h2>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Explore our latest exhibitions and immersive experiences
+            </p>
           </div>
-        </div>
 
-        {loading && <p className="text-gray-500">Loading…</p>}
-        {error && <p className="text-red-600">{error}</p>}
-        {!loading && !error && currentTop3.length === 0 && (
-          <p className="text-gray-600">No current exhibitions at this time.</p>
-        )}
+          {loading && <p className="text-gray-500 text-center">Loading…</p>}
+          {error && <p className="text-red-600 text-center">{error}</p>}
+          {!loading && !error && currentTop3.length === 0 && (
+            <p className="text-gray-600 text-center">No current exhibitions at this time.</p>
+          )}
 
-        <div className="space-y-20">
-          {currentTop3.map((ex, idx) => (
-            <ExhibitionSpotlightCard
-              key={ex.exhibition_id}
-              exhibition={ex}
-              align={idx % 2 === 0 ? 'left' : 'right'}
-              onDetails={() => setPreview(ex)}
-            />
-          ))}
-        </div>
-
-        {/* Explore more button centered at end */}
-        {!loading && !error && currentTop3.length > 0 && (
-          <div className="mt-25 flex justify-center">
-            <Link
-              to="/calendar"
-              className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
-            >
-              Explore More
-            </Link>
+          <div className="space-y-20">
+            {currentTop3.map((ex, idx) => (
+              <ExhibitionSpotlightCard
+                key={ex.exhibition_id}
+                exhibition={ex}
+                align={idx % 2 === 0 ? 'left' : 'right'}
+                onDetails={() => setPreview(ex)}
+              />
+            ))}
           </div>
-        )}
+
+          {/* Explore more button centered at end */}
+          {!loading && !error && currentTop3.length > 0 && (
+            <div className="mt-12 flex justify-center">
+              <Link
+                to="/calendar"
+                className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
+              >
+                Explore More
+              </Link>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Featured Artworks Section */}
