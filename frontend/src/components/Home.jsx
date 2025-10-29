@@ -272,87 +272,116 @@ const Home = () => {
       </section>
 
       {/* Current Exhibitions Section */}
-      <section className="mx-auto px-16 py-16">
-        <div className="flex items-end justify-between mb-6">
-          <div>
-            <h2 className="text-4xl font-bold text-left">Current Exhibitions</h2>
-            <p className="text-gray-500 text-2xl mt-5 mb-5">What’s on view now</p>
-          </div>
-        </div>
+      <section className="relative mx-auto px-8 sm:px-12 lg:px-16 py-16 bg-gradient-to-b from-white to-gray-50">
+        {/* Decorative background elements */}
+        <div className="absolute top-10 right-10 w-64 h-64 bg-[#164e63]/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 left-10 w-72 h-72 bg-yellow-100/30 rounded-full blur-3xl"></div>
 
-        {loading && <p className="text-gray-500">Loading…</p>}
-        {error && <p className="text-red-600">{error}</p>}
-        {!loading && !error && currentTop3.length === 0 && (
-          <p className="text-gray-600">No current exhibitions at this time.</p>
-        )}
-
-        <div className="space-y-20">
-          {currentTop3.map((ex, idx) => (
-            <ExhibitionSpotlightCard
-              key={ex.exhibition_id}
-              exhibition={ex}
-              align={idx % 2 === 0 ? 'left' : 'right'}
-              onDetails={() => setPreview(ex)}
-            />
-          ))}
-        </div>
-
-        {/* Explore more button centered at end */}
-        {!loading && !error && currentTop3.length > 0 && (
-          <div className="mt-25 flex justify-center">
-            <Link
-              to="/calendar"
-              className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
-            >
-              Explore More
-            </Link>
-          </div>
-        )}
-      </section>
-
-      {/* Featured Artworks Section */}
-      <section className="mx-auto px-16 py-10">
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <h2 className="text-4xl font-bold text-left">Featured Artworks</h2>
-          </div>
-        </div>
-
-        {artworksLoading && (
-          <p className="text-gray-500">Loading artworks…</p>
-        )}
-        {artworksError && (
-          <p className="text-red-600">Failed to load artworks.</p>
-        )}
-
-        {!artworksLoading && !artworksError && featuredArtworks.length === 0 && (
-          <p className="text-gray-600">No featured artworks available right now.</p>
-        )}
-
-        {!artworksLoading && !artworksError && featuredArtworks.length > 0 && (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-              {featuredArtworks.map((art) => (
-                <ArtworkCard
-                  key={art.artwork_id}
-                  artwork={art}
-                  artistName={getArtistName(art.artist_id, artists)}
-                  className="h-full"
-                  imageClassName="h-48 md:h-56 lg:h-60 object-cover"
-                  onClick={() => navigate(`/artworks/${art.artwork_id}`)}
-                />
-              ))}
+        <div className="relative max-w-7xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-12">
+            <div className="inline-block mb-4">
+              <span className="px-4 py-2 bg-[#164e63]/10 text-[#164e63] rounded-full text-sm font-semibold tracking-wide uppercase">
+                On View Now
+              </span>
             </div>
-            <div className="mt-10 flex justify-center">
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
+              Current Exhibitions
+            </h2>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Explore our latest exhibitions and immersive experiences
+            </p>
+          </div>
+
+          {loading && <p className="text-gray-500 text-center">Loading…</p>}
+          {error && <p className="text-red-600 text-center">{error}</p>}
+          {!loading && !error && currentTop3.length === 0 && (
+            <p className="text-gray-600 text-center">No current exhibitions at this time.</p>
+          )}
+
+          <div className="space-y-20">
+            {currentTop3.map((ex, idx) => (
+              <ExhibitionSpotlightCard
+                key={ex.exhibition_id}
+                exhibition={ex}
+                align={idx % 2 === 0 ? 'left' : 'right'}
+                onDetails={() => setPreview(ex)}
+              />
+            ))}
+          </div>
+
+          {/* Explore more button centered at end */}
+          {!loading && !error && currentTop3.length > 0 && (
+            <div className="mt-12 flex justify-center">
               <Link
-                to="/artworks"
+                to="/calendar"
                 className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
               >
                 Explore More
               </Link>
             </div>
-          </>
-        )}
+          )}
+        </div>
+      </section>
+
+      {/* Featured Artworks Section */}
+      <section className="relative mx-auto px-8 sm:px-12 lg:px-16 py-16 bg-gradient-to-b from-gray-50 to-white">
+        {/* Decorative background elements */}
+        <div className="absolute top-10 left-10 w-64 h-64 bg-yellow-100/30 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 right-10 w-72 h-72 bg-[#164e63]/5 rounded-full blur-3xl"></div>
+
+        <div className="relative max-w-7xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-12">
+            <div className="inline-block mb-4">
+              <span className="px-4 py-2 bg-[#164e63]/10 text-[#164e63] rounded-full text-sm font-semibold tracking-wide uppercase">
+                Gallery Highlights
+              </span>
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
+              Featured Artworks
+            </h2>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Discover masterpieces from our curated collection
+            </p>
+          </div>
+
+          {artworksLoading && (
+            <p className="text-gray-500 text-center">Loading artworks…</p>
+          )}
+          {artworksError && (
+            <p className="text-red-600 text-center">Failed to load artworks.</p>
+          )}
+
+          {!artworksLoading && !artworksError && featuredArtworks.length === 0 && (
+            <p className="text-gray-600 text-center">No featured artworks available right now.</p>
+          )}
+
+          {!artworksLoading && !artworksError && featuredArtworks.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
+                {featuredArtworks.map((art) => (
+                  <ArtworkCard
+                    key={art.artwork_id}
+                    artwork={art}
+                    artistName={getArtistName(art.artist_id, artists)}
+                    className="h-full"
+                    imageClassName="h-72 sm:h-80 lg:h-96 object-cover"
+                    onClick={() => navigate(`/artworks/${art.artwork_id}`)}
+                  />
+                ))}
+              </div>
+              <div className="mt-12 flex justify-center">
+                <Link
+                  to="/artworks"
+                  className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
+                >
+                  Explore More
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
       </section>
       {/* Membership Banner */}
       <section className="mx-auto px-16 py-10">
