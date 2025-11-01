@@ -22,5 +22,4 @@ node_modules
 *.sln
 *.sw?
 # Uploaded files
-uploads/*
 !uploads/.gitkeep
