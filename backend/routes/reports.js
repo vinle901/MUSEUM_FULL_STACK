@@ -31,10 +31,36 @@ router.get('/sales', async (req, res) => {
     const { startDate: s, endDate: e } = req.query;
     const { startDate, endDate } = clampDateRange(s, e);
     
-    // Get total sales for the period
+    // Get total sales for the period (only tickets, gift shop, cafeteria)
     const [totalSalesResult] = await db.query(`
       SELECT 
-        SUM(t.total_price) as totalSales,
+        (
+          SELECT COALESCE(SUM(tp.line_total),0) FROM Ticket_Purchase tp
+          JOIN Transactions t ON tp.transaction_id = t.transaction_id
+          WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+            AND t.transaction_status = 'Completed'
+            AND NOT EXISTS (
+              SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+            )
+        )
+        + (
+          SELECT COALESCE(SUM(gsp.line_total),0) FROM Gift_Shop_Purchase gsp
+          JOIN Transactions t ON gsp.transaction_id = t.transaction_id
+          WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+            AND t.transaction_status = 'Completed'
+            AND NOT EXISTS (
+              SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+            )
+        )
+        + (
+          SELECT COALESCE(SUM(cp.line_total),0) FROM Cafeteria_Purchase cp
+          JOIN Transactions t ON cp.transaction_id = t.transaction_id
+          WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+            AND t.transaction_status = 'Completed'
+            AND NOT EXISTS (
+              SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+            )
+        ) as totalSales,
         COUNT(*) as transactionCount,
         AVG(t.total_price) as averageOrderValue
       FROM Transactions t
@@ -43,9 +69,9 @@ router.get('/sales', async (req, res) => {
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
         )
-    `, [startDate, endDate]);
+    `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
 
-    // Get daily sales
+    // Get daily sales (only tickets, gift shop, cafeteria; exclude membership and donation)
     const [dailySales] = await db.query(`
       SELECT 
         DATE(t.transaction_date) as date,
@@ -56,62 +82,81 @@ router.get('/sales', async (req, res) => {
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
         )
+        AND NOT EXISTS (
+          SELECT 1 FROM Membership_Purchase mp WHERE mp.transaction_id = t.transaction_id
+        )
+        AND (
+          EXISTS (SELECT 1 FROM Ticket_Purchase tp WHERE tp.transaction_id = t.transaction_id)
+          OR EXISTS (SELECT 1 FROM Gift_Shop_Purchase gsp WHERE gsp.transaction_id = t.transaction_id)
+          OR EXISTS (SELECT 1 FROM Cafeteria_Purchase cp WHERE cp.transaction_id = t.transaction_id)
+        )
       GROUP BY DATE(t.transaction_date)
       ORDER BY date
     `, [startDate, endDate]);
 
-    // Get sales by category
-    const [categorySales] = await db.query(`
-      SELECT 'Tickets' as category, SUM(tp.line_total) as value
-      FROM Ticket_Purchase tp
-      JOIN Transactions t ON tp.transaction_id = t.transaction_id
+    // Get all completed transactions in the date range
+    const [txRows] = await db.query(`
+      SELECT t.transaction_id, t.total_price
+      FROM Transactions t
       WHERE DATE(t.transaction_date) BETWEEN ? AND ?
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
         )
-      UNION ALL
-      SELECT 'Gift Shop' as category, SUM(gsp.line_total) as value
-      FROM Gift_Shop_Purchase gsp
-      JOIN Transactions t ON gsp.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
-        AND t.transaction_status = 'Completed'
-        AND NOT EXISTS (
-          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
-        )
-      UNION ALL
-      SELECT 'Cafeteria' as category, SUM(cp.line_total) as value
-      FROM Cafeteria_Purchase cp
-      JOIN Transactions t ON cp.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
-        AND t.transaction_status = 'Completed'
-        AND NOT EXISTS (
-          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
-        )
-      UNION ALL
-      -- For memberships, sum the transaction total for transactions that include a membership purchase
-      SELECT 'Memberships' as category, SUM(t.total_price) as value
-      FROM Membership_Purchase mp
-      JOIN Transactions t ON mp.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
-        AND t.transaction_status = 'Completed'
-        AND NOT EXISTS (
-          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
-        )
-    `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
+    `, [startDate, endDate]);
+
+    // For each transaction, get line totals for each category
+    let ticketsTotal = 0, giftShopTotal = 0, cafeteriaTotal = 0;
+    for (const tx of txRows) {
+      const [tickets] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Ticket_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [giftShop] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Gift_Shop_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [cafeteria] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Cafeteria_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const ticketsSum = Number(tickets[0].sum);
+      const giftShopSum = Number(giftShop[0].sum);
+      const cafeteriaSum = Number(cafeteria[0].sum);
+      const subtotal = ticketsSum + giftShopSum;
+      const tax = Math.max(0, Number(tx.total_price) - (ticketsSum + giftShopSum + cafeteriaSum));
+
+      // Cafeteria only
+      if (cafeteriaSum > 0 && ticketsSum === 0 && giftShopSum === 0) {
+        cafeteriaTotal += Number(tx.total_price);
+      }
+      // Tickets only
+      else if (ticketsSum > 0 && giftShopSum === 0 && cafeteriaSum === 0) {
+        ticketsTotal += Number(tx.total_price);
+      }
+      // Gift shop only
+      else if (giftShopSum > 0 && ticketsSum === 0 && cafeteriaSum === 0) {
+        giftShopTotal += Number(tx.total_price);
+      }
+      // Mixed: only tickets and gift shop
+      else if (ticketsSum > 0 && giftShopSum > 0 && cafeteriaSum === 0) {
+        ticketsTotal += ticketsSum + (ticketsSum / subtotal) * tax;
+        giftShopTotal += giftShopSum + (giftShopSum / subtotal) * tax;
+      }
+    }
+
+    const toFixed2 = v => Number(v).toFixed(2);
+    const ticketsRounded = toFixed2(ticketsTotal);
+    const giftShopRounded = toFixed2(giftShopTotal);
+    const cafeteriaRounded = toFixed2(cafeteriaTotal);
+    const categorySales = [
+      { category: 'Tickets', value: ticketsRounded },
+      { category: 'Gift Shop', value: giftShopRounded },
+      { category: 'Cafeteria', value: cafeteriaRounded }
+    ];
+    const totalSalesRounded = toFixed2(Number(ticketsTotal) + Number(giftShopTotal) + Number(cafeteriaTotal));
+    const avgOrderValueRounded = toFixed2(totalSalesResult[0].averageOrderValue || 0);
 
     res.json({
-      totalSales: parseFloat(totalSalesResult[0].totalSales) || 0,
+      totalSales: totalSalesRounded,
       transactionCount: totalSalesResult[0].transactionCount || 0,
-      averageOrderValue: parseFloat(totalSalesResult[0].averageOrderValue) || 0,
+      averageOrderValue: avgOrderValueRounded,
       dailySales: dailySales.map(d => ({
         date: d.date,
-        sales: parseFloat(d.sales)
+        sales: toFixed2(d.sales)
       })),
-      categorySales: categorySales.map(c => ({
-        category: c.category,
-        value: parseFloat(c.value) || 0
-      }))
+      categorySales: categorySales
     });
   } catch (error) {
     console.error('Sales report error:', error);
@@ -152,13 +197,37 @@ router.get('/sales/transactions', async (req, res) => {
       ORDER BY t.transaction_date DESC
     `, [startDate, endDate]);
 
-    res.json({
-      category: category,
-      transactions: rows.map(r => ({
+    // For each transaction, fetch line items for all categories
+    const transactions = await Promise.all(rows.map(async (r) => {
+      const [tickets] = await db.query(`
+        SELECT COALESCE(tt.ticket_name, CONCAT('Type ', tp.ticket_type_id)) as name, tp.quantity, tp.line_total
+        FROM Ticket_Purchase tp
+        LEFT JOIN Ticket_Types tt ON tt.ticket_type_id = tp.ticket_type_id
+        WHERE tp.transaction_id = ?
+      `, [r.id]);
+      const [giftShop] = await db.query(`
+        SELECT item_name as name, quantity, line_total
+        FROM Gift_Shop_Purchase
+        WHERE transaction_id = ?
+      `, [r.id]);
+      const [cafeteria] = await db.query(`
+        SELECT item_name as name, quantity, line_total
+        FROM Cafeteria_Purchase
+        WHERE transaction_id = ?
+      `, [r.id]);
+      return {
         id: r.id,
         date: r.date,
-        total: parseFloat(r.total) || 0
-      }))
+        total: parseFloat(r.total) || 0,
+        tickets,
+        giftShop,
+        cafeteria
+      };
+    }));
+
+    res.json({
+      category: category,
+      transactions
     });
   } catch (error) {
     console.error('Sales transactions list error:', error);
@@ -371,36 +440,54 @@ router.get('/revenue', async (req, res) => {
     const { startDate: s, endDate: e } = req.query;
     const { startDate, endDate } = clampDateRange(s, e);
     
-    // Get revenue breakdown by source
-    const [breakdown] = await db.query(`
-      SELECT source, SUM(amount) as amount FROM (
-        SELECT 'Ticket Sales' as source, SUM(line_total) as amount
-        FROM Ticket_Purchase tp
-        JOIN Transactions t ON tp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-          AND t.transaction_status = 'Completed'
-        UNION ALL
-        SELECT 'Gift Shop' as source, SUM(line_total) as amount
-        FROM Gift_Shop_Purchase gsp
-        JOIN Transactions t ON gsp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-          AND t.transaction_status = 'Completed'
-        UNION ALL
-        SELECT 'Cafeteria' as source, SUM(line_total) as amount
-        FROM Cafeteria_Purchase cp
-        JOIN Transactions t ON cp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-          AND t.transaction_status = 'Completed'
-        UNION ALL
-        -- Membership revenue uses line_total from Membership_Purchase
-        SELECT 'Memberships' as source, SUM(mp.line_total) as amount
-        FROM Membership_Purchase mp
-        JOIN Transactions t ON mp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-          AND t.transaction_status = 'Completed'
-      ) revenue_sources
-      GROUP BY source
-    `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
+    // Get revenue breakdown by source, splitting out categories per transaction and allocating proportional tax, excluding donations
+    const [txRows] = await db.query(`
+      SELECT t.transaction_id, t.total_price
+      FROM Transactions t
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+        AND t.transaction_status = 'Completed'
+        AND NOT EXISTS (
+          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+        )
+    `, [startDate, endDate]);
+
+    let ticketsTotal = 0, giftShopTotal = 0, cafeteriaTotal = 0, membershipTotal = 0;
+    for (const tx of txRows) {
+      const [tickets] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Ticket_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [giftShop] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Gift_Shop_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [cafeteria] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Cafeteria_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [membership] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Membership_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const ticketsSum = Number(tickets[0].sum);
+      const giftShopSum = Number(giftShop[0].sum);
+      const cafeteriaSum = Number(cafeteria[0].sum);
+      const membershipSum = Number(membership[0].sum);
+      const subtotal = ticketsSum + giftShopSum;
+      const tax = Math.max(0, Number(tx.total_price) - (ticketsSum + giftShopSum + cafeteriaSum + membershipSum));
+
+      // Mixed: only tickets and gift shop
+      if (ticketsSum > 0 && giftShopSum > 0 && cafeteriaSum === 0 && membershipSum === 0) {
+        ticketsTotal += ticketsSum + (ticketsSum / subtotal) * tax;
+        giftShopTotal += giftShopSum + (giftShopSum / subtotal) * tax;
+      } else {
+        if (ticketsSum > 0) ticketsTotal += Number(tx.total_price);
+        if (giftShopSum > 0) giftShopTotal += Number(tx.total_price);
+        if (cafeteriaSum > 0) cafeteriaTotal += Number(tx.total_price);
+        if (membershipSum > 0) membershipTotal += Number(tx.total_price);
+      }
+    }
+
+    const toFixed2 = v => Number(v).toFixed(2);
+    const ticketsRounded = toFixed2(ticketsTotal);
+    const giftShopRounded = toFixed2(giftShopTotal);
+    const cafeteriaRounded = toFixed2(cafeteriaTotal);
+    const membershipRounded = toFixed2(membershipTotal);
+    const totalRevenue = toFixed2(Number(ticketsTotal) + Number(giftShopTotal) + Number(cafeteriaTotal) + Number(membershipTotal));
+    const breakdown = [
+      { source: 'Ticket Sales', amount: ticketsRounded },
+      { source: 'Gift Shop', amount: giftShopRounded },
+      { source: 'Cafeteria', amount: cafeteriaRounded },
+      { source: 'Memberships', amount: membershipRounded }
+    ];
 
     // Get monthly trend from non-donation sources (ONLY_FULL_GROUP_BY-safe)
     const [monthlyTrend] = await db.query(`
@@ -453,8 +540,6 @@ router.get('/revenue', async (req, res) => {
       ORDER BY period
       LIMIT 6
     `, [endDate, endDate, endDate, endDate, endDate, endDate, endDate, endDate]);
-    // Derive totalRevenue from breakdown (excludes donations by construction)
-    const totalRevenue = breakdown.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
     
     res.json({
       totalRevenue: totalRevenue,
