@@ -239,12 +239,12 @@ function AnalystReports() {
 
       case 'attendance': {
         // Summary section
-        csvContent += 'SUMMARY\n';
-        csvContent += 'Metric,Value\n';
-        csvContent += `Total Visitors,${Number(data.totalVisitors || 0).toLocaleString()}\n`;
-        csvContent += `Average Daily Visitors,${Number(data.averageVisitors || 0).toFixed(0)}\n`;
-        csvContent += `Peak Day Visitors,${Number(data.peakDayVisitors || 0).toLocaleString()}\n`;
-        csvContent += '\n';
+      csvContent += 'SUMMARY\n';
+      csvContent += 'Metric,Value\n';
+      csvContent += `Total Visitors,${Number(data.totalVisitors || 0).toLocaleString()}\n`;
+      csvContent += `Average Daily Visitors,${Number(data.averageVisitors || 0).toFixed(0)}\n`;
+      csvContent += `Average Group Size,${Number(data.averageGroupSize || 0).toFixed(0)}\n`;
+      csvContent += '\n';
 
         // Visitor type breakdown
         if (data.visitorTypes && data.visitorTypes.length > 0) {
@@ -405,6 +405,97 @@ function AnalystReports() {
     setDateRange({ startDate: startStr, endDate: endStr });
   };
 
+  // Helpers for date formatting and aggregation
+  const toDateOnlyString = (value) => {
+    if (!value) return '';
+    if (isYMD(value)) return value;
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value).split('T')[0] || String(value);
+    return toLocalDateString(d);
+  };
+
+  const formatLongDate = (value) => {
+    if (!value) return '';
+    const d = parseLocalDate(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  };
+
+  const selectedRangeLabel = `${formatLongDate(dateRange.startDate)} – ${formatLongDate(dateRange.endDate)}`;
+
+  const startOfIsoWeek = (d) => {
+    const date = new Date(d);
+    const day = (date.getDay() + 6) % 7; // Mon=0..Sun=6
+    const start = new Date(date);
+    start.setDate(date.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  };
+
+  const monthKey = (d) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${yyyy}-${mm}`;
+  };
+
+  const aggregateSales = (dailySalesArr, unit) => {
+    if (!Array.isArray(dailySalesArr)) return [];
+    if (unit === 'daily') {
+      return dailySalesArr.map(d => ({ label: toDateOnlyString(d.date), sales: Number(d.sales) || 0 }));
+    }
+    if (unit === 'weekly') {
+      const map = new Map();
+      dailySalesArr.forEach(d => {
+        const dateObj = parseLocalDate(d.date);
+        const wkStart = startOfIsoWeek(dateObj);
+        const key = toDateOnlyString(wkStart);
+        const prev = map.get(key) || 0;
+        map.set(key, prev + (Number(d.sales) || 0));
+      });
+      return Array.from(map.entries())
+        .sort((a, b) => parseLocalDate(a[0]) - parseLocalDate(b[0]))
+        .map(([key, sum]) => ({ label: `Week of ${key}`, sales: sum }));
+    }
+    if (unit === 'monthly') {
+      const map = new Map();
+      dailySalesArr.forEach(d => {
+        const dateObj = parseLocalDate(d.date);
+        const key = monthKey(dateObj);
+        const prev = map.get(key) || 0;
+        map.set(key, prev + (Number(d.sales) || 0));
+      });
+      return Array.from(map.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([key, sum]) => ({ label: key, sales: sum }));
+    }
+    return dailySalesArr.map(d => ({ label: toDateOnlyString(d.date), sales: Number(d.sales) || 0 }));
+  };
+
+  // Count total units in the selected date range for accurate averages
+  const countUnitsInRange = (start, end, unit) => {
+    if (!start || !end) return 1;
+    const s = new Date(start);
+    const e = new Date(end);
+    if (Number.isNaN(s) || Number.isNaN(e) || s > e) return 1;
+    if (unit === 'daily') {
+      const diffDays = Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1;
+      return Math.max(1, diffDays);
+    }
+    if (unit === 'weekly') {
+      const startWeek = startOfIsoWeek(s);
+      const endWeek = startOfIsoWeek(e);
+      const diffWeeks = Math.floor((endWeek - startWeek) / (1000 * 60 * 60 * 24 * 7)) + 1;
+      return Math.max(1, diffWeeks);
+    }
+    if (unit === 'monthly') {
+      const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+      return Math.max(1, months);
+    }
+    return 1;
+  };
+
   const renderReportContent = () => {
     if (loading) {
       return (
@@ -434,34 +525,45 @@ function AnalystReports() {
 
     switch (activeReport) {
       case 'sales': {
-        const totalSales = Number(reportData.totalSales || 0);
-        const transactionCount = Number(reportData.transactionCount || 0);
-        const averageOrderValue = Number(reportData.averageOrderValue || 0);
-        const categorySales = (reportData.categorySales || []).map(c => ({
-          category: c.category,
-          value: Number(c.value) || 0,
-        }));
-        const totalCatSales = categorySales.reduce((sum, c) => sum + c.value, 0);
-
+        // Normalize backend data: ensure date-only strings and numeric values
         const dailySales = (reportData.dailySales || []).map(d => ({
-          date: d.date,
+          date: (d.date || '').toString().split('T')[0],
           sales: Number(d.sales) || 0,
         }));
+        const categorySales = (reportData.categorySales || [])
+          .filter(c => ['Tickets', 'Gift Shop', 'Cafeteria'].includes(c.category))
+          .map(c => ({ category: c.category, value: Number(c.value) || 0 }));
+        const totalSalesNum = Number(reportData.totalSales || 0);
+        const totalSalesFmt = totalSalesNum.toLocaleString();
+        // Aggregate series by granularity and compute average per selected unit
+        const series = aggregateSales(dailySales, granularity);
+        // Avg should follow the selected date range only (independent of granularity): use daily units
+        const dailyUnits = countUnitsInRange(dateRange.startDate, dateRange.endDate, 'daily');
+        const avgPerUnit = totalSalesNum / dailyUnits;
+        const unitLabel = granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly';
+
+        // Prepare a compact category split
+        const categoriesCompact = ['Tickets', 'Gift Shop', 'Cafeteria'].map(cat => {
+          const match = categorySales.find(c => c.category === cat);
+          return { label: cat, value: match ? match.value : 0 };
+        });
+        // Categories available for transaction listing (exclude Memberships)
+        const categoriesForTransactions = ['Tickets', 'Gift Shop', 'Cafeteria'];
 
         return (
           <div className="report-content">
             <div className="metrics-row">
               <div className="metric-card">
                 <div className="metric-label">Total Sales</div>
-                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">${totalSales.toLocaleString()}</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom  : 6 }}>{selectedRangeLabel}</div>
+                <div className="metric-value">${totalSalesFmt}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-label">Average Sales</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">${averageOrderValue.toFixed(2)}</div>
+                <div className="metric-value">${avgPerUnit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
               </div>
-              <div className="metric-card category-split-card">
+              <div className="metric-card">
                 <div className="metric-label">Category Split</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -478,8 +580,8 @@ function AnalystReports() {
             </div>
 
             <div className="chart-section">
-              <h3>Daily Sales Trend</h3>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <h3>{unitLabel} Sales Trend</h3>
+              <div className="granularity-toggle">
                 <button
                   className={`toggle-btn ${granularity === 'daily' ? 'active' : ''}`}
                   onClick={() => setGranularity('daily')}
@@ -500,32 +602,55 @@ function AnalystReports() {
                 </button>
               </div>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dailySales}>
+                <BarChart data={series}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
+                  <XAxis dataKey="label" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="sales" fill="#8884D8" />
+                  <Bar dataKey="sales" fill="#8884d8" />
                 </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="chart-section">
+              <h3>Sales by Category</h3>
+              <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categorySales}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(entry) => `${entry.category}: $${(entry.value || 0).toLocaleString()}`}
+                    outerRadius={90}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categorySales.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(val) => `$${Number(val || 0).toLocaleString()}`} />
+                </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
         );
       }
 
-      case 'attendance': {
-        const totalVisitors = Number(reportData.totalVisitors || 0);
-        const averageVisitors = Number(reportData.averageVisitors || 0);
-        const peakDayVisitors = Number(reportData.peakDayVisitors || 0);
-        const visitorTypes = (reportData.visitorTypes || []).map(v => ({
-          type: v.type,
-          count: Number(v.count) || 0,
-          percentage: Number(v.percentage) || 0,
+      case 'attendance':
+        // Normalize and aggregate attendance data with selectable granularity
+        const dailyAttendanceRaw = (reportData.dailyAttendance || []).map(d => ({
+          date: (d.date || '').toString().split('T')[0],
+          sales: Number(d.visitors) || 0, // reuse aggregateSales by mapping visitors->sales
         }));
-        const dailyAttendance = (reportData.dailyAttendance || []).map(d => ({
-          date: d.date,
-          visitors: Number(d.visitors) || 0,
+        const attSeries = aggregateSales(dailyAttendanceRaw, granularity);
+        const attUnitLabel = granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly';
+        const ticketTypeData = (reportData.ticketTypeBreakdown || []).map(x => ({
+          type: x.type,
+          visitors: Number(x.visitors) || 0,
         }));
 
         return (
@@ -534,138 +659,165 @@ function AnalystReports() {
               <div className="metric-card">
                 <div className="metric-label">Total Visitors</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">{totalVisitors.toLocaleString()}</div>
+                <div className="metric-value">{Number(reportData.totalVisitors || 0).toLocaleString()}</div>
               </div>
               <div className="metric-card">
-                <div className="metric-label">Average Daily Visitors</div>
+                <div className="metric-label">Daily Average</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">{averageVisitors.toFixed(0)}</div>
+                <div className="metric-value">{Number(reportData.averageDailyVisitors || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
               <div className="metric-card">
-                <div className="metric-label">Peak Day Visitors</div>
+                <div className="metric-label">Average Group Size</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">{peakDayVisitors.toLocaleString()}</div>
+                <div className="metric-value">{Math.round(Number(reportData.averageGroupSize || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               </div>
             </div>
 
             <div className="chart-section">
-              <h3>Visitor Type Breakdown</h3>
-              {visitorTypes.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={visitorTypes}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      dataKey="count"
-                      label={({ payload }) => `${payload?.type ?? ''}: ${Number(payload?.count ?? 0).toLocaleString()} (${Number(payload?.percentage ?? 0).toFixed(1)}%)`}
-                    >
-                      {visitorTypes.map((entry, index) => (
-                        <Cell key={`vt-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(val, name, props) => [Number(val || 0).toLocaleString(), props?.payload?.type]} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>No visitor type data available</div>
-              )}
-            </div>
-
-            <div className="chart-section">
-              <h3>Daily Attendance</h3>
+              <h3>{attUnitLabel} Attendance</h3>
+              <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
+              
+              <div className="granularity-toggle" style={{ display: 'flex', gap: 10, margin: '15px 0' }}>
+                <button
+                  className={`toggle-btn ${granularity === 'daily' ? 'active' : ''}`}
+                  onClick={() => setGranularity('daily')}
+                >
+                  Daily
+                </button>
+                <button
+                  className={`toggle-btn ${granularity === 'weekly' ? 'active' : ''}`}
+                  onClick={() => setGranularity('weekly')}
+                >
+                  Weekly
+                </button>
+                <button
+                  className={`toggle-btn ${granularity === 'monthly' ? 'active' : ''}`}
+                  onClick={() => setGranularity('monthly')}
+                >
+                  Monthly
+                </button>
+              </div>
+              
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dailyAttendance}>
+                <LineChart data={attSeries}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
+                  <XAxis dataKey="label" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="visitors" stroke="#00C49F" />
+                  <Line type="monotone" dataKey="sales" name="Visitors" stroke="#8884d8" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        );
-      }
-
-      case 'popular-items': {
-        const topTickets = (reportData.topTickets || []).map(t => ({
-          name: t.name,
-          quantity: Number(t.quantity) || 0,
-          revenue: Number(t.revenue) || 0,
-        }));
-        const topGiftShopItems = (reportData.topGiftShopItems || []).map(g => ({
-          name: g.name,
-          quantity: Number(g.quantity) || 0,
-          revenue: Number(g.revenue) || 0,
-        }));
-        const topCafeteriaItems = (reportData.topCafeteriaItems || []).map(c => ({
-          name: c.name,
-          quantity: Number(c.quantity) || 0,
-          revenue: Number(c.revenue) || 0,
-        }));
-
-        return (
-          <div className="report-content">
-            <div className="chart-section">
-              <h3>Top Tickets</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topTickets} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={150} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="#0088FE" name="Revenue" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
 
             <div className="chart-section">
-              <h3>Top Gift Shop Items</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topGiftShopItems} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={150} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="#00C49F" name="Revenue" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="chart-section">
-              <h3>Top Cafeteria Items</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topCafeteriaItems} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={150} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="#FFBB28" name="Revenue" />
-                </BarChart>
-              </ResponsiveContainer>
+              <h3>Ticket Type Breakdown</h3>
+              <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
+              {ticketTypeData.length === 0 ? (
+                <div className="no-items">No ticket data to display</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie
+                      data={ticketTypeData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={110}
+                      dataKey="visitors"
+                      nameKey="type"
+                      label={(e) => `${e.type}: ${Number(e.visitors || 0).toLocaleString()}`}
+                    >
+                      {ticketTypeData.map((entry, index) => (
+                        <Cell key={`tt-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val, name, props) => [Number(val || 0).toLocaleString(), props?.payload?.type]} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         );
-      }
+
+      case 'popular-items':
+        {
+          const giftShop = Array.isArray(reportData.giftShop) ? reportData.giftShop : [];
+          const cafeteria = Array.isArray(reportData.cafeteria) ? reportData.cafeteria : [];
+          return (
+            <div className="report-content">
+
+              <div className="items-section">
+                <h3>Top Gift Shop Items</h3>
+                {giftShop.length === 0 ? (
+                  <div className="no-items">No items to display</div>
+                ) : (
+                  <table className="report-table">
+                    <thead>
+                      <tr>
+                        <th>Item Name</th>
+                        <th>Units Sold</th>
+                        <th>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {giftShop.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.name}</td>
+                          <td>{Number(item.sales || 0).toLocaleString()}</td>
+                          <td>${Number(item.revenue || 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <div className="items-section">
+                <h3>Top Cafeteria Items</h3>
+                {cafeteria.length === 0 ? (
+                  <div className="no-items">No items to display</div>
+                ) : (
+                  <table className="report-table">
+                    <thead>
+                      <tr>
+                        <th>Item Name</th>
+                        <th>Units Sold</th>
+                        <th>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cafeteria.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.name}</td>
+                          <td>{Number(item.sales || 0).toLocaleString()}</td>
+                          <td>${Number(item.revenue || 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          );
+        }
 
       case 'revenue': {
         const totalRevenue = Number(reportData.totalRevenue || 0);
-        const breakdown = (reportData.breakdown || []).map(b => ({
-          source: b.source,
-          amount: Number(b.amount) || 0,
-          percentage: Number(b.percentage) || 0,
-        }));
+        const monthlyGrowth = Number(reportData.monthlyGrowth || 0);
+        // Defensive: ensure breakdown is a valid array of objects with source and amount
+        let breakdown = Array.isArray(reportData.breakdown) ? reportData.breakdown : [];
+        breakdown = breakdown
+          .map(b => ({
+            source: b?.source ?? '',
+            amount: Number(b?.amount) || 0,
+            percentage: Number(b?.percentage) || 0,
+          }))
+          .filter(b => b.source && !isNaN(b.amount));
         const monthlyTrend = (reportData.monthlyTrend || []).map(m => ({
           month: m.month,
           revenue: Number(m.revenue) || 0,
         }));
-
         return (
           <div className="report-content">
             <div className="metrics-row">
@@ -674,30 +826,35 @@ function AnalystReports() {
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
                 <div className="metric-value">${totalRevenue.toLocaleString()}</div>
               </div>
+              <div className="metric-card">
+                <div className="metric-label">Monthly Growth</div>
+                <div className="metric-value">{monthlyGrowth.toLocaleString(undefined, { maximumFractionDigits: 1 })}%</div>
+              </div>
             </div>
 
             <div className="chart-section">
-              <h3>Revenue Breakdown by Source</h3>
-              {breakdown.length > 0 ? (
+              <h3>Revenue Breakdown</h3>
+              {breakdown.length === 0 ? (
+                <div className="no-items">No revenue breakdown data to display</div>
+              ) : (
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
                       data={breakdown}
                       cx="50%"
                       cy="50%"
+                      labelLine={false}
+                      label={(e) => `${e.source}: $${e.amount.toLocaleString()} (${e.percentage}%)`}
                       outerRadius={100}
                       dataKey="amount"
-                      label={({ payload }) => `${payload?.source ?? ''}: $${Number(payload?.amount ?? 0).toLocaleString()} (${Number(payload?.percentage ?? 0)}%)`}
                     >
                       {breakdown.map((entry, index) => (
-                        <Cell key={`rb-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`rbd-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(val, name, props) => [`$${Number(val || 0).toLocaleString()}`, props?.payload?.source]} />
+                    <Tooltip formatter={(val, name, props) => [`$${Number(val || 0).toLocaleString()}`, props.payload.source]} />
                   </PieChart>
                 </ResponsiveContainer>
-              ) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>No breakdown data available</div>
               )}
             </div>
 
@@ -890,88 +1047,172 @@ function AnalystReports() {
 
       {/* Transaction Modal */}
       {txModalOpen && (
-        <div className="modal-overlay" onClick={() => setTxModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{txDetailView ? 'Transaction Detail' : `${txCategory} Transactions`}</h2>
-              <button className="modal-close" onClick={() => setTxModalOpen(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              {txError && <div style={{ color: '#d32f2f', marginBottom: 16 }}>{txError}</div>}
-              {txDetailView ? (
-                txDetailLoading ? (
-                  <div>Loading...</div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '24px' }}>
+          <div style={{ background: '#fff', width: 'min(840px, 90vw)', maxHeight: 'calc(100vh - 48px)', overflow: 'auto', borderRadius: 10, padding: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.25)' }}>
+            {!txDetailView ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <h3 style={{ margin: 0 }}>{txCategory || 'Transactions'}</h3>
+                  <button className="toggle-btn" onClick={() => { setTxModalOpen(false); setTxList([]); setSelectedTxDetail(null); setTxDetailView(false); }}>Close</button>
+                </div>
+                <div className="text-sm" style={{ color: '#555', marginBottom: 10 }}>{selectedRangeLabel}</div>
+                {txError && <div className="loading">{txError}</div>}
+                {txLoading ? (
+                  <div className="loading">Loading transactions...</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="report-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Date</th>
+                          <th>Total</th>
+                          <th style={{ textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {txList.length === 0 ? (
+                          <tr><td colSpan={4} style={{ textAlign: 'center' }}>No transactions</td></tr>
+                        ) : txList
+                          // Filter transactions by UTC date portion
+                          .filter((t) => {
+                            const utcDateStr = typeof t.date === 'string' ? t.date.split('T')[0] : '';
+                            return utcDateStr >= dateRange.startDate && utcDateStr <= dateRange.endDate;
+                          })
+                          .map((t) => {
+                            const utcDateStr = typeof t.date === 'string' ? t.date.split('T')[0] : '';
+                            // Calculate subtotals for each category
+                            const ticketsSubtotal = t.tickets ? t.tickets.reduce((sum, item) => sum + Number(item.line_total || 0), 0) : 0;
+                            const giftShopSubtotal = t.giftShop ? t.giftShop.reduce((sum, item) => sum + Number(item.line_total || 0), 0) : 0;
+                            const cafeteriaSubtotal = t.cafeteria ? t.cafeteria.reduce((sum, item) => sum + Number(item.line_total || 0), 0) : 0;
+                            const totalSubtotal = ticketsSubtotal + giftShopSubtotal + cafeteriaSubtotal;
+                            const tax = Math.max(0, Number(t.total || 0) - totalSubtotal);
+                            let categorySubtotal = 0;
+                            if (txCategory?.toLowerCase() === 'tickets') categorySubtotal = ticketsSubtotal;
+                            else if (txCategory?.toLowerCase() === 'gift shop') categorySubtotal = giftShopSubtotal;
+                            else if (txCategory?.toLowerCase() === 'cafeteria') categorySubtotal = cafeteriaSubtotal;
+                            // Proportional tax for this category
+                            const categoryTax = totalSubtotal > 0 ? (categorySubtotal / totalSubtotal) * tax : 0;
+                            const categoryTotal = categorySubtotal + categoryTax;
+                            return (
+                              <tr key={t.id}>
+                                <td>{t.id}</td>
+                                <td>{utcDateStr}</td>
+                                <td>${categoryTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <button className="toggle-btn" onClick={() => viewTransactionDetail(t.id)}>View details</button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <button className="toggle-btn" onClick={backToTransactionList}>← Back to list</button>
+                  <button className="toggle-btn" onClick={() => { setTxModalOpen(false); setTxList([]); setSelectedTxDetail(null); setTxDetailView(false); }}>Close</button>
+                </div>
+                {txDetailLoading ? (
+                  <div className="loading">Loading details...</div>
                 ) : selectedTxDetail ? (
-                  <div>
-                    <button onClick={backToTransactionList} style={{ marginBottom: 16 }}>← Back to list</button>
-                    <div><strong>Transaction ID:</strong> {selectedTxDetail.id}</div>
-                    <div><strong>Date:</strong> {new Date(selectedTxDetail.date).toLocaleString()}</div>
-                    <div><strong>Total:</strong> ${Number(selectedTxDetail.total).toFixed(2)}</div>
-                    <div><strong>Status:</strong> {selectedTxDetail.status}</div>
-                    <h3 style={{ marginTop: 16 }}>Line Items</h3>
-                    {selectedTxDetail.items && selectedTxDetail.items.length > 0 ? (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid #ccc' }}>
-                            <th style={{ padding: 8, textAlign: 'left' }}>Name</th>
-                            <th style={{ padding: 8, textAlign: 'right' }}>Quantity</th>
-                            <th style={{ padding: 8, textAlign: 'right' }}>Line Total</th>
+                  <div style={{ padding: 12 }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <h3 style={{ margin: '0 0 8px' }}>Transaction #{selectedTxDetail.transaction?.id}</h3>
+                      <div style={{ fontSize: 14, color: '#666' }}>
+                        <span>{formatLongDate(selectedTxDetail.transaction?.date)}</span>
+                        <span style={{ marginLeft: 16 }}>Status: <strong>{selectedTxDetail.transaction?.status}</strong></span>
+                      </div>
+                    </div>
+
+                    {txError && <div className="loading">{txError}</div>}
+
+                    <table className="report-table" style={{ fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          <th>Category</th>
+                          <th>Item</th>
+                          <th style={{ textAlign: 'right' }}>Qty</th>
+                          <th style={{ textAlign: 'right' }}>Line Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {txCategory?.toLowerCase() === 'tickets' && selectedTxDetail.items?.tickets?.map((item, idx) => (
+                          <tr key={`tk-${idx}`}>
+                            <td>Ticket</td>
+                            <td>{item.name}</td>
+                            <td style={{ textAlign: 'right' }}>{item.quantity}</td>
+                            <td style={{ textAlign: 'right' }}>${Number(item.line_total || 0).toLocaleString()}</td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {selectedTxDetail.items.map((item, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-                              <td style={{ padding: 8 }}>{item.name}</td>
-                              <td style={{ padding: 8, textAlign: 'right' }}>{item.quantity}</td>
-                              <td style={{ padding: 8, textAlign: 'right' }}>${Number(item.line_total || 0).toFixed(2)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div>No line items</div>
-                    )}
+                        ))}
+                        {txCategory?.toLowerCase() === 'gift shop' && selectedTxDetail.items?.giftShop?.map((item, idx) => (
+                          <tr key={`gs-${idx}`}>
+                            <td>Gift Shop</td>
+                            <td>{item.name}</td>
+                            <td style={{ textAlign: 'right' }}>{item.quantity}</td>
+                            <td style={{ textAlign: 'right' }}>${Number(item.line_total || 0).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        {txCategory?.toLowerCase() === 'cafeteria' && selectedTxDetail.items?.cafeteria?.map((item, idx) => (
+                          <tr key={`cf-${idx}`}>
+                            <td>Cafeteria</td>
+                            <td>{item.name}</td>
+                            <td style={{ textAlign: 'right' }}>{item.quantity}</td>
+                            <td style={{ textAlign: 'right' }}>${Number(item.line_total || 0).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        {txCategory?.toLowerCase() === 'memberships' && selectedTxDetail.items?.memberships?.map((item, idx) => (
+                          <tr key={`mb-${idx}`}>
+                            <td>Membership</td>
+                            <td>Membership #{item.membership_id} ({item.is_renewal ? 'Renewal' : 'New'})</td>
+                            <td style={{ textAlign: 'right' }}>1</td>
+                            <td style={{ textAlign: 'right' }}>—</td>
+                          </tr>
+                        ))}
+                        {(!selectedTxDetail.items?.tickets?.length && 
+                          !selectedTxDetail.items?.giftShop?.length && 
+                          !selectedTxDetail.items?.cafeteria?.length && 
+                          !selectedTxDetail.items?.memberships?.length) && (
+                          <tr>
+                            <td colSpan={4} style={{ textAlign: 'center', color: '#999' }}>No items found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+
+                    <div style={{ marginTop: 16, textAlign: 'right', fontSize: 16, fontWeight: 'bold' }}>
+                      {/* Show category-specific total */}
+                      {txCategory?.toLowerCase() === 'tickets' && (
+                        <>Total: ${
+                          selectedTxDetail.items?.tickets?.reduce((sum, item) => sum + Number(item.line_total || 0), 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }</>
+                      )}
+                      {txCategory?.toLowerCase() === 'gift shop' && (
+                        <>Total: ${
+                          selectedTxDetail.items?.giftShop?.reduce((sum, item) => sum + Number(item.line_total || 0), 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }</>
+                      )}
+                      {txCategory?.toLowerCase() === 'cafeteria' && (
+                        <>Total: ${
+                          selectedTxDetail.items?.cafeteria?.reduce((sum, item) => sum + Number(item.line_total || 0), 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        }</>
+                      )}
+                      {txCategory?.toLowerCase() === 'memberships' && (
+                        <>Total: —</>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <div>No detail available</div>
-                )
-              ) : (
-                txLoading ? (
-                  <div>Loading...</div>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #ccc' }}>
-                        <th style={{ padding: 8, textAlign: 'left' }}>Transaction ID</th>
-                        <th style={{ padding: 8, textAlign: 'left' }}>Date</th>
-                        <th style={{ padding: 8, textAlign: 'right' }}>Total</th>
-                        <th style={{ padding: 8 }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {txList.length > 0 ? (
-                        txList.map((tx) => (
-                          <tr key={tx.id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: 8 }}>{tx.id}</td>
-                            <td style={{ padding: 8 }}>{new Date(tx.date).toLocaleString()}</td>
-                            <td style={{ padding: 8, textAlign: 'right' }}>${Number(tx.total).toFixed(2)}</td>
-                            <td style={{ padding: 8 }}>
-                              <button onClick={() => viewTransactionDetail(tx.id)}>View Details</button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="4" style={{ padding: 16, textAlign: 'center', color: '#999' }}>
-                            No transactions found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                )
-              )}
-            </div>
+                  <div className="loading">No details available</div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
