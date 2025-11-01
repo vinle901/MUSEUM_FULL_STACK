@@ -1,4 +1,4 @@
-// File: src/components/employee/AnalystReports.jsx
+// File: frontend/src/components/employee/AnalystReports.jsx
 
 import React, { useState, useEffect } from 'react';
 import { FaChartBar, FaCalendarAlt, FaDownload } from 'react-icons/fa';
@@ -160,17 +160,209 @@ function AnalystReports() {
   const exportReport = () => {
     // Implement CSV export functionality
     const csvContent = generateCSV(reportData);
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${activeReport}-report-${dateRange.startDate}-to-${dateRange.endDate}.csv`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const generateCSV = (data) => {
-    // Simple CSV generation - would be more complex in real implementation
-    return 'Report data would be exported here as CSV';
+    if (!data) return 'No data available';
+
+    // Helper function to escape CSV values
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      // Escape quotes and wrap in quotes if contains comma, quote, or newline
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Helper function to format currency
+    const formatCurrency = (value) => {
+      return `$${Number(value || 0).toFixed(2)}`;
+    };
+
+    // Helper function to format date
+    const formatDate = (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    };
+
+    let csvContent = '';
+    
+    // Add report header
+    csvContent += `Report Type,${escapeCSV(activeReport.toUpperCase())}\n`;
+    csvContent += `Date Range,${dateRange.startDate} to ${dateRange.endDate}\n`;
+    csvContent += `Generated,${new Date().toLocaleString()}\n`;
+    csvContent += '\n';
+
+    // Generate CSV based on report type
+    switch (activeReport) {
+      case 'sales': {
+        // Summary section
+        csvContent += 'SUMMARY\n';
+        csvContent += 'Metric,Value\n';
+        csvContent += `Total Sales,${formatCurrency(data.totalSales)}\n`;
+        csvContent += `Transaction Count,${data.transactionCount || 0}\n`;
+        csvContent += `Average Order Value,${formatCurrency(data.averageOrderValue)}\n`;
+        csvContent += '\n';
+
+        // Category breakdown
+        csvContent += 'CATEGORY BREAKDOWN\n';
+        csvContent += 'Category,Sales Amount\n';
+        if (data.categorySales && data.categorySales.length > 0) {
+          data.categorySales.forEach(cat => {
+            csvContent += `${escapeCSV(cat.category)},${formatCurrency(cat.value)}\n`;
+          });
+        }
+        csvContent += '\n';
+
+        // Daily sales trend
+        csvContent += 'DAILY SALES TREND\n';
+        csvContent += 'Date,Sales\n';
+        if (data.dailySales && data.dailySales.length > 0) {
+          data.dailySales.forEach(day => {
+            csvContent += `${formatDate(day.date)},${formatCurrency(day.sales)}\n`;
+          });
+        }
+        break;
+      }
+
+      case 'attendance': {
+        // Summary section
+        csvContent += 'SUMMARY\n';
+        csvContent += 'Metric,Value\n';
+        csvContent += `Total Visitors,${Number(data.totalVisitors || 0).toLocaleString()}\n`;
+        csvContent += `Average Daily Visitors,${Number(data.averageVisitors || 0).toFixed(0)}\n`;
+        csvContent += `Peak Day Visitors,${Number(data.peakDayVisitors || 0).toLocaleString()}\n`;
+        csvContent += '\n';
+
+        // Visitor type breakdown
+        if (data.visitorTypes && data.visitorTypes.length > 0) {
+          csvContent += 'VISITOR TYPE BREAKDOWN\n';
+          csvContent += 'Visitor Type,Count,Percentage\n';
+          data.visitorTypes.forEach(type => {
+            csvContent += `${escapeCSV(type.type)},${Number(type.count || 0).toLocaleString()},${Number(type.percentage || 0).toFixed(1)}%\n`;
+          });
+          csvContent += '\n';
+        }
+
+        // Daily attendance
+        csvContent += 'DAILY ATTENDANCE\n';
+        csvContent += 'Date,Visitors\n';
+        if (data.dailyAttendance && data.dailyAttendance.length > 0) {
+          data.dailyAttendance.forEach(day => {
+            csvContent += `${formatDate(day.date)},${Number(day.visitors || 0).toLocaleString()}\n`;
+          });
+        }
+        break;
+      }
+
+      case 'popular-items': {
+        // Top tickets
+        if (data.topTickets && data.topTickets.length > 0) {
+          csvContent += 'TOP TICKETS\n';
+          csvContent += 'Ticket Type,Quantity Sold,Revenue\n';
+          data.topTickets.forEach(ticket => {
+            csvContent += `${escapeCSV(ticket.name)},${Number(ticket.quantity || 0).toLocaleString()},${formatCurrency(ticket.revenue)}\n`;
+          });
+          csvContent += '\n';
+        }
+
+        // Top gift shop items
+        if (data.topGiftShopItems && data.topGiftShopItems.length > 0) {
+          csvContent += 'TOP GIFT SHOP ITEMS\n';
+          csvContent += 'Item Name,Quantity Sold,Revenue\n';
+          data.topGiftShopItems.forEach(item => {
+            csvContent += `${escapeCSV(item.name)},${Number(item.quantity || 0).toLocaleString()},${formatCurrency(item.revenue)}\n`;
+          });
+          csvContent += '\n';
+        }
+
+        // Top cafeteria items
+        if (data.topCafeteriaItems && data.topCafeteriaItems.length > 0) {
+          csvContent += 'TOP CAFETERIA ITEMS\n';
+          csvContent += 'Item Name,Quantity Sold,Revenue\n';
+          data.topCafeteriaItems.forEach(item => {
+            csvContent += `${escapeCSV(item.name)},${Number(item.quantity || 0).toLocaleString()},${formatCurrency(item.revenue)}\n`;
+          });
+        }
+        break;
+      }
+
+      case 'revenue': {
+        // Summary section
+        csvContent += 'SUMMARY\n';
+        csvContent += 'Metric,Value\n';
+        csvContent += `Total Revenue,${formatCurrency(data.totalRevenue)}\n`;
+        csvContent += '\n';
+
+        // Revenue breakdown by source
+        if (data.breakdown && data.breakdown.length > 0) {
+          csvContent += 'REVENUE BREAKDOWN BY SOURCE\n';
+          csvContent += 'Source,Amount,Percentage\n';
+          data.breakdown.forEach(source => {
+            csvContent += `${escapeCSV(source.source)},${formatCurrency(source.amount)},${Number(source.percentage || 0).toFixed(1)}%\n`;
+          });
+          csvContent += '\n';
+        }
+
+        // Monthly revenue trend
+        if (data.monthlyTrend && data.monthlyTrend.length > 0) {
+          csvContent += 'MONTHLY REVENUE TREND\n';
+          csvContent += 'Month,Revenue\n';
+          data.monthlyTrend.forEach(month => {
+            csvContent += `${escapeCSV(month.month)},${formatCurrency(month.revenue)}\n`;
+          });
+        }
+        break;
+      }
+
+      case 'membership': {
+        // Summary section
+        csvContent += 'SUMMARY\n';
+        csvContent += 'Metric,Value\n';
+        csvContent += `Total Revenue,${formatCurrency(membershipRevenue)}\n`;
+        csvContent += `Total Active Members,${Number(data.totalMembers || 0).toLocaleString()}\n`;
+        csvContent += `New Members (${dateRange.startDate} to ${dateRange.endDate}),${Number(data.newMembersThisMonth || 0).toLocaleString()}\n`;
+        csvContent += `Renewal Rate,${Number(data.renewalRate || 0).toFixed(1)}%\n`;
+        csvContent += '\n';
+
+        // Membership type distribution
+        if (data.membershipTypes && data.membershipTypes.length > 0) {
+          csvContent += 'MEMBERSHIP TYPE DISTRIBUTION\n';
+          csvContent += 'Type,Count,Percentage\n';
+          data.membershipTypes.forEach(type => {
+            csvContent += `${escapeCSV(type.type)},${Number(type.count || 0).toLocaleString()},${Number(type.percentage || 0)}%\n`;
+          });
+          csvContent += '\n';
+        }
+
+        // Monthly growth
+        if (data.monthlyGrowth && data.monthlyGrowth.length > 0) {
+          csvContent += 'MONTHLY NEW VS RENEWALS\n';
+          csvContent += 'Month,New Members,Renewals\n';
+          data.monthlyGrowth.forEach(month => {
+            csvContent += `${escapeCSV(month.month)},${Number(month.new || 0).toLocaleString()},${Number(month.renewals || 0).toLocaleString()}\n`;
+          });
+        }
+        break;
+      }
+
+      default:
+        csvContent += 'Report type not supported for CSV export\n';
+    }
+
+    return csvContent;
   };
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -200,165 +392,85 @@ function AnalystReports() {
       startStr = format(start);
       endStr = end;
     } else if (preset === 'thisMonth') {
-      const first = new Date(now.getFullYear(), now.getMonth(), 1);
-      startStr = format(first);
+      const start = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), 1);
+      startStr = format(start);
       endStr = end;
     } else if (preset === 'lastMonth') {
-      const firstOfThis = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastOfPrev = new Date(firstOfThis - 1);
-      const firstOfPrev = new Date(lastOfPrev.getFullYear(), lastOfPrev.getMonth(), 1);
-      startStr = format(firstOfPrev);
-      endStr = format(lastOfPrev);
+      const start = new Date(endDateObj.getFullYear(), endDateObj.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), 0);
+      startStr = format(start);
+      endStr = format(endOfLastMonth);
     }
 
     setDateRange({ startDate: startStr, endDate: endStr });
   };
 
-  // Helpers for date formatting and aggregation
-  const toDateOnlyString = (value) => {
-    if (!value) return '';
-    if (isYMD(value)) return value;
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return String(value).split('T')[0] || String(value);
-    return toLocalDateString(d);
-  };
-
-  const formatLongDate = (value) => {
-    if (!value) return '';
-    const d = parseLocalDate(value);
-    if (Number.isNaN(d.getTime())) return String(value);
-    return d.toLocaleDateString(undefined, {
-      month: 'short', day: 'numeric', year: 'numeric'
-    });
-  };
-
-  const selectedRangeLabel = `${formatLongDate(dateRange.startDate)} – ${formatLongDate(dateRange.endDate)}`;
-
-  const startOfIsoWeek = (d) => {
-    const date = new Date(d);
-    const day = (date.getDay() + 6) % 7; // Mon=0..Sun=6
-    const start = new Date(date);
-    start.setDate(date.getDate() - day);
-    start.setHours(0, 0, 0, 0);
-    return start;
-  };
-
-  const monthKey = (d) => {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${yyyy}-${mm}`;
-  };
-
-  const aggregateSales = (dailySalesArr, unit) => {
-    if (!Array.isArray(dailySalesArr)) return [];
-    if (unit === 'daily') {
-      return dailySalesArr.map(d => ({ label: toDateOnlyString(d.date), sales: Number(d.sales) || 0 }));
-    }
-    if (unit === 'weekly') {
-      const map = new Map();
-      dailySalesArr.forEach(d => {
-        const dateObj = parseLocalDate(d.date);
-        const wkStart = startOfIsoWeek(dateObj);
-        const key = toDateOnlyString(wkStart);
-        const prev = map.get(key) || 0;
-        map.set(key, prev + (Number(d.sales) || 0));
-      });
-      return Array.from(map.entries())
-        .sort((a, b) => parseLocalDate(a[0]) - parseLocalDate(b[0]))
-        .map(([key, sum]) => ({ label: `Week of ${key}`, sales: sum }));
-    }
-    if (unit === 'monthly') {
-      const map = new Map();
-      dailySalesArr.forEach(d => {
-        const dateObj = parseLocalDate(d.date);
-        const key = monthKey(dateObj);
-        const prev = map.get(key) || 0;
-        map.set(key, prev + (Number(d.sales) || 0));
-      });
-      return Array.from(map.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([key, sum]) => ({ label: key, sales: sum }));
-    }
-    return dailySalesArr.map(d => ({ label: toDateOnlyString(d.date), sales: Number(d.sales) || 0 }));
-  };
-
-  // Count total units in the selected date range for accurate averages
-  const countUnitsInRange = (start, end, unit) => {
-    if (!start || !end) return 1;
-    const s = new Date(start);
-    const e = new Date(end);
-    if (Number.isNaN(s) || Number.isNaN(e) || s > e) return 1;
-    if (unit === 'daily') {
-      const diffDays = Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1;
-      return Math.max(1, diffDays);
-    }
-    if (unit === 'weekly') {
-      const startWeek = startOfIsoWeek(s);
-      const endWeek = startOfIsoWeek(e);
-      const diffWeeks = Math.floor((endWeek - startWeek) / (1000 * 60 * 60 * 24 * 7)) + 1;
-      return Math.max(1, diffWeeks);
-    }
-    if (unit === 'monthly') {
-      const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
-      return Math.max(1, months);
-    }
-    return 1;
-  };
-
   const renderReportContent = () => {
-    if (loading) return <div className="loading">Loading report data...</div>;
-    if (errorMsg) return <div className="loading" style={{ color: '#c62828' }}>{errorMsg}</div>;
-    if (!reportData) return <div className="loading">No data available</div>;
+    if (loading) {
+      return (
+        <div style={{ padding: '3rem', textAlign: 'center', fontSize: '1.1rem', color: '#666' }}>
+          Loading report...
+        </div>
+      );
+    }
+
+    if (errorMsg) {
+      return (
+        <div style={{ padding: '3rem', textAlign: 'center', fontSize: '1.1rem', color: '#d32f2f' }}>
+          {errorMsg}
+        </div>
+      );
+    }
+
+    if (!reportData) {
+      return (
+        <div style={{ padding: '3rem', textAlign: 'center', fontSize: '1.1rem', color: '#666' }}>
+          No data available
+        </div>
+      );
+    }
+
+    const selectedRangeLabel = `${dateRange.startDate} – ${dateRange.endDate}`;
 
     switch (activeReport) {
-      // Sales Analysis
       case 'sales': {
-        // Normalize backend data: ensure date-only strings and numeric values
+        const totalSales = Number(reportData.totalSales || 0);
+        const transactionCount = Number(reportData.transactionCount || 0);
+        const averageOrderValue = Number(reportData.averageOrderValue || 0);
+        const categorySales = (reportData.categorySales || []).map(c => ({
+          category: c.category,
+          value: Number(c.value) || 0,
+        }));
+        const totalCatSales = categorySales.reduce((sum, c) => sum + c.value, 0);
+
         const dailySales = (reportData.dailySales || []).map(d => ({
-          date: (d.date || '').toString().split('T')[0],
+          date: d.date,
           sales: Number(d.sales) || 0,
         }));
-        const categorySales = (reportData.categorySales || [])
-          .filter(c => ['Tickets', 'Gift Shop', 'Cafeteria'].includes(c.category))
-          .map(c => ({ category: c.category, value: Number(c.value) || 0 }));
-        const totalSalesNum = Number(reportData.totalSales || 0);
-        const totalSalesFmt = totalSalesNum.toLocaleString();
-        // Aggregate series by granularity and compute average per selected unit
-  const series = aggregateSales(dailySales, granularity);
-  // Avg should follow the selected date range only (independent of granularity): use daily units
-  const dailyUnits = countUnitsInRange(dateRange.startDate, dateRange.endDate, 'daily');
-  const avgPerUnit = totalSalesNum / dailyUnits;
-  const unitLabel = granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly';
-
-        // Prepare a compact category split
-        const categoriesCompact = ['Tickets', 'Gift Shop', 'Cafeteria'].map(cat => {
-          const match = categorySales.find(c => c.category === cat);
-          return { label: cat, value: match ? match.value : 0 };
-        });
-  // Categories available for transaction listing (exclude Memberships)
-  const categoriesForTransactions = ['Tickets', 'Gift Shop', 'Cafeteria'];
 
         return (
           <div className="report-content">
             <div className="metrics-row">
               <div className="metric-card">
                 <div className="metric-label">Total Sales</div>
-                <div style={{ fontSize: 12, opacity: 0.9, marginBottom  : 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">${totalSalesFmt}</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
+                <div className="metric-value">${totalSales.toLocaleString()}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-label">Average Sales</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">${avgPerUnit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                <div className="metric-value">${averageOrderValue.toFixed(2)}</div>
               </div>
-              <div className="metric-card">
+              <div className="metric-card category-split-card">
                 <div className="metric-label">Category Split</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div>
-                  {categoriesCompact.map((c) => (
-                    <div key={c.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>{c.label}</span>
-                      <strong>${c.value.toLocaleString()}</strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {categorySales.map((cat, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                      <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => openTransactionsModal(cat.category)}>
+                        {cat.category}
+                      </span>
+                      <span style={{ fontWeight: 'bold' }}>${cat.value.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -366,8 +478,8 @@ function AnalystReports() {
             </div>
 
             <div className="chart-section">
-              <h3>{unitLabel} Sales Trend</h3>
-              <div className="granularity-toggle">
+              <h3>Daily Sales Trend</h3>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                 <button
                   className={`toggle-btn ${granularity === 'daily' ? 'active' : ''}`}
                   onClick={() => setGranularity('daily')}
@@ -388,198 +500,32 @@ function AnalystReports() {
                 </button>
               </div>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={series}>
+                <BarChart data={dailySales}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" />
+                  <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="sales" fill="#8884d8" />
+                  <Bar dataKey="sales" fill="#8884D8" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-
-            <div className="chart-section">
-              <h3>Sales by Category</h3>
-              <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categorySales}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={(entry) => `${entry.category}: $${(entry.value || 0).toLocaleString()}`}
-                    outerRadius={90}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categorySales.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(val) => `$${Number(val || 0).toLocaleString()}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-              <div className="chart-section">
-                <h3>Transactions by Category</h3>
-                <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                  {categoriesForTransactions.map((cat) => (
-                    <div key={cat} className="metric-card" style={{ alignItems: 'stretch' }}>
-                      <div className="metric-label">{cat}</div>
-                      <button className="toggle-btn" onClick={() => openTransactionsModal(cat)}>
-                        View transactions
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {txModalOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '24px' }}>
-                  <div style={{ background: '#fff', width: 'min(840px, 90vw)', maxHeight: 'calc(100vh - 48px)', overflow: 'auto', borderRadius: 10, padding: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.25)' }}>
-                    {!txDetailView ? (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <h3 style={{ margin: 0 }}>{txCategory || 'Transactions'}</h3>
-                          <button className="toggle-btn" onClick={() => { setTxModalOpen(false); setTxList([]); setSelectedTxDetail(null); setTxDetailView(false); }}>Close</button>
-                        </div>
-                        <div className="text-sm" style={{ color: '#555', marginBottom: 10 }}>{selectedRangeLabel}</div>
-                        {txError && <div className="loading">{txError}</div>}
-                        {txLoading ? (
-                          <div className="loading">Loading transactions...</div>
-                        ) : (
-                          <div style={{ overflowX: 'auto' }}>
-                            <table className="report-table" style={{ width: '100%' }}>
-                              <thead>
-                                <tr>
-                                  <th>ID</th>
-                                  <th>Date</th>
-                                  <th>Total</th>
-                                  <th style={{ textAlign: 'right' }}>Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {txList.length === 0 ? (
-                                  <tr><td colSpan={4} style={{ textAlign: 'center' }}>No transactions</td></tr>
-                                ) : txList.map((t) => (
-                                  <tr key={t.id}>
-                                    <td>{t.id}</td>
-                                    <td>{formatLongDate(t.date)}</td>
-                                    <td>${Number(t.total || 0).toLocaleString()}</td>
-                                    <td style={{ textAlign: 'right' }}>
-                                      <button className="toggle-btn" onClick={() => viewTransactionDetail(t.id)}>View details</button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <button className="toggle-btn" onClick={backToTransactionList}>← Back to list</button>
-                          <button className="toggle-btn" onClick={() => { setTxModalOpen(false); setTxList([]); setSelectedTxDetail(null); setTxDetailView(false); }}>Close</button>
-                        </div>
-                        {txDetailLoading ? (
-                          <div className="loading">Loading details...</div>
-                        ) : selectedTxDetail ? (
-                          <div style={{ padding: 12 }}>
-                            <div style={{ marginBottom: 16 }}>
-                              <h3 style={{ margin: '0 0 8px' }}>Transaction #{selectedTxDetail.transaction?.id}</h3>
-                              <div style={{ fontSize: 14, color: '#666' }}>
-                                <span>{formatLongDate(selectedTxDetail.transaction?.date)}</span>
-                                <span style={{ marginLeft: 16 }}>Status: <strong>{selectedTxDetail.transaction?.status}</strong></span>
-                              </div>
-                            </div>
-
-                            {txError && <div className="loading">{txError}</div>}
-
-                            <table className="report-table" style={{ fontSize: 13 }}>
-                              <thead>
-                                <tr>
-                                  <th>Category</th>
-                                  <th>Item</th>
-                                  <th style={{ textAlign: 'right' }}>Qty</th>
-                                  <th style={{ textAlign: 'right' }}>Line Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedTxDetail.items?.tickets?.map((item, idx) => (
-                                  <tr key={`tk-${idx}`}>
-                                    <td>Ticket</td>
-                                    <td>{item.name}</td>
-                                    <td style={{ textAlign: 'right' }}>{item.quantity}</td>
-                                    <td style={{ textAlign: 'right' }}>${Number(item.line_total || 0).toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                                {selectedTxDetail.items?.giftShop?.map((item, idx) => (
-                                  <tr key={`gs-${idx}`}>
-                                    <td>Gift Shop</td>
-                                    <td>{item.name}</td>
-                                    <td style={{ textAlign: 'right' }}>{item.quantity}</td>
-                                    <td style={{ textAlign: 'right' }}>${Number(item.line_total || 0).toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                                {selectedTxDetail.items?.cafeteria?.map((item, idx) => (
-                                  <tr key={`cf-${idx}`}>
-                                    <td>Cafeteria</td>
-                                    <td>{item.name}</td>
-                                    <td style={{ textAlign: 'right' }}>{item.quantity}</td>
-                                    <td style={{ textAlign: 'right' }}>${Number(item.line_total || 0).toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                                {selectedTxDetail.items?.memberships?.map((item, idx) => (
-                                  <tr key={`mb-${idx}`}>
-                                    <td>Membership</td>
-                                    <td>Membership #{item.membership_id} ({item.is_renewal ? 'Renewal' : 'New'})</td>
-                                    <td style={{ textAlign: 'right' }}>1</td>
-                                    <td style={{ textAlign: 'right' }}>—</td>
-                                  </tr>
-                                ))}
-                                {(!selectedTxDetail.items?.tickets?.length && 
-                                  !selectedTxDetail.items?.giftShop?.length && 
-                                  !selectedTxDetail.items?.cafeteria?.length && 
-                                  !selectedTxDetail.items?.memberships?.length) && (
-                                  <tr>
-                                    <td colSpan={4} style={{ textAlign: 'center', color: '#999' }}>No items found</td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
-
-                            <div style={{ marginTop: 16, textAlign: 'right', fontSize: 16, fontWeight: 'bold' }}>
-                              Total: ${Number(selectedTxDetail.transaction?.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="loading">No details available</div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
           </div>
         );
       }
 
-      case 'attendance':
-        // Normalize and aggregate attendance data with selectable granularity
-        const dailyAttendanceRaw = (reportData.dailyAttendance || []).map(d => ({
-          date: (d.date || '').toString().split('T')[0],
-          sales: Number(d.visitors) || 0, // reuse aggregateSales by mapping visitors->sales
+      case 'attendance': {
+        const totalVisitors = Number(reportData.totalVisitors || 0);
+        const averageVisitors = Number(reportData.averageVisitors || 0);
+        const peakDayVisitors = Number(reportData.peakDayVisitors || 0);
+        const visitorTypes = (reportData.visitorTypes || []).map(v => ({
+          type: v.type,
+          count: Number(v.count) || 0,
+          percentage: Number(v.percentage) || 0,
         }));
-        const attSeries = aggregateSales(dailyAttendanceRaw, granularity);
-        const attUnitLabel = granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly';
-        const ticketTypeData = (reportData.ticketTypeBreakdown || []).map(x => ({
-          type: x.type,
-          visitors: Number(x.visitors) || 0,
+        const dailyAttendance = (reportData.dailyAttendance || []).map(d => ({
+          date: d.date,
+          visitors: Number(d.visitors) || 0,
         }));
 
         return (
@@ -588,164 +534,138 @@ function AnalystReports() {
               <div className="metric-card">
                 <div className="metric-label">Total Visitors</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">{Number(reportData.totalVisitors || 0).toLocaleString()}</div>
+                <div className="metric-value">{totalVisitors.toLocaleString()}</div>
               </div>
               <div className="metric-card">
-                <div className="metric-label">Daily Average</div>
+                <div className="metric-label">Average Daily Visitors</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">{Number(reportData.averageDailyVisitors || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="metric-value">{averageVisitors.toFixed(0)}</div>
               </div>
               <div className="metric-card">
-                <div className="metric-label">Average Group Size</div>
+                <div className="metric-label">Peak Day Visitors</div>
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
-                <div className="metric-value">{Math.round(Number(reportData.averageGroupSize || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="metric-value">{peakDayVisitors.toLocaleString()}</div>
               </div>
-            </div>
-
-            <div className="granularity-toggle" style={{ display: 'flex', gap: 10, margin: '15px 0' }}>
-              <button
-                className={`toggle-btn ${granularity === 'daily' ? 'active' : ''}`}
-                onClick={() => setGranularity('daily')}
-              >
-                Daily
-              </button>
-              <button
-                className={`toggle-btn ${granularity === 'weekly' ? 'active' : ''}`}
-                onClick={() => setGranularity('weekly')}
-              >
-                Weekly
-              </button>
-              <button
-                className={`toggle-btn ${granularity === 'monthly' ? 'active' : ''}`}
-                onClick={() => setGranularity('monthly')}
-              >
-                Monthly
-              </button>
             </div>
 
             <div className="chart-section">
-              <h3>{attUnitLabel} Attendance</h3>
-              <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
+              <h3>Visitor Type Breakdown</h3>
+              {visitorTypes.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={visitorTypes}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      dataKey="count"
+                      label={({ payload }) => `${payload?.type ?? ''}: ${Number(payload?.count ?? 0).toLocaleString()} (${Number(payload?.percentage ?? 0).toFixed(1)}%)`}
+                    >
+                      {visitorTypes.map((entry, index) => (
+                        <Cell key={`vt-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val, name, props) => [Number(val || 0).toLocaleString(), props?.payload?.type]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>No visitor type data available</div>
+              )}
+            </div>
+
+            <div className="chart-section">
+              <h3>Daily Attendance</h3>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={attSeries}>
+                <LineChart data={dailyAttendance}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" />
+                  <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="sales" name="Visitors" stroke="#8884d8" />
+                  <Line type="monotone" dataKey="visitors" stroke="#00C49F" />
                 </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+
+      case 'popular-items': {
+        const topTickets = (reportData.topTickets || []).map(t => ({
+          name: t.name,
+          quantity: Number(t.quantity) || 0,
+          revenue: Number(t.revenue) || 0,
+        }));
+        const topGiftShopItems = (reportData.topGiftShopItems || []).map(g => ({
+          name: g.name,
+          quantity: Number(g.quantity) || 0,
+          revenue: Number(g.revenue) || 0,
+        }));
+        const topCafeteriaItems = (reportData.topCafeteriaItems || []).map(c => ({
+          name: c.name,
+          quantity: Number(c.quantity) || 0,
+          revenue: Number(c.revenue) || 0,
+        }));
+
+        return (
+          <div className="report-content">
+            <div className="chart-section">
+              <h3>Top Tickets</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={topTickets} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={150} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#0088FE" name="Revenue" />
+                </BarChart>
               </ResponsiveContainer>
             </div>
 
             <div className="chart-section">
-              <h3>Ticket Type Breakdown</h3>
-              <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
-              {ticketTypeData.length === 0 ? (
-                <div className="no-items">No ticket data to display</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={320}>
-                  <PieChart>
-                    <Pie
-                      data={ticketTypeData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={110}
-                      dataKey="visitors"
-                      nameKey="type"
-                      label={(e) => `${e.type}: ${Number(e.visitors || 0).toLocaleString()}`}
-                    >
-                      {ticketTypeData.map((entry, index) => (
-                        <Cell key={`tt-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(val, name, props) => [Number(val || 0).toLocaleString(), props?.payload?.type]} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
+              <h3>Top Gift Shop Items</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={topGiftShopItems} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={150} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#00C49F" name="Revenue" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="chart-section">
+              <h3>Top Cafeteria Items</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={topCafeteriaItems} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={150} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#FFBB28" name="Revenue" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         );
-
-      case 'popular-items':
-        {
-          const giftShop = Array.isArray(reportData.giftShop) ? reportData.giftShop : [];
-          const cafeteria = Array.isArray(reportData.cafeteria) ? reportData.cafeteria : [];
-          return (
-            <div className="report-content">
-
-              <div className="items-section">
-                <h3>Top Gift Shop Items</h3>
-                {giftShop.length === 0 ? (
-                  <div className="no-items">No items to display</div>
-                ) : (
-                  <table className="report-table">
-                    <thead>
-                      <tr>
-                        <th>Item Name</th>
-                        <th>Units Sold</th>
-                        <th>Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {giftShop.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.name}</td>
-                          <td>{Number(item.sales || 0).toLocaleString()}</td>
-                          <td>${Number(item.revenue || 0).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-              <div className="items-section">
-                <h3>Top Cafeteria Items</h3>
-                {cafeteria.length === 0 ? (
-                  <div className="no-items">No items to display</div>
-                ) : (
-                  <table className="report-table">
-                    <thead>
-                      <tr>
-                        <th>Item Name</th>
-                        <th>Units Sold</th>
-                        <th>Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cafeteria.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.name}</td>
-                          <td>{Number(item.sales || 0).toLocaleString()}</td>
-                          <td>${Number(item.revenue || 0).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          );
-        }
+      }
 
       case 'revenue': {
         const totalRevenue = Number(reportData.totalRevenue || 0);
-        const monthlyGrowth = Number(reportData.monthlyGrowth || 0);
-        // Defensive: ensure breakdown is a valid array of objects with source and amount
-        let breakdown = Array.isArray(reportData.breakdown) ? reportData.breakdown : [];
-        breakdown = breakdown
-          .map(b => ({
-            source: b?.source ?? '',
-            amount: Number(b?.amount) || 0,
-            percentage: Number(b?.percentage) || 0,
-          }))
-          .filter(b => b.source && !isNaN(b.amount));
+        const breakdown = (reportData.breakdown || []).map(b => ({
+          source: b.source,
+          amount: Number(b.amount) || 0,
+          percentage: Number(b.percentage) || 0,
+        }));
         const monthlyTrend = (reportData.monthlyTrend || []).map(m => ({
           month: m.month,
           revenue: Number(m.revenue) || 0,
         }));
+
         return (
           <div className="report-content">
             <div className="metrics-row">
@@ -754,35 +674,30 @@ function AnalystReports() {
                 <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
                 <div className="metric-value">${totalRevenue.toLocaleString()}</div>
               </div>
-              <div className="metric-card">
-                <div className="metric-label">Monthly Growth</div>
-                <div className="metric-value">{monthlyGrowth.toLocaleString(undefined, { maximumFractionDigits: 1 })}%</div>
-              </div>
             </div>
 
             <div className="chart-section">
-              <h3>Revenue Breakdown</h3>
-              {breakdown.length === 0 ? (
-                <div className="no-items">No revenue breakdown data to display</div>
-              ) : (
+              <h3>Revenue Breakdown by Source</h3>
+              {breakdown.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
                       data={breakdown}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      label={(e) => `${e.source}: $${e.amount.toLocaleString()} (${e.percentage}%)`}
                       outerRadius={100}
                       dataKey="amount"
+                      label={({ payload }) => `${payload?.source ?? ''}: $${Number(payload?.amount ?? 0).toLocaleString()} (${Number(payload?.percentage ?? 0)}%)`}
                     >
                       {breakdown.map((entry, index) => (
-                        <Cell key={`rbd-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`rb-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(val, name, props) => [`$${Number(val || 0).toLocaleString()}`, props.payload.source]} />
+                    <Tooltip formatter={(val, name, props) => [`$${Number(val || 0).toLocaleString()}`, props?.payload?.source]} />
                   </PieChart>
                 </ResponsiveContainer>
+              ) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>No breakdown data available</div>
               )}
             </div>
 
@@ -972,6 +887,94 @@ function AnalystReports() {
           {renderReportContent()}
         </div>
       </div>
+
+      {/* Transaction Modal */}
+      {txModalOpen && (
+        <div className="modal-overlay" onClick={() => setTxModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{txDetailView ? 'Transaction Detail' : `${txCategory} Transactions`}</h2>
+              <button className="modal-close" onClick={() => setTxModalOpen(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {txError && <div style={{ color: '#d32f2f', marginBottom: 16 }}>{txError}</div>}
+              {txDetailView ? (
+                txDetailLoading ? (
+                  <div>Loading...</div>
+                ) : selectedTxDetail ? (
+                  <div>
+                    <button onClick={backToTransactionList} style={{ marginBottom: 16 }}>← Back to list</button>
+                    <div><strong>Transaction ID:</strong> {selectedTxDetail.id}</div>
+                    <div><strong>Date:</strong> {new Date(selectedTxDetail.date).toLocaleString()}</div>
+                    <div><strong>Total:</strong> ${Number(selectedTxDetail.total).toFixed(2)}</div>
+                    <div><strong>Status:</strong> {selectedTxDetail.status}</div>
+                    <h3 style={{ marginTop: 16 }}>Line Items</h3>
+                    {selectedTxDetail.items && selectedTxDetail.items.length > 0 ? (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #ccc' }}>
+                            <th style={{ padding: 8, textAlign: 'left' }}>Name</th>
+                            <th style={{ padding: 8, textAlign: 'right' }}>Quantity</th>
+                            <th style={{ padding: 8, textAlign: 'right' }}>Line Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedTxDetail.items.map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                              <td style={{ padding: 8 }}>{item.name}</td>
+                              <td style={{ padding: 8, textAlign: 'right' }}>{item.quantity}</td>
+                              <td style={{ padding: 8, textAlign: 'right' }}>${Number(item.line_total || 0).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div>No line items</div>
+                    )}
+                  </div>
+                ) : (
+                  <div>No detail available</div>
+                )
+              ) : (
+                txLoading ? (
+                  <div>Loading...</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #ccc' }}>
+                        <th style={{ padding: 8, textAlign: 'left' }}>Transaction ID</th>
+                        <th style={{ padding: 8, textAlign: 'left' }}>Date</th>
+                        <th style={{ padding: 8, textAlign: 'right' }}>Total</th>
+                        <th style={{ padding: 8 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {txList.length > 0 ? (
+                        txList.map((tx) => (
+                          <tr key={tx.id} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: 8 }}>{tx.id}</td>
+                            <td style={{ padding: 8 }}>{new Date(tx.date).toLocaleString()}</td>
+                            <td style={{ padding: 8, textAlign: 'right' }}>${Number(tx.total).toFixed(2)}</td>
+                            <td style={{ padding: 8 }}>
+                              <button onClick={() => viewTransactionDetail(tx.id)}>View Details</button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="4" style={{ padding: 16, textAlign: 'center', color: '#999' }}>
+                            No transactions found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
