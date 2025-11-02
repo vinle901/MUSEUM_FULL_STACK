@@ -59,6 +59,7 @@ function AnalystReports() {
     { id: 'popular-items', label: 'Popular Items', icon: FaChartBar },
     { id: 'revenue', label: 'Revenue Breakdown', icon: FaChartBar },
     { id: 'membership', label: 'Membership Analytics', icon: FaChartBar },
+    { id: 'donations', label: 'Donation Analytics', icon: FaChartBar },
   ];
 
   useEffect(() => {
@@ -357,6 +358,33 @@ function AnalystReports() {
         }
         break;
       }
+      case 'donations': {
+        csvContent += 'SUMMARY\n';
+        csvContent += 'Metric,Value\n';
+        csvContent += `Total Donations,${formatCurrency(data.totalSales)}\n`;
+        csvContent += `Donation Count,${data.transactionCount || 0}\n`;
+        csvContent += `Average Donation,${formatCurrency(data.averageOrderValue)}\n`;
+        csvContent += `Anonymous Donations,${data.anonymousCount || 0}\n`;
+        csvContent += '\n';
+
+        csvContent += 'DONATIONS BY TYPE\n';
+        csvContent += 'Type,Amount\n';
+        if (data.categorySales && data.categorySales.length > 0) {
+          data.categorySales.forEach(cat => {
+            csvContent += `${escapeCSV(cat.category)},${formatCurrency(cat.value)}\n`;
+          });
+        }
+        csvContent += '\n';
+
+        csvContent += 'DAILY DONATIONS TREND\n';
+        csvContent += 'Date,Donations\n';
+        if (data.dailySales && data.dailySales.length > 0) {
+          data.dailySales.forEach(day => {
+            csvContent += `${formatDate(day.date)},${formatCurrency(day.sales)}\n`;
+          });
+        }
+        break;
+      }
 
       default:
         csvContent += 'Report type not supported for CSV export\n';
@@ -635,6 +663,117 @@ function AnalystReports() {
                   <Tooltip formatter={(val) => `$${Number(val || 0).toLocaleString()}`} />
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      }
+      case 'donations': {
+        // Ensure date only string and number values
+        const dailySales = (reportData.dailySales || []).map(d => ({
+          date: (d.date || '').toString().split('T')[0],
+          sales: Number(d.sales) || 0,
+        }));
+        const categorySales = (reportData.categorySales || []).map(c => ({ 
+          category: c.category, 
+          value: Number(c.value) || 0 
+        }));
+        const totalSalesNum = Number(reportData.totalSales || 0);
+        const totalSalesFmt = totalSalesNum.toLocaleString();
+        const anonymousCount = Number(reportData.anonymousCount || 0);
+        const totalCount = Number(reportData.transactionCount || 0);
+        const anonymousPercentage = totalCount > 0 ? ((anonymousCount / totalCount) * 100).toFixed(1) : 0;
+        
+        // Agregate series by granularity
+        const series = aggregateSales(dailySales, granularity);
+        const dailyUnits = countUnitsInRange(dateRange.startDate, dateRange.endDate, 'daily');
+        const avgPerUnit = totalSalesNum / dailyUnits;
+        const unitLabel = granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly';
+
+        return (
+          <div className="report-content">
+            <div className="metrics-row">
+              <div className="metric-card">
+                <div className="metric-label">Total Donations</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
+                <div className="metric-value">${totalSalesFmt}</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-label">Number of Donations</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
+                <div className="metric-value">{totalCount.toLocaleString()}</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-label">Average Donation</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
+                <div className="metric-value">${avgPerUnit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-label">Anonymous Donations</div>
+                <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>{selectedRangeLabel}</div>
+                <div className="metric-value">{anonymousCount} ({anonymousPercentage}%)</div>
+              </div>
+            </div>
+
+            <div className="chart-section">
+              <h3>{unitLabel} Donations Trend</h3>
+              <div className="granularity-toggle">
+                <button
+                  className={`toggle-btn ${granularity === 'daily' ? 'active' : ''}`}
+                  onClick={() => setGranularity('daily')}
+                >
+                  Daily
+                </button>
+                <button
+                  className={`toggle-btn ${granularity === 'weekly' ? 'active' : ''}`}
+                  onClick={() => setGranularity('weekly')}
+                >
+                  Weekly
+                </button>
+                <button
+                  className={`toggle-btn ${granularity === 'monthly' ? 'active' : ''}`}
+                  onClick={() => setGranularity('monthly')}
+                >
+                  Monthly
+                </button>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={series}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" />
+                  <YAxis />
+                  <Tooltip formatter={(val) => `$${Number(val || 0).toLocaleString()}`} />
+                  <Legend />
+                  <Bar dataKey="sales" name="Donations" fill="#00C49F" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="chart-section">
+              <h3>Donations by Type</h3>
+              <div className="text-sm" style={{ color: '#555', marginTop: -10, marginBottom: 10 }}>{selectedRangeLabel}</div>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categorySales}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(entry) => `${entry.category}: $${(entry.value || 0).toLocaleString()}`}
+                    outerRadius={90}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categorySales.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(val) => `$${Number(val || 0).toLocaleString()}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div style={{ fontSize: 12, color: '#666', fontStyle: 'italic', marginTop: 16 }}>
+              Click on donation types in the Category Split card above to view individual transactions.
             </div>
           </div>
         );
