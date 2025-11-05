@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/uploads/(.*)", "destination": "https://caricaturable-ira-unputtied.ngrok-free.dev/uploads/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
