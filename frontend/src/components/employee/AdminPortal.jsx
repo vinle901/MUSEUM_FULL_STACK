@@ -1809,7 +1809,7 @@ function AdminPortal() {
                   <td>{item.exhibition_type}</td>
                   <td>{item.location}</td>
                   <td>{new Date(item.start_date).toLocaleDateString()}</td>
-                  <td>{new Date(item.end_date).toLocaleDateString()}</td>
+                  <td>{item.end_date ? new Date(item.end_date).toLocaleDateString() : 'No End Date'}</td>
                   <td>{item.is_active ? 'Yes' : 'No'}</td>
                   <td>
                     <button onClick={() => handleEdit(item)} className="edit-btn">
