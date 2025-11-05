@@ -2,7 +2,7 @@
  * Image utility functions for handling backend image URLs
  */
 
-const BACKEND_URL = 'https://backend-a6hl.onrender.com'
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 /**
  * Get full image URL from relative path
