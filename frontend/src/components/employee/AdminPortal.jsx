@@ -6,6 +6,7 @@ import api from '../../services/api';
 import './EmployeePortal.css';
 import NotificationBell from './NotificationBell';
 
+
 function AdminPortal() {
   // ---------- core state ----------
   const [activeTab, setActiveTab] = useState('employees');
@@ -17,6 +18,27 @@ function AdminPortal() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [artists, setArtists] = useState([]);
   const [exhibitions, setExhibitions] = useState([]);
+  const [showTempPw, setShowTempPw] = useState(false);
+  const [pay, setPay] = useState({
+    cardNumber: '',
+    expMonth: '',
+    expYear: '',
+    cvc: '',
+  });
+  // Utility: generate a secure random temporary password
+const generateTempPassword = () => {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '!@#$%^&*';
+  const all = upper + lower + digits + symbols;
+
+  let password = '';
+  for (let i = 0; i < 10; i++) {
+    password += all.charAt(Math.floor(Math.random() * all.length));
+  }
+  return password;
+};
 
   // password modal
   const [selectedImageFile, setSelectedImageFile] = useState(null);
@@ -29,9 +51,238 @@ function AdminPortal() {
   // membership sign-ups report specific
   const todayISO = new Date().toISOString().slice(0, 10);
   const twoWeeksAgoISO = new Date(Date.now() - 13 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const [startDate, setStartDate] = useState(twoWeeksAgoISO);
-  const [endDate, setEndDate] = useState(todayISO);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [memberSummary, setMemberSummary] = useState({ signupCount: 0, totalAmount: 0 });
+  const [activeFilter, setActiveFilter] = useState('all');
+  // --- New Member modal (create) ---
+  const [showCreateMember, setShowCreateMember] = useState(false);
+  const PLAN_PRICES = { Individual: 70, Dual: 95, Family: 115, Patron: 200 };
+
+  const oneYearFrom = (iso) => {
+    const d = new Date(iso);
+    const exp = new Date(d);
+    exp.setFullYear(exp.getFullYear() + 1);
+    return exp.toISOString().slice(0, 10);
+  };
+  
+  const [newMember, setNewMember] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_number: '',
+    subscribe_to_newsletter: false,
+    membership_type: 'Individual',
+    start_date: todayISO,
+    expiration_date: oneYearFrom(todayISO),
+    quantity: 1,
+    is_active: true,
+    birthdate: '',     // "YYYY-MM-DD"
+    sex: '',
+  });
+  const [pw, setPw] = useState({
+    value: '',
+    confirm: '',
+    show: false,
+  });
+  const newMemberTotal = useMemo(() => {
+    const price = PLAN_PRICES[newMember.membership_type] || 0;
+    const qty = Number(newMember.quantity || 0);
+    return price * qty;
+  }, [newMember.membership_type, newMember.quantity]);
+
+  const openCreateMember = () => {
+    const start = todayISO;
+    setNewMember({
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone_number: '',
+      subscribe_to_newsletter: false,
+      membership_type: 'Individual',
+      start_date: start,
+      expiration_date: oneYearFrom(start),
+      quantity: 1,
+      is_active: true,
+    });
+    setPay({ cardNumber: '', expMonth: '', expYear: '', cvc: '' });
+    setShowCreateMember(true);
+  };
+
+  const toISO = (v) => {
+  if (!v) return null;
+  if (v instanceof Date) return v.toISOString().slice(0,10);
+  const m = String(v).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  return m ? `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}` : String(v).slice(0,10);
+};
+
+const handleCreateMember = async () => {
+  try {
+    const qty = Math.max(1, Number(newMember.quantity || 1));
+    const generatedTempPw = generateTempPassword();
+    const wantsPayment = !!(pay.cardNumber && pay.expMonth && pay.expYear && pay.cvc);
+
+    // client-side checks
+    if (!newMember.email) throw new Error('Email is required.');
+    if (!newMember.first_name || !newMember.last_name) throw new Error('First/last name required.');
+    if (!newMember.birthdate) throw new Error('Birthdate is required.');
+    if (pw.value && pw.value !== pw.confirm) throw new Error('Passwords do not match.');
+
+    const birthdateISO = toISO(newMember.birthdate);
+    const startISO     = toISO(newMember.start_date);
+    const endISO       = toISO(newMember.expiration_date);
+    const chosenPassword = pw.value || generatedTempPw;
+
+    if (wantsPayment) {
+      await api.post('/api/reports/membership-signups/checkout', {   // NOTE: no leading /api
+        users: {
+          first_name: newMember.first_name,
+          last_name: newMember.last_name,
+          email: newMember.email.trim().toLowerCase(),
+          phone_number: newMember.phone_number || null,
+          subscribe_to_newsletter: !!newMember.subscribe_to_newsletter,
+          temp_password: chosenPassword,
+          birthdate: birthdateISO,      // normalized
+          sex: newMember.sex || null,
+        },
+        membership: {
+          membership_type: newMember.membership_type,
+          start_date: startISO,         // normalized
+          expiration_date: endISO,      // normalized
+          quantity: qty,
+        },
+        payment: {
+          amount: newMemberTotal, // server will revalidate anyway
+          cardNumber: pay.cardNumber.replace(/\s+/g, ''),
+          expMonth: pay.expMonth,
+          expYear: pay.expYear,
+          cvc: pay.cvc,
+        },
+      });
+    } else {
+      for (let i = 0; i < qty; i++) {
+        await api.post('/api/reports/membership-signups/member', {   // NOTE: no leading /api
+          first_name: newMember.first_name,
+          last_name: newMember.last_name,
+          email: newMember.email.trim().toLowerCase(),
+          phone_number: newMember.phone_number || null,
+          subscribe_to_newsletter: !!newMember.subscribe_to_newsletter,
+          membership_type: newMember.membership_type,
+          start_date: startISO,           // normalized
+          expiration_date: endISO,        // normalized
+          temp_password: chosenPassword,
+          birthdate: birthdateISO,        // normalized
+          sex: newMember.sex || null,
+        });
+      }
+    }
+
+    // show temp password and reset
+    setNewPassword(chosenPassword);  
+    setConfirmPassword('');
+    setShowPasswordModal(true);
+    await fetchItems();
+    alert('Member(s) created successfully');
+  } catch (err) {
+    console.error('Create member failed:', err);
+    // bubble up exact backend message if available
+    alert(err?.response?.data?.error || err.message || 'Failed to create member(s)');
+  }
+};
+
+
+  // ---- Member edit modal state ----
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [memberForm, setMemberForm] = useState({
+    membership_id: null,
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_number: '',
+    subscribe_to_newsletter: false,
+    membership_type: '',
+    start_date: '',
+    expiration_date: '',
+    is_active: true,
+    charge_amount: '',
+    card_number: '',
+    card_exp_month: '',
+    card_exp_year: '',
+    card_cvc: '',
+  });
+
+  const openMemberModal = (r) => {
+    setMemberForm({
+      membership_id: r.primary_membership_id,
+      first_name: r.first_name || '',
+      last_name: r.last_name || '',
+      email: r.email || '',
+      phone_number: (r.phone_number && r.phone_number !== '—') ? r.phone_number : '',
+      subscribe_to_newsletter: !!r.subscribe_to_newsletter,
+      membership_type: r.membership_type || '',
+      start_date: '', // unknown in list; admin can set if they want
+      expiration_date: r.expiration_date ? r.expiration_date.slice(0,10) : '',
+      is_active: !!r.is_active,
+
+      charge_amount: '',
+      card_number: '',
+      card_exp_month: '',
+      card_exp_year: '',
+      card_cvc: '',
+    });
+    setShowMemberModal(true);
+  };
+
+  const closeMemberModal = () => {
+    setShowMemberModal(false);
+    setMemberForm((f) => ({ ...f, charge_amount: '', card_number: '', card_exp_month: '', card_exp_year: '', card_cvc: '' }));
+  };
+
+  const handleMemberField = (field, value) => {
+    setMemberForm((f) => ({ ...f, [field]: value }));
+  };
+
+  const submitMemberUpdate = async () => {
+    try {
+      // 1) Update user + membership
+      await api.put(`/api/reports/membership-signups/member/${memberForm.membership_id}`, {
+        first_name: memberForm.first_name,
+        last_name: memberForm.last_name,
+        email: memberForm.email,
+        phone_number: memberForm.phone_number,
+        subscribe_to_newsletter: !!memberForm.subscribe_to_newsletter,
+        membership_type: memberForm.membership_type,
+        start_date: memberForm.start_date || null,
+        expiration_date: memberForm.expiration_date || null,
+        is_active: !!memberForm.is_active,
+      });
+
+      // 2) Optional payment (only if an amount is entered)
+      const amt = parseFloat(memberForm.charge_amount || '0');
+      if (amt > 0) {
+        await api.post('/api/payments/charge', {
+          membership_id: memberForm.membership_id,
+          amount: Math.round(amt * 100), // cents
+          card: {
+            number: memberForm.card_number,
+            exp_month: memberForm.card_exp_month,
+            exp_year: memberForm.card_exp_year,
+            cvc: memberForm.card_cvc,
+          },
+          reason: 'Membership update charge',
+        });
+        alert('Member updated and payment processed.');
+      } else {
+        alert('Member updated.');
+      }
+
+      closeMemberModal();
+      await fetchItems();
+    } catch (err) {
+      console.error('Member update error:', err);
+      alert(err.response?.data?.error || err.message || 'Failed to update member');
+    }
+  };
 
   const tabs = [
     // Core data - needed by other entities
@@ -49,7 +300,7 @@ function AdminPortal() {
     { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
 
     // Reports (read-only)
-    { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
+    { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups' },
   ];
 
   useEffect(() => {
@@ -118,66 +369,128 @@ function AdminPortal() {
       setLoading(false);
     }
   };
-
+  const joinTimes = (dates) => {
+  // dates: array of JS Date objects (same day)
+    const times = dates
+      .sort((a, b) => a - b)
+      .map(d => d.toLocaleTimeString()); // keep your current locale format
+    if (times.length <= 1) return times[0] || '';
+    if (times.length === 2) return `${times[0]} and ${times[1]}`;
+    // 3+ -> "a, b, c and d"
+    return `${times.slice(0, -1).join(', ')} and ${times[times.length - 1]}`;
+  };
   // membership sign-ups aggregation by day (client-side grouping)
   const membershipAgg = useMemo(() => {
-    if (activeTab !== 'membersignups') return { groups: [], overall: 0 };
+    if (activeTab !== 'membersignups') return { groups: [], overall: 0, signupCount: 0 };
 
-    const map = new Map();
+    const sourceRows = (items || []).filter(r => {
+      if (activeFilter === 'all') return true;
+      return activeFilter === 'active' ? !!r.is_active : !r.is_active;
+    });
+    // 1) group raw rows by calendar day
+    const byDay = new Map();
     let overall = 0;
 
-    for (const r of items || []) {
+    for (const r of sourceRows) {
       const when = r.purchased_at || r.created_at;
-      const key = new Date(when).toISOString().slice(0, 10); // YYYY-MM-DD
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(r);
+      const dateKey = new Date(when).toISOString().slice(0, 10); // YYYY-MM-DD
+      if (!byDay.has(dateKey)) byDay.set(dateKey, []);
+      byDay.get(dateKey).push(r);
       overall += Number(r.line_total ?? r.amount_paid ?? 0);
     }
 
-    const groups = Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
-    return { groups, overall };
-  }, [activeTab, items]);
+    // 2) inside each day, consolidate duplicates (same Name+Email+Plan)
+    const groups = Array.from(byDay.entries()).map(([date, rows]) => {
+      const byPersonPlan = new Map();
 
-  const handleEdit = (item) => {
-    setEditingItem(item);
+      rows.forEach((r) => {
+        const firstName = r.first_name || '';
+        const lastName  = r.last_name  || '';
+        const email     = (r.email || '').toLowerCase();
+        const plan      = r.membership_type || 'Unknown';
 
-    // Format dates to YYYY-MM-DD for date inputs
-    const formattedItem = { ...item };
+        // key uses email + plan; include name for readability/edge-cases
+        const k = `${email}|${plan}|${firstName.trim().toLowerCase()}|${lastName.trim().toLowerCase()}`;
+        const purchaseDate = new Date(r.purchased_at || r.created_at);
+        const expDate      = r.expiration_date ? new Date(r.expiration_date) : null;
 
-    // Format date fields based on active tab
-    if (activeTab === 'artworks') {
-      if (formattedItem.acquisition_date) {
-        formattedItem.acquisition_date = new Date(formattedItem.acquisition_date).toISOString().split('T')[0];
-      }
+        if (!byPersonPlan.has(k)) {
+          byPersonPlan.set(k, {
+            key: k,
+            first_name: firstName,
+            last_name: lastName,
+            email: r.email,
+            phone_number: r.phone_number ?? '—',
+            membership_type: plan,
+            subscribe_to_newsletter: !!r.subscribe_to_newsletter,
+            count: 0,
+            total: 0,
+            times: [],
+            membership_ids: [],            // collect all
+            latest: { id: r.membership_id, when: purchaseDate, is_active: !!r.is_active }, // track latest for actions
+            expiration_date: r.expiration_date || null,
+            _expiration_ts: expDate ? expDate.getTime() : null,
+          });
+        }
+
+        const agg = byPersonPlan.get(k);
+        agg.count += 1;
+        agg.total += Number(r.line_total ?? r.amount_paid ?? 0);
+        agg.times.push(purchaseDate);
+        agg.membership_ids.push(r.membership_id);
+        if (!agg.latest || purchaseDate > agg.latest.when) {
+          agg.latest = { id: r.membership_id, when: purchaseDate, is_active: !!r.is_active };
+        }
+        if (expDate) {
+          const ts = expDate.getTime();
+          if (agg._expiration_ts == null || ts > agg._expiration_ts) {
+            agg._expiration_ts = ts;
+            agg.expiration_date = r.expiration_date;
+          }
+        }
+      });
+
+      const consolidated = Array.from(byPersonPlan.values()).map(x => ({
+        ...x,
+        line_total: x.total,                 // keep the field name your renderer expects
+        purchased_times_text: joinTimes(x.times),
+        primary_membership_id: x.latest?.id || x.membership_ids?.[0] || null,
+        expiration_date: x.expiration_date || null,
+        is_active: x.latest?.is_active ?? false,
+      }));
+
+      return [date, consolidated];
+    })
+    // keep your day ordering (newest first as before)
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1));
+
+    return { groups, overall, signupCount: sourceRows.length };
+  }, [activeTab, items, activeFilter]);
+
+  const handleSetMembershipActive = async (membershipId, newActive) => {
+    setItems(prev =>
+      prev.map(r =>
+        r.membership_id === membershipId ? { ...r, is_active: newActive } : r
+      )
+    );
+
+    try {
+      await api.put(`/api/reports/membership-signups/member/${membershipId}`, {
+        is_active: newActive, // backend expects boolean, it will coalesce
+      });
+      // Optional: re-fetch to stay perfectly in sync with server
+      await fetchItems();
+    } catch (error) {
+      // rollback optimistic change on error
+      setItems(prev =>
+        prev.map(r =>
+          r.membership_id === membershipId ? { ...r, is_active: !newActive } : r
+        )
+      );
+      console.error('Toggle active failed:', error);
+      alert(error.response?.data?.error || 'Failed to update membership status');
     }
-
-    if (activeTab === 'events') {
-      if (formattedItem.event_date) {
-        formattedItem.event_date = new Date(formattedItem.event_date).toISOString().split('T')[0];
-      }
-    }
-
-    if (activeTab === 'exhibitions') {
-      if (formattedItem.start_date) {
-        formattedItem.start_date = new Date(formattedItem.start_date).toISOString().split('T')[0];
-      }
-      if (formattedItem.end_date) {
-        formattedItem.end_date = new Date(formattedItem.end_date).toISOString().split('T')[0];
-      }
-    }
-
-    if (activeTab === 'employees') {
-      if (formattedItem.hire_date) {
-        formattedItem.hire_date = new Date(formattedItem.hire_date).toISOString().split('T')[0];
-      }
-      if (formattedItem.birthdate) {
-        formattedItem.birthdate = new Date(formattedItem.birthdate).toISOString().split('T')[0];
-      }
-    }
-
-    setFormData(formattedItem);
   };
-
   // Helper function to format foreign key constraint errors
   const formatConstraintError = (errorMessage, operation = 'delete') => {
     if (!errorMessage) return 'An unknown error occurred';
@@ -396,10 +709,10 @@ function AdminPortal() {
       // Convert empty strings to null for nullable fields (foreign keys, dates)
       if (activeTab === 'artworks') {
         // Automatically set curator to logged-in employee
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (user.employeeId && !editingItem) {
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        if (users.employeeId && !editingItem) {
           // Only set curator for new artworks, not when editing
-          dataToSave.curated_by_employee_id = user.employeeId;
+          dataToSave.curated_by_employee_id = users.employeeId;
         }
 
         if (dataToSave.exhibition_id === '') dataToSave.exhibition_id = null;
@@ -1445,7 +1758,13 @@ function AdminPortal() {
         return null;
     }
   };
-
+  const handleResetFilters = () => {
+    setStartDate(twoWeeksAgoISO);
+    setEndDate(todayISO);
+    setActiveFilter('all');
+    // No need to call fetchItems(): the useEffect on [startDate, endDate] will run.
+  };
+  
   // ---------- tables ----------
   const renderItemsTable = () => {
     if (loading) return <div className="loading">Loading...</div>;
@@ -1459,20 +1778,56 @@ function AdminPortal() {
 
       return (
         <>
-          <div className="d-flex align-items-end gap-3 flex-wrap justify-content-between" style={{ marginBottom: '2rem' }}>
+          <div className="admin-filter-group" style={{ marginBottom: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ maxWidth: '180px', width: '100%' }}>
+              <div className="filter-field">
+                <label className="form-label mb-1">Active</label>
+                <select
+                  className="form-control"
+                  value={activeFilter}
+                  onChange={(e) => setActiveFilter(e.target.value)}
+                  style={{ height: '38px', borderRadius: '6px', border: '1px solid #d1d5db', padding: '0 8px', backgroundColor: '#fff' }}
+                >
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="filter-field">
                 <label className="form-label mb-1">Start date</label>
                 <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </div>
-              <div style={{ maxWidth: '180px', width: '100%' }}>
+              <div className="filter-field">
                 <label className="form-label mb-1">End date</label>
                 <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
-              <button className="btn btn-primary" style={{ height: '38px', marginTop: '22px' }} onClick={fetchItems}>Apply</button>
+              <button className="btn btn-primary" style={{ height: '38px', marginTop: '22px', background: '#19667C', color: '#ffffffff', border: '1px solid #d1d5db', borderRadius: '6px', padding: '0 12px' }} onClick={fetchItems}>Apply</button>
+               <button
+                  className="btn"
+                  style={{
+                    height: '38px',
+                    marginTop: '22px',
+                    background: '#e5e7eb',
+                    color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    padding: '0 12px'
+                  }}
+                  onClick={handleResetFilters}
+                >
+                  Reset
+                </button>
               <div style={{ marginLeft: 'auto', fontWeight: '700', textAlign: 'right', marginRight: '30px', fontSize: '1.1rem', lineHeight: '1.2' }}>
                 Overall Total: {fmtMoney(overall)} &nbsp;•&nbsp; Sign-ups: {memberSummary.signupCount}
               </div>
+              <button
+                className="btn btn-success add-item-fab"
+                onClick={openCreateMember}
+                title="Add New Member"
+              >
+                + Add New Member
+              </button>
+
             </div>
           </div>
 
@@ -1498,22 +1853,47 @@ function AdminPortal() {
                           <th>Email</th>
                           <th>Phone</th>
                           <th>Plan</th>
+                          <th>Quantity</th>
                           <th>Newsletter</th>
                           <th>Amount</th>
+                          <th>Expiration Date</th>
                           <th>Purchased At</th>
+                          <th>Active</th>
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {rows.map((r, i) => (
-                          <tr key={r.purchase_id ?? `${date}-${i}`}>
-                            <td>{r.purchase_id ?? '—'}</td>
+                          <tr key={`${date}-${r.email}-${r.membership_type}`}>
+                            <td>—</td>
                             <td>{r.first_name} {r.last_name}</td>
                             <td>{r.email}</td>
-                            <td>{r.phone_number ?? '—'}</td>
+                            <td>{r.phone_number}</td>
                             <td>{r.membership_type}</td>
+                            <td>{r.count}</td>
                             <td>{r.subscribe_to_newsletter ? 'Yes' : 'No'}</td>
-                            <td>{fmtMoney(r.line_total ?? r.amount_paid)}</td>
-                            <td>{new Date(r.purchased_at || r.created_at).toLocaleString()}</td>
+                            <td>{fmtMoney(r.line_total)}</td>
+                            <td>{r.expiration_date ? new Date(r.expiration_date).toLocaleDateString() : '—'}</td>
+                            <td>{r.purchased_times_text}</td>
+                            <td>
+                             <select
+                               value={r.is_active ? '1' : '0'}
+                               onChange={(e) => handleSetMembershipActive(r.primary_membership_id, e.target.value === '1')}
+                               className={`status-select ${r.is_active ? 'is-active' : 'is-inactive'}`}
+                             >
+                               <option value="1">Active</option>
+                              <option value="0">Inactive</option>
+                             </select>
+                           </td>
+                            <td>
+                              <button
+                                className="edit-btn"
+                                title="Edit"
+                                onClick={() => {openMemberModal(r)}}
+                              >
+                                <FaEdit />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1902,6 +2282,8 @@ function AdminPortal() {
             <button
               onClick={() => {
                 setShowAddForm(true);
+                setEditingItem(null);
+                setFormData({});
                 setSelectedImageFile(null);
               }}
               className="add-item-btn"
@@ -2005,6 +2387,524 @@ function AdminPortal() {
           </div>
         </div>
       )}
+      {/* Create Member Modal */}
+
+      {showCreateMember && (
+        
+        <div className="create-member-overlay">
+        {/* add a class for our CSS */}
+        <div className="bg-white/95 rounded-2xl shadow-2xl max-w-3xl w-full border border-gray-200/60 p-0 create-member-card">
+          {/* header (kept fixed at top of card) */}
+          <div className="p-6 border-b border-gray-200/70">
+            <div className="header flex items-center gap-3 px-6 py-4 border-b">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                  style={{ background: 'linear-gradient(135deg,#19667C,#127a86)' }}>
+                +
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">Add New Member</h2>
+            </div>
+          </div>
+
+          {/* scrollable content */}
+          <div className="p-6 create-member-scroll">
+            {/* ————— Member fields ————— */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="form-label mb-1">First name</label>
+                <input
+                  className="form-control"
+                  value={newMember.first_name}
+                  onChange={(e) => setNewMember(m => ({ ...m, first_name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label mb-1">Last name</label>
+                <input
+                  className="form-control"
+                  value={newMember.last_name}
+                  onChange={(e) => setNewMember(m => ({ ...m, last_name: e.target.value }))}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="form-label mb-1">Email</label>
+                <input
+                  type="email"
+                  className="form-control"
+                  value={newMember.email}
+                  onChange={(e) => setNewMember(m => ({ ...m, email: e.target.value }))}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="form-label mb-1">Phone</label>
+                <input
+                  className="form-control"
+                  value={newMember.phone_number}
+                  onChange={(e) => setNewMember(m => ({ ...m, phone_number: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label mb-1">Birthdate</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={newMember.birthdate}
+                  onChange={(e) =>
+                    setNewMember(m => ({ ...m, birthdate: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="form-label mb-1">Gender</label>
+                <select
+                  className="form-control"
+                  value={newMember.sex}
+                  onChange={(e) =>
+                    setNewMember(m => ({ ...m, sex: e.target.value }))
+                  }
+                >
+                  <option value="">Select…</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                  <option>Non-binary</option>
+                  <option>Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+
+            {/* ——— Password (optional: if blank, we’ll auto-generate) ——— */}
+            <h3 className="section-title mt-6">Account Password</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="form-label mb-1">Password</label>
+                <div className="relative">
+                  <input
+                    type={pw.show ? 'text' : 'password'}
+                    className="form-control pr-20"
+                    value={pw.value}
+                    onChange={(e) => setPw(p => ({ ...p, value: e.target.value }))}
+                    placeholder="Leave blank to auto-generate"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-sm px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                    onClick={() => setPw(p => ({ ...p, show: !p.show }))}
+                  >
+                    {pw.show ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <small className="text-xs text-gray-500">Min 8 characters recommended.</small>
+              </div>
+
+              <div>
+                <label className="form-label mb-1">Confirm Password</label>
+                <input
+                  type={pw.show ? 'text' : 'password'}
+                  className="form-control"
+                  value={pw.confirm}
+                  onChange={(e) => setPw(p => ({ ...p, confirm: e.target.value }))}
+                  placeholder="Repeat password (if set)"
+                />
+              </div>
+            </div>
+
+            {/* ————— Membership ————— */}
+            <h3 className="section-title mt-6">Membership</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="form-label mb-1">Plan</label>
+                <div className="flex gap-2">
+                  <select
+                    className="form-control"
+                    value={newMember.membership_type}
+                    onChange={(e) => setNewMember(m => ({ ...m, membership_type: e.target.value }))}
+                  >
+                    {Object.keys(PLAN_PRICES).map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                  <div className="chip-price">${PLAN_PRICES[newMember.membership_type] || 0}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label mb-1">Quantity</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="form-control"
+                  value={newMember.quantity}
+                  onChange={(e) =>
+                    setNewMember(m => ({
+                      ...m,
+                      quantity: Math.max(1, Number(e.target.value || 1))
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="form-label mb-1">Start date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={newMember.start_date}
+                  onChange={(e) => {
+                    const start = e.target.value;
+                    setNewMember(m => ({
+                      ...m,
+                      start_date: start,
+                      expiration_date: oneYearFrom(start || todayISO),
+                    }));
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="form-label mb-1">Expiration date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={newMember.expiration_date}
+                  onChange={(e) => setNewMember(m => ({ ...m, expiration_date: e.target.value }))}
+                />
+              </div>
+
+              <div className="md:col-span-2 flex items-center gap-2 mt-1">
+                <input
+                  id="nm-news"
+                  type="checkbox"
+                  checked={!!newMember.subscribe_to_newsletter}
+                  onChange={(e) => setNewMember(m => ({ ...m, subscribe_to_newsletter: e.target.checked }))}
+                />
+                <label htmlFor="nm-news" className="text-sm text-gray-700">Subscribe to newsletter</label>
+              </div>
+            </div>
+
+            {/* ————— Payment ABOVE the buttons ————— */}
+            <h3 className="section-title mt-6 flex items-center justify-between">
+              <span>Payment (optional)</span>
+              <span className="text-sm text-gray-500">
+                Total: <strong>${newMemberTotal.toFixed(2)}</strong>
+              </span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="form-label mb-1">Card number</label>
+                <input
+                  inputMode="numeric"
+                  autoComplete="cc-number"
+                  placeholder="4242 4242 4242 4242"
+                  className="form-control"
+                  value={pay.cardNumber}
+                  onChange={(e) => setPay(p => ({ ...p, cardNumber: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label mb-1">Exp. month</label>
+                <input
+                  inputMode="numeric"
+                  placeholder="MM"
+                  className="form-control"
+                  value={pay.expMonth}
+                  onChange={(e) => setPay(p => ({ ...p, expMonth: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label mb-1">Exp. year</label>
+                <input
+                  inputMode="numeric"
+                  placeholder="YYYY"
+                  className="form-control"
+                  value={pay.expYear}
+                  onChange={(e) => setPay(p => ({ ...p, expYear: e.target.value }))}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="form-label mb-1">CVC</label>
+                <input
+                  inputMode="numeric"
+                  placeholder="CVC"
+                  className="form-control"
+                  value={pay.cvc}
+                  onChange={(e) => setPay(p => ({ ...p, cvc: e.target.value }))}
+                />
+                <small className="text-xs text-gray-500">
+                  Leave payment blank to only create the member record(s).
+                </small>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-gray-500">
+              Note: This form creates the membership record(s).
+            </p>
+          </div>
+
+          {/* sticky footer with Save / Cancel at the very bottom */}
+          <div className="create-member-footer px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Total preview:&nbsp;
+                <strong>${newMemberTotal.toFixed(2)}</strong>
+                <span className="text-gray-400"> (price auto-calculated by plan × quantity)</span>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={handleCreateMember} className="btn-primary">Save</button>
+                <button onClick={() => setShowCreateMember(false)} className="btn-secondary">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      )}
+
+      {showMemberModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="member-modal-card">
+            {/* Header */}
+            <div className="member-modal-header">
+              <div className="member-modal-avatar">
+                <FaEdit className="text-white text-xl" />
+              </div>
+              <div className="text-center">
+                <h2 className="member-modal-title">Edit Member</h2>
+                <div className="member-modal-subtitle">
+                  Membership&nbsp;<strong>#{memberForm.membership_id}</strong>
+                </div>
+              </div>
+              <button
+                aria-label="Close"
+                className="member-modal-close"
+                onClick={closeMemberModal}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M6.7 5.3 5.3 6.7 10.6 12l-5.3 5.3 1.4 1.4L12 13.4l5.3 5.3 1.4-1.4L13.4 12l5.3-5.3-1.4-1.4L12 10.6z"/></svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="member-modal-content">
+              {/* Basic info */}
+              <div className="member-section">
+                <h3 className="member-section-title">Member details</h3>
+                <div className="member-grid">
+                  <div className="field">
+                    <label className="field-label">First name</label>
+                    <input
+                      className="field-input"
+                      value={memberForm.first_name}
+                      onChange={(e) => handleMemberField('first_name', e.target.value)}
+                      placeholder="First name"
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Last name</label>
+                    <input
+                      className="field-input"
+                      value={memberForm.last_name}
+                      onChange={(e) => handleMemberField('last_name', e.target.value)}
+                      placeholder="Last name"
+                    />
+                  </div>
+                  <div className="field md:col-span-2">
+                    <label className="field-label">Email</label>
+                    <input
+                      type="email"
+                      className="field-input"
+                      value={memberForm.email}
+                      onChange={(e) => handleMemberField('email', e.target.value)}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                  <div className="field md:col-span-2">
+                    <label className="field-label">Phone</label>
+                    <input
+                      className="field-input"
+                      value={memberForm.phone_number}
+                      onChange={(e) => handleMemberField('phone_number', e.target.value)}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Membership controls */}
+              <div className="member-section">
+                <h3 className="member-section-title">Membership</h3>
+                <div className="member-grid">
+                  <div className="field">
+                    <label className="field-label">Plan</label>
+                    <select
+                      className="field-input"
+                      value={memberForm.membership_type}
+                      onChange={(e) => handleMemberField('membership_type', e.target.value)}
+                    >
+                      <option value="">Select plan</option>
+                      <option value="Individual">Individual</option>
+                      <option value="Family">Family</option>
+                      <option value="Student">Student</option>
+                      <option value="Senior">Senior</option>
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label className="field-label">Status</label>
+                    <select
+                      className="field-input"
+                      value={memberForm.is_active ? '1' : '0'}
+                      onChange={(e) => handleMemberField('is_active', e.target.value === '1')}
+                    >
+                      <option value="1">Active</option>
+                      <option value="0">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label className="field-label">Start date</label>
+                    <input
+                      type="date"
+                      className="field-input"
+                      value={memberForm.start_date}
+                      onChange={(e) => handleMemberField('start_date', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label className="field-label">Expiration date</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        className="field-input flex-1"
+                        value={memberForm.expiration_date || ''}
+                        onChange={(e) => handleMemberField('expiration_date', e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="chip-btn"
+                        onClick={() => {
+                          const base = memberForm.expiration_date
+                            ? new Date(memberForm.expiration_date)
+                            : new Date();
+                          base.setMonth(base.getMonth() + 12);
+                          handleMemberField('expiration_date', base.toISOString().slice(0, 10));
+                        }}
+                      >
+                        +12 mo
+                      </button>
+                      <button
+                        type="button"
+                        className="chip-btn"
+                        onClick={() => {
+                          const base = memberForm.expiration_date
+                            ? new Date(memberForm.expiration_date)
+                            : new Date();
+                          base.setMonth(base.getMonth() + 1);
+                          handleMemberField('expiration_date', base.toISOString().slice(0, 10));
+                        }}
+                      >
+                        +1 mo
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2 flex items-center gap-2 mt-1">
+                    <input
+                      id="mf-news"
+                      type="checkbox"
+                      checked={!!memberForm.subscribe_to_newsletter}
+                      onChange={(e) => handleMemberField('subscribe_to_newsletter', e.target.checked)}
+                    />
+                    <label htmlFor="mf-news" className="text-sm text-gray-700">
+                      Subscribe to newsletter
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment */}
+              <div className="member-section">
+                <div className="member-section-title flex items-center justify-between">
+                  <span>Optional payment</span>
+                  <span className="hint">Leave blank to only update info</span>
+                </div>
+                <div className="member-grid">
+                  <div className="field">
+                    <label className="field-label">Charge amount (USD)</label>
+                    <div className="input-with-prefix">
+                      <span className="prefix">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="field-input no-left-radius"
+                        value={memberForm.charge_amount}
+                        onChange={(e) => handleMemberField('charge_amount', e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="field md:col-span-1">
+                    <label className="field-label">Card number</label>
+                    <input
+                      inputMode="numeric"
+                      className="field-input"
+                      placeholder="4242 4242 4242 4242"
+                      value={memberForm.card_number}
+                      onChange={(e) => handleMemberField('card_number', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label className="field-label">Exp. month</label>
+                    <input
+                      inputMode="numeric"
+                      className="field-input"
+                      placeholder="MM"
+                      value={memberForm.card_exp_month}
+                      onChange={(e) => handleMemberField('card_exp_month', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label className="field-label">Exp. year</label>
+                    <input
+                      inputMode="numeric"
+                      className="field-input"
+                      placeholder="YYYY"
+                      value={memberForm.card_exp_year}
+                      onChange={(e) => handleMemberField('card_exp_year', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label className="field-label">CVC</label>
+                    <input
+                      inputMode="numeric"
+                      className="field-input"
+                      placeholder="CVC"
+                      value={memberForm.card_cvc}
+                      onChange={(e) => handleMemberField('card_cvc', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="member-modal-footer">
+              <button className="primary-btn" onClick={submitMemberUpdate}>
+                Save changes
+              </button>
+              <button className="secondary-btn" onClick={closeMemberModal}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 }

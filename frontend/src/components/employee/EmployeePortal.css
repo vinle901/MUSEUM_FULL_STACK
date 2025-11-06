@@ -1054,3 +1054,413 @@
   .admin-portal-container .rf-fields{ grid-template-columns:1fr; }
   .admin-portal-container .rf-apply{ justify-self:stretch; text-align:center; }
 }
+.status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 36px 8px 14px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  transition: filter .15s ease, transform .02s ease;
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5L6 6.5L11 1.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+.status-select.is-active   { background-color: #129a62; } /* green */
+.status-select.is-inactive { background-color: #b71c1c; } /* deep red */
+.status-select:hover  { filter: brightness(1.05); }
+.status-select:active { transform: translateY(1px); }
+.status-select:focus  { outline: 2px solid rgba(25,102,124,.35); outline-offset: 2px; }
+.status-select option { color: #111; }
+/* top filter bar */
+.admin-filter-group {
+  display: flex;
+  align-items: flex-end;     /* buttons align on the same baseline */
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* one stacked field (label on top, control below) */
+.filter-field {
+  width: 180px;              /* matches your date inputs’ width */
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;    /* stack label over control */
+}
+
+.filter-field label {
+  margin-bottom: 6px;        /* same spacing as your date labels */
+  font-weight: 500;
+  color: #111827;            /* near “Start date” label color */
+}
+
+/* make select look like the date inputs */
+.filter-field select,
+.filter-field input[type="date"] {
+  height: 38px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 0 10px;
+  background: #fff;
+}
+
+/* --- Member modal --- */
+.member-modal-card{
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 820px;
+  box-shadow:
+    0 20px 40px rgba(2, 32, 43, 0.18),
+    0 2px 6px rgba(2, 32, 43, 0.06);
+  border: 1px solid rgba(16, 24, 40, .06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.member-modal-header{
+  position: relative;
+  padding: 28px 24px 18px;
+  background: linear-gradient(180deg, #f0fbfd 0%, #ffffff 60%);
+  border-bottom: 1px solid rgba(16, 24, 40, .06);
+  display: grid;
+  grid-template-columns: 64px 1fr 32px;
+  align-items: center;
+  gap: 14px;
+}
+
+.member-modal-avatar{
+  width: 56px; height: 56px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #19667C, #127a86);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 6px 14px rgba(25, 102, 124, .25);
+}
+
+.member-modal-title{
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: #0f2d36;
+  margin: 0;
+}
+
+.member-modal-subtitle{
+  color: #607986;
+  margin-top: 2px;
+  font-size: .95rem;
+}
+
+.member-modal-close{
+  margin-left: auto;
+  color:#6b7b83;
+  background: transparent;
+  border:none;
+  border-radius: 8px;
+  width: 36px; height: 36px;
+  display:flex; align-items:center; justify-content:center;
+}
+.member-modal-close:hover{ background:#eef3f5; color:#102a33; }
+
+.member-modal-content{
+  padding: 22px 24px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+/* Sections */
+.member-section + .member-section{ margin-top: 18px; }
+.member-section-title{
+  font-weight: 700;
+  color:#123c48;
+  font-size: 1rem;
+  margin-bottom: 12px;
+  display:flex; align-items:center; gap:8px;
+}
+.member-section-title .hint{
+  font-weight: 500;
+  color:#6b7b83;
+  font-size: .85rem;
+}
+
+/* Grid & fields */
+.member-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:14px;
+}
+@media (min-width: 768px){
+  .member-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field-label{
+  font-size: .85rem;
+  color:#4a616b;
+  font-weight: 600;
+}
+.field-input{
+  width: 100%;
+  padding: 10px 12px;
+  background: #f7fbfc;
+  border: 1px solid #d4e3e7;
+  border-radius: 10px;
+  transition: all .15s ease;
+  outline: none;
+  color:#102a33;
+}
+.field-input:focus{
+  background:#ffffff;
+  border-color:#19667C;
+  box-shadow: 0 0 0 4px rgba(25, 102, 124, .12);
+}
+
+/* Small chip action buttons */
+.chip-btn{
+  border:1px solid #d4e3e7;
+  background:#f4f9fb;
+  color:#184d5b;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: .85rem;
+}
+.chip-btn:hover{ background:#e9f2f5; }
+
+/* $ prefix input */
+.input-with-prefix{
+  display:flex; align-items:stretch;
+}
+.input-with-prefix .prefix{
+  padding: 10px 10px;
+  background:#eef6f8;
+  border:1px solid #d4e3e7;
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  color:#4a616b; font-weight:700;
+}
+.no-left-radius{ border-top-left-radius:0; border-bottom-left-radius:0; }
+
+/* Footer buttons */
+.member-modal-footer{
+  padding: 18px 24px 22px;
+  display:flex; gap:12px;
+  border-top: 1px solid rgba(16, 24, 40, .06);
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfc 100%);
+}
+.primary-btn{
+  flex:1; padding:12px 16px;
+  border:none; border-radius:12px;
+  color:#fff; font-weight: 800;
+  background: linear-gradient(90deg, #19667C, #127a86);
+  box-shadow: 0 8px 18px rgba(25,102,124,.22);
+}
+.primary-btn:hover{ filter: brightness(.97); transform: translateY(-1px); }
+
+.secondary-btn{
+  flex:1; padding:12px 16px;
+  border-radius:12px; border:1px solid #d4e3e7;
+  background:#eef3f5; color:#123c48; font-weight:700;
+}
+.secondary-btn:hover{ background:#e6eef1; }
+/* Floating "Add New Member" look-alike */
+.add-item-fab {
+  background: #16a34a; /* green */
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(22,163,74,0.2);
+}
+.add-item-fab:hover { background: #15803d; }
+
+/* Chip price next to plan select */
+.chip-price {
+  align-self: center;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  background: #eef7f9;
+  color: #19667C;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 1px solid #d6e9ee;
+}
+
+/* Section title inside modal */
+.section-title {
+  font-weight: 700;
+  color: #0f4b59;
+  margin-bottom: 8px;
+}
+
+/* Re-usable buttons for modal footer */
+.btn-primary {
+  background: linear-gradient(135deg,#19667C,#127a86);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba(25,102,124,0.25);
+}
+.btn-primary:hover { filter: brightness(0.95); }
+
+.btn-secondary {
+  background: #e5e7eb;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+/* Make modal inputs match your existing style */
+.form-label { display:block; font-size:.9rem; color:#374151; }
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+/* Make the create-member card fill the viewport and scroll internally */
+/* -------- Create Member Modal Layout Fix -------- */
+
+/* Parent card wrapper */
+.create-member-card {
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e5e7eb;
+}
+
+/* Header area: keep rounded top and add soft shadow */
+.create-member-card > .header {
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 10;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+}
+
+/* Scrollable body section starts BELOW the header border */
+.create-member-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 1.5rem;
+  margin-top: 0.5rem; /* <-- adds breathing room so content doesn’t touch the header border */
+  background: #fafafa;
+  border-top: 1px solid #f3f4f6;
+}
+
+/* Footer pinned to bottom */
+.create-member-footer {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #e5e7eb;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  padding: 1rem 1.5rem;
+}
+
+/* Scroll behavior */
+.create-member-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.create-member-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(25, 102, 124, 0.3);
+  border-radius: 10px;
+}
+/* Height of your site header (adjust if yours is different) */
+:root { --app-header-h: 64px; }
+
+/* The full-screen overlay for "Add New Member" */
+.create-member-overlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient( to bottom right,
+    rgba(209,250,229,.65),
+    rgba(207,250,254,.65),
+    rgba(219,234,254,.65)
+  );
+  backdrop-filter: blur(6px);
+  display: flex;
+  /* Start below the site header instead of centered at very top */
+  align-items: flex-start;
+  justify-content: center;
+
+  /* Create room for the app header */
+  padding-top: var(--app-header-h);
+  padding-left: 1rem;
+  padding-right: 1rem;
+
+  /* Keep the overlay below the site header’s z-index if needed */
+  z-index: 50;
+}
+
+/* The modal card */
+.create-member-card {
+  width: 100%;
+  max-width: 48rem;                 /* ~768px */
+  max-height: calc(100vh - var(--app-header-h) - 2rem); /* shorter so header shows */
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 35px rgba(0,0,0,.12);
+
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sticky header / footer inside the card (unchanged if you already added them) */
+.create-member-card .header { position: sticky; top: 0; background:#fff; z-index: 2; }
+.create-member-card .create-member-scroll { overflow-y: auto; flex: 1; padding: 1.25rem 1.5rem; }
+.create-member-card .create-member-footer { position: sticky; bottom: 0; background:#fff; z-index: 2; }
+/* Add New Member FAB for the report toolbar */
+.add-member-fab {
+  position: absolute;
+  top: 50%;            /* vertically center within the toolbar row */
+  right: 0;            /* hug the right edge of the white content area */
+  transform: translateY(-50%);
+  height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  background: #16a34a; /* same green “success” vibe */
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.add-member-fab:hover {
+  filter: brightness(0.95);
+}
+
+/* Keep it usable on narrow screens */
+@media (max-width: 900px) {
+  .add-member-fab {
+    position: static;           /* fall back into the flow */
+    transform: none;
+    margin-left: auto;          /* push it to the right */
+    margin-top: 22px;           /* align with other controls */
+  }
+}

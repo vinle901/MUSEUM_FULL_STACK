@@ -5,7 +5,17 @@ import db from '../config/database.js';
 import middleware from '../utils/middleware.js';
 
 const router = express.Router();
-
+const isISODate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+const normalizeDate = (s) => {
+  if (!s) return null;
+  if (isISODate(s)) return s;
+  const m = String(s).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (m) {
+    const [ , mm, dd, yyyy ] = m;
+    return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  throw new Error(`Invalid date format: ${s} (use YYYY-MM-DD)`);
+};
 // All reports require appropriate role access
 // Allow analysts to view reports in addition to employees and admins
 router.use(middleware.requireRole('employee', 'admin', 'analyst'));
@@ -38,7 +48,7 @@ router.get('/sales', async (req, res) => {
         COUNT(*) as transactionCount,
         AVG(t.total_price) as averageOrderValue
       FROM Transactions t
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+      WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
@@ -124,6 +134,8 @@ router.get('/sales/transactions', async (req, res) => {
   try {
     const { startDate: s, endDate: e, category } = req.query;
     const { startDate, endDate } = clampDateRange(s, e);
+    const startTs = `${startDate} 00:00:00`;
+    const endTsExclusive = endDate;
     const cat = (category || '').toLowerCase();
 
     // Build subquery join and any extra selects if needed
@@ -144,7 +156,7 @@ router.get('/sales/transactions', async (req, res) => {
         t.total_price as total
       FROM ${joinTable} j
       JOIN Transactions t ON j.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+      WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
@@ -274,7 +286,7 @@ router.get('/attendance', async (req, res) => {
         COALESCE(SUM(tp.quantity), 0) as visitors
       FROM Ticket_Purchase tp
       JOIN Transactions t ON tp.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
+      WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
         AND t.transaction_status = 'Completed'${'${usedFilter}'}
       GROUP BY HOUR(t.transaction_date)
       ORDER BY hour
@@ -396,7 +408,7 @@ router.get('/revenue', async (req, res) => {
         SELECT 'Memberships' as source, SUM(mp.line_total) as amount
         FROM Membership_Purchase mp
         JOIN Transactions t ON mp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
+        WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
           AND t.transaction_status = 'Completed'
       ) revenue_sources
       GROUP BY source
@@ -444,7 +456,7 @@ router.get('/revenue', async (req, res) => {
           SUM(mp.line_total) as amount
         FROM Membership_Purchase mp
         JOIN Transactions t ON mp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= DATE_SUB(DATE(?), INTERVAL 6 MONTH)
+        WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
           AND DATE(t.transaction_date) <= DATE(?)
           AND t.transaction_status = 'Completed'
         GROUP BY DATE_FORMAT(t.transaction_date, '%Y-%m')
@@ -582,6 +594,8 @@ router.get('/membership-signups', async (req, res) => {
         u.\`subscribe_to_newsletter\`,
         m.\`membership_id\`,
         m.\`membership_type\`,
+        m.\`is_active\`,
+        m.\`expiration_date\`,
         COALESCE(mp.\`line_total\`, 0)                 AS line_total,
         t.\`transaction_date\`                         AS purchased_at
       FROM \`Membership\` m
@@ -627,6 +641,8 @@ router.get('/membership-signups', async (req, res) => {
         subscribe_to_newsletter: !!r.subscribe_to_newsletter,
         membership_id: r.membership_id,
         membership_type: r.membership_type,
+        expiration_date: r.expiration_date,
+        is_active: !!r.is_active,
         line_total: Number(r.line_total || 0),
         purchased_at: r.purchased_at,
       })),
@@ -643,5 +659,283 @@ router.get('/membership-signups', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// ---------------- MEMBERSHIP SIGN-UPS — MUTATIONS (same router) ---------------
+function normalizeSex(input) {
+  if (!input) return null;
+  const s = String(input).trim().toUpperCase();
+  // accept common variants
+  if (s === 'M' || s === 'MALE') return 'M';
+  if (s === 'F' || s === 'FEMALE') return 'F';
+  // if your DB allows only M/F, fall back to null for others
+  return null;
+}
+// Helper: find or create user by email (minimal fields)
+async function ensureUserByEmail(db, {
+  email,
+  first_name = '',
+  last_name = '',
+  phone_number = null,
+  subscribe_to_newsletter = false,
+  temp_password = null,            // NEW: plaintext from UI (we’ll hash)
+  birthdate = null,                // NEW: "YYYY-MM-DD" required by your DB
+  sex = null,                   // NEW: optional
+}) {
+  const [[existing]] = await db.query('SELECT user_id FROM users WHERE email = ?', [email]);
+  if (existing) return existing.user_id;
+  const bd = normalizeDate(birthdate);
+  if (!bd) {
+    throw new Error('birthdate is required for new users');
+  }
 
+  // hash password (fallback to random if none provided)
+  const raw = String(temp_password || `Tmp!${Date.now()}`);
+  const passwordHash = await bcrypt.hash(raw, 10);
+  const sexCode = normalizeSex(sex);
+  const [ins] = await db.query(
+    `INSERT INTO users
+       (email, first_name, last_name, phone_number, subscribe_to_newsletter,
+        password, birthdate, sex)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      email, first_name, last_name, phone_number, !!subscribe_to_newsletter,
+      passwordHash, bd, sexCode
+    ]
+  );
+  return ins.insertId;
+}
+
+// POST /api/reports/membership-signups/member
+// Create a new membership (by user_id OR by email). Keep it here so your AdminPortal stays on the reports tab.
+router.post('/membership-signups/member', async (req, res) => {
+  try {
+    const {
+      user_id, email, first_name, last_name, phone_number, subscribe_to_newsletter,
+      membership_type, start_date, expiration_date, temp_password, birthdate, sex,
+    } = req.body;
+    const bd = normalizeDate(birthdate);
+    const sd = normalizeDate(start_date);
+    const ed = normalizeDate(expiration_date);
+    if (!user_id && !email) return res.status(400).json({ error: 'Provide user_id or email' });
+    if (!membership_type || !start_date || !expiration_date) {
+      return res.status(400).json({ error: 'membership_type, start_date, expiration_date are required' });
+    }
+
+    let uid = user_id;
+    if (!uid) {
+      uid = await ensureUserByEmail(db, {
+        email: String(email).toLowerCase().trim(),
+        first_name, last_name, phone_number, subscribe_to_newsletter, temp_password, birthdate: bd, sex,
+      });
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO Membership (user_id, membership_type, start_date, expiration_date, is_active)
+       VALUES (?, ?, ?, ?, TRUE)`,
+      [uid, membership_type, sd, ed]
+    );
+
+    res.status(201).json({ membership_id: result.insertId, message: 'Membership created' });
+  } catch (error) {
+    console.error('Create membership error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+router.post('/membership-signups/checkout', async (req, res) => {
+  const { users, membership, payment } = req.body || {};
+  const errors = [];
+
+  if (!users?.email) errors.push('users.email is required');
+  if (!users?.first_name) errors.push('users.first_name is required');
+  if (!users?.last_name) errors.push('users.last_name is required');
+  if (!users?.birthdate) errors.push('users.birthdate is required');
+  if (!membership?.membership_type) errors.push('membership.membership_type is required');
+  if (!membership?.start_date) errors.push('membership.start_date is required');
+  if (!membership?.expiration_date) errors.push('membership.expiration_date is required');
+
+  if (errors.length) return res.status(400).json({ error: errors.join(' | ') });
+
+  const qty = Math.max(1, Number(membership?.quantity || 1));
+  const PLAN_PRICES = { Individual: 60, Family: 120, Student: 30, Senior: 40 };
+  const unit_price = PLAN_PRICES[membership?.membership_type] ?? null;
+  const line_total = unit_price * qty;
+  const total_price = line_total;
+  const bd = normalizeDate(users.birthdate);
+  const start  = normalizeDate(membership.start_date);
+  const end    = normalizeDate(membership.expiration_date);
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const email = String(users.email).toLowerCase().trim();
+    const userId = await ensureUserByEmail(conn, {
+      email,
+      first_name: users.first_name,
+      last_name: users.last_name,
+      phone_number: users.phone_number ?? null,
+      subscribe_to_newsletter: !!users.subscribe_to_newsletter,
+      temp_password: users.temp_password,
+      birthdate: bd,
+      sex: users.sex ?? null,
+    });
+
+    // Ensure basic user info is fresh
+    await conn.query(
+      `UPDATE users
+         SET first_name = ?, last_name = ?, phone_number = ?, subscribe_to_newsletter = ?,
+             birthdate = COALESCE(?, birthdate), sex = COALESCE(?, sex)
+       WHERE user_id = ?`,
+      [
+        users.first_name,
+        users.last_name,
+        users.phone_number ?? null,
+        !!users.subscribe_to_newsletter,
+        bd || null,
+        users.sex || null,
+        userId,
+      ]
+    );
+
+    // Create transaction
+    const [tx] = await conn.query(
+      `INSERT INTO Transactions (transaction_date, total_price, transaction_status)
+       VALUES (NOW(), ?, 'Completed')`,
+      [total_price]
+    );
+    const transactionId = tx.insertId;
+
+    // Create membership
+    const [m] = await conn.query(
+      `INSERT INTO Membership (user_id, membership_type, start_date, expiration_date, is_active)
+       VALUES (?, ?, ?, ?, TRUE)`,
+      [userId, membership.membership_type, start, end]
+    );
+    const membershipId = m.insertId;
+
+    // Record membership purchase
+    await conn.query(
+      `INSERT INTO Membership_Purchase
+         (membership_id, transaction_id, membership_type, quantity, unit_price, line_total, is_renewal)
+       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+      [membershipId, transactionId, membership.membership_type, qty, unit_price, line_total]
+    );
+
+    // Optional payment record
+    if (payment && payment.cardNumber && payment.expMonth && payment.expYear && payment.cvc) {
+      await conn.query(
+        `INSERT INTO Payments (transaction_id, amount, provider, provider_ref, status, created_at)
+         VALUES (?, ?, 'manual', ?, 'captured', NOW())`,
+        [transactionId, total_price, `ADMIN-${Date.now()}`]
+      );
+    }
+
+    await conn.commit();
+    res.status(201).json({
+      ok: true,
+      user_id: userId,
+      transaction_id: transactionId,
+      membership_id: membershipId,
+      total_price,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Checkout create membership error:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
+
+// PUT /api/reports/membership-signups/member/:membershipId
+// Update membership AND the linked user's basic fields (email/name/phone/newsletter).
+router.put('/membership-signups/member/:id', async (req, res) => {
+  const { id } = req.params;
+  const {
+    first_name, last_name, email, phone_number, subscribe_to_newsletter,
+    membership_type, start_date, expiration_date, is_active,
+    birthdate, sex
+  } = req.body;
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // find linked user
+    const [[m]] = await conn.query(
+      'SELECT user_id FROM Membership WHERE membership_id = ?',
+      [id]
+    );
+    if (!m) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Membership not found' });
+    }
+    const bd = birthdate ? normalizeDate(birthdate) : null;
+    // update user (only provided fields)
+    await conn.query(
+      `UPDATE users SET 
+         first_name = COALESCE(?, first_name),
+         last_name  = COALESCE(?, last_name),
+         email      = COALESCE(?, email),
+         phone_number = COALESCE(?, phone_number),
+         is_active       = COALESCE(?, is_active),
+         subscribe_to_newsletter = COALESCE(?, subscribe_to_newsletter),
+         birthdate = COALESCE(?, birthdate),
+         sex = COALESCE(?, sex)
+       WHERE user_id = ?`,
+      [
+        first_name ?? null,
+        last_name ?? null,
+        email ? String(email).toLowerCase().trim() : null,
+        phone_number ?? null,
+        typeof subscribe_to_newsletter === 'boolean' ? subscribe_to_newsletter : null,
+        bd || null,
+        normalizeSex(sex),
+        m.user_id
+      ]
+    );
+
+    // update membership (only provided fields)
+    await conn.query(
+      `UPDATE Membership SET
+         membership_type = COALESCE(?, membership_type),
+         start_date      = COALESCE(?, start_date),
+         expiration_date = COALESCE(?, expiration_date),
+         is_active       = COALESCE(?, is_active)
+       WHERE membership_id = ?`,
+      [
+        membership_type ?? null,
+        start_date ? normalizeDate(start_date) : null,
+        expiration_date ? normalizeDate(expiration_date) : null,
+        typeof is_active === 'boolean' ? is_active : null,
+        id
+      ]
+    );
+
+    await conn.commit();
+    res.json({ message: 'Membership & user updated' });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Update membership error:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+// DELETE /api/reports/membership-signups/member/:membershipId
+// Soft-delete (deactivate) to preserve history.
+router.delete('/membership-signups/member/:id', async (req, res) => {
+  try {
+    const [r] = await db.query(
+      'UPDATE Membership SET is_active = FALSE WHERE membership_id = ?',
+      [req.params.id]
+    );
+    if (r.affectedRows === 0) return res.status(404).json({ error: 'Membership not found' });
+    res.json({ message: 'Membership deactivated' });
+  } catch (error) {
+    console.error('Delete membership error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 export default router;
