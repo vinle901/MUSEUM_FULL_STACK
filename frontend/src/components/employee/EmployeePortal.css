@@ -12,7 +12,7 @@
 .pos-header,
 .portal-header,
 .reports-header {
-  background: linear-gradient(135deg, #164e63 0%, #0a3847 100%);
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
   color: white;
   padding: 30px;
   border-radius: 10px;
@@ -73,9 +73,9 @@
 }
 
 .category-tab.active {
-  background: #164e63;
+  background: #14b8a6;
   color: white;
-  border-color: #164e63;
+  border-color: #14b8a6;
 }
 
 .menu-items-grid {
@@ -101,7 +101,7 @@
 .menu-item-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-  border-color: #164e63;
+  border-color: #14b8a6;
 }
 
 .menu-item-card.disabled {
@@ -127,7 +127,7 @@
 }
 
 .item-price {
-  color: #164e63;
+  color: #14b8a6;
   font-size: 1.2rem;
   font-weight: 700;
   margin-bottom: 10px;
@@ -159,9 +159,9 @@
 
 .info-btn {
   padding: 6px 12px;
-  border: 1px solid #164e63;
+  border: 1px solid #14b8a6;
   background: #fff;
-  color: #164e63;
+  color: #14b8a6;
   border-radius: 16px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -169,7 +169,7 @@
 }
 
 .info-btn:hover {
-  background: #e6f0f3;
+  background: #d1fae5;
 }
 
 .pos-cart-section {
@@ -321,7 +321,7 @@
 }
 
 .total-amount {
-  color: #164e63;
+  color: #14b8a6;
 }
 
 .payment-select {
