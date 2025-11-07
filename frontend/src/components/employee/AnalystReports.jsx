@@ -124,18 +124,6 @@ function AnalystReports() {
     },
   ];
 
-  // Color scheme - Teal/Emerald (replacing blue/purple)
-  const COLORS = [
-    '#14b8a6', // teal-500
-    '#0d9488', // teal-600
-    '#10b981', // emerald-500
-    '#059669', // emerald-600
-    '#06b6d4', // cyan-500
-    '#0891b2', // cyan-600
-    '#0e7490', // cyan-700
-    '#047857'  // emerald-700
-  ];
-
   // Dynamic options from database schema ENUMs
   const giftShopCategories = [
     'Posters', 'Books', 'Postcards', 'Jewelry', 
@@ -459,7 +447,7 @@ function AnalystReports() {
 
         {/* Summary Cards */}
         <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' }}>
+          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Sales</h3>
@@ -551,9 +539,9 @@ function AnalystReports() {
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
               />
               <Legend />
-              <Bar dataKey="sales" fill="#14b8a6" name="Sales" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="sales" fill="#149ab8" name="Sales" radius={[8, 8, 0, 0]} />
               {data.dailySales && data.dailySales.length > 5 && (
-                <Line type="monotone" dataKey="sales" stroke="#0d9488" strokeWidth={2} dot={false} name="Trend" />
+                <Line type="monotone" dataKey="sales" stroke="#0d7294" strokeWidth={2} dot={false} name="Trend" />
               )}
             </ComposedChart>
           </ResponsiveContainer>
@@ -572,7 +560,7 @@ function AnalystReports() {
                   labelLine={true}
                   label={({ category, percent }) => `${category}: ${(percent * 100).toFixed(1)}%`}
                   outerRadius={100}
-                  fill="#14b8a6"
+                  fill="#149ab8"
                   dataKey="value"
                 >
                   {(data.categorySales || []).map((entry, index) => (
@@ -640,7 +628,7 @@ function AnalystReports() {
         </div>
 
         <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' }}>
+          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
             <div>
               <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Visitors</h3>
               <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
@@ -692,8 +680,8 @@ function AnalystReports() {
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
               <Legend />
-              <Area type="monotone" dataKey="visitors" fill="#a7f3d0" stroke="#14b8a6" strokeWidth={2} name="Visitors" />
-              <Line type="monotone" dataKey="visitors" stroke="#0d9488" strokeWidth={3} dot={{ fill: '#14b8a6', r: 4 }} name="Trend" />
+              <Area type="monotone" dataKey="visitors" fill="#a7f3d0" stroke="#149ab8" strokeWidth={2} name="Visitors" />
+              <Line type="monotone" dataKey="visitors" stroke="#0d7294" strokeWidth={3} dot={{ fill: '#149ab8', r: 4 }} name="Trend" />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -746,8 +734,8 @@ function AnalystReports() {
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                 />
                 <Legend />
-                <Bar dataKey="total_quantity" fill="#14b8a6" name="Units Sold" />
-                <Bar dataKey="total_revenue" fill="#10b981" name="Revenue ($)" />
+                <Bar dataKey="total_quantity" fill="#149ab8" name="Units Sold" />
+                <Bar dataKey="total_revenue" fill="#149ab8" name="Revenue ($)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -793,7 +781,7 @@ function AnalystReports() {
         </div>
 
         <div className="report-summary" style={{ marginBottom: '2rem', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' }}>
+          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
             <div>
               <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Revenue</h3>
               <p className="summary-value" style={{ fontSize: '2.5rem', fontWeight: '700', margin: '0.5rem 0' }}>
@@ -842,7 +830,7 @@ function AnalystReports() {
                   labelLine={true}
                   label={({ source, percentage }) => `${source}: ${percentage}%`}
                   outerRadius={100}
-                  fill="#14b8a6"
+                  fill="#149ab8"
                   dataKey="amount"
                 >
                   {(data.breakdown || []).map((entry, index) => (
@@ -888,7 +876,7 @@ function AnalystReports() {
         </div>
 
         <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' }}>
+          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
             <div>
               <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>New Members</h3>
               <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
@@ -934,7 +922,7 @@ function AnalystReports() {
                     labelLine={true}
                     label={({ type, count }) => `${type}: ${count}`}
                     outerRadius={100}
-                    fill="#14b8a6"
+                    fill="#149ab8"
                     dataKey="count"
                   >
                     {data.membershipTypes.map((entry, index) => (
@@ -994,7 +982,7 @@ function AnalystReports() {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
                 <Legend />
-                <Line type="monotone" dataKey="signups" stroke="#14b8a6" strokeWidth={2} dot={{ fill: '#14b8a6', r: 4 }} name="Sign-ups" />
+                <Line type="monotone" dataKey="signups" stroke="#149ab8" strokeWidth={2} dot={{ fill: '#149ab8', r: 4 }} name="Sign-ups" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1017,7 +1005,7 @@ function AnalystReports() {
         </div>
 
         <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' }}>
+          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
             <div>
               <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Donations</h3>
               <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
@@ -1067,9 +1055,9 @@ function AnalystReports() {
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
               />
               <Legend />
-              <Bar dataKey="sales" fill="#14b8a6" name="Donations" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="sales" fill="#149ab8" name="Donations" radius={[8, 8, 0, 0]} />
               {data.dailySales && data.dailySales.length > 5 && (
-                <Line type="monotone" dataKey="sales" stroke="#0d9488" strokeWidth={2} dot={false} name="Trend" />
+                <Line type="monotone" dataKey="sales" stroke="#0d7294" strokeWidth={2} dot={false} name="Trend" />
               )}
             </ComposedChart>
           </ResponsiveContainer>
@@ -1087,7 +1075,7 @@ function AnalystReports() {
                   labelLine={true}
                   label={({ category, percent }) => `${category}: ${(percent * 100).toFixed(1)}%`}
                   outerRadius={100}
-                  fill="#14b8a6"
+                  fill="#149ab8"
                   dataKey="value"
                 >
                   {(data.categorySales || []).map((entry, index) => (
@@ -1165,7 +1153,7 @@ function AnalystReports() {
             className="toggle-btn" 
             onClick={exportToCSV}
             style={{ 
-              background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
+              background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)',
               color: 'white',
               border: 'none',
               padding: '0.6rem 1.2rem',
@@ -1191,13 +1179,13 @@ function AnalystReports() {
           background: 'white'
         }}>
           <table className="report-table" style={{ width: '100%', fontSize: '0.9rem' }}>
-            <thead style={{ position: 'sticky', top: 0, background: '#14b8a6', zIndex: 1 }}>
+            <thead style={{ position: 'sticky', top: 0, background: '#149ab8', zIndex: 1 }}>
               <tr>
-                <th style={{ padding: '0.75rem', color: 'white', fontWeight: '600', textAlign: 'left', borderBottom: '2px solid #0d9488' }}>
+                <th style={{ padding: '0.75rem', color: 'white', fontWeight: '600', textAlign: 'left', borderBottom: '2px solid #0d7294' }}>
                   #
                 </th>
                 {headers.map(header => (
-                  <th key={header} style={{ padding: '0.75rem', color: 'white', fontWeight: '600', textAlign: 'left', borderBottom: '2px solid #0d9488' }}>
+                  <th key={header} style={{ padding: '0.75rem', color: 'white', fontWeight: '600', textAlign: 'left', borderBottom: '2px solid #0d7294' }}>
                     {header}
                   </th>
                 ))}
@@ -1537,13 +1525,7 @@ function AnalystReports() {
   return (
     <div className="reports-container" style={{ padding: '2rem', background: '#f8fafc', minHeight: '100vh' }}>
       {/* Header */}
-      <div className="reports-header" style={{ 
-        background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
-        padding: '2rem',
-        borderRadius: '12px',
-        marginBottom: '2rem',
-        color: 'white'
-      }}>
+      <div className="reports-header">
         <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem', fontWeight: '700' }}>Analytics & Reports</h2>
         <p style={{ margin: 0, opacity: 0.9, fontSize: '1rem' }}>
           Generate custom reports with advanced filters and data export
@@ -1553,7 +1535,7 @@ function AnalystReports() {
       {/* Filter Panel */}
       <div className="chart-container" style={{ marginBottom: '2rem', background: 'white', border: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #e2e8f0' }}>
-          <FaFilter style={{ marginRight: '0.75rem', color: '#14b8a6', fontSize: '1.25rem' }} />
+          <FaFilter style={{ marginRight: '0.75rem', color: '#149ab8', fontSize: '1.25rem' }} />
           <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem' }}>Report Configuration</h3>
         </div>
 
@@ -1574,7 +1556,7 @@ function AnalystReports() {
                   alignItems: 'flex-start',
                   justifyContent: 'center',
                   padding: '1rem',
-                  background: reportType === type.id ? 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' : 'white',
+                  background: reportType === type.id ? 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' : 'white',
                   color: reportType === type.id ? 'white' : '#0f172a',
                   border: reportType === type.id ? 'none' : '2px solid #e2e8f0',
                   borderRadius: '12px',
@@ -1659,7 +1641,7 @@ function AnalystReports() {
             onClick={generateReport}
             disabled={!reportType || loading}
             style={{
-              background: reportType && !loading ? 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' : '#cbd5e1',
+              background: reportType && !loading ? 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' : '#cbd5e1',
               color: 'white',
               padding: '1rem 3rem',
               fontSize: '1.1rem',
@@ -1727,7 +1709,7 @@ function AnalystReports() {
             width: '60px', 
             height: '60px', 
             border: '4px solid #e2e8f0', 
-            borderTop: '4px solid #14b8a6', 
+            borderTop: '4px solid #149ab8', 
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto 1rem'
@@ -1754,7 +1736,7 @@ function AnalystReports() {
           borderRadius: '12px',
           border: '2px dashed #e2e8f0'
         }}>
-          <FaChartBar size={64} style={{ color: '#14b8a6', marginBottom: '1.5rem', opacity: 0.5 }} />
+          <FaChartBar size={64} style={{ color: '#149ab8', marginBottom: '1.5rem', opacity: 0.5 }} />
           <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.5rem' }}>No Report Generated</h3>
           <p style={{ margin: 0, fontSize: '1rem' }}>
             Configure your filters above and click <strong>Generate Report</strong> to view analytics

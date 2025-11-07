@@ -65,6 +65,9 @@ const Checkout = () => {
   const taxRate = 0.0825
   const tax = subtotal * taxRate
   const total = subtotal + tax
+  // UI flags
+  const showPayment = total > 0
+  const showAdditionalOptions = total > 0 && hasGifts
 
   // Pre-fill form with user data if available
   useEffect(() => {
@@ -635,144 +638,148 @@ const Checkout = () => {
                 </div>
               )}
 
-              {/* Payment Information */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-2">Payment Information</h2>
-                <p className="text-sm text-gray-600 mb-6">
-                  Card details are validated for format only and are NOT stored
-                </p>
+              {/* Payment Information (only show when an amount is due) */}
+              {showPayment && (
+                <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+                  <h2 className="text-2xl font-bold mb-2">Payment Information</h2>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Card details are validated for format only and are NOT stored
+                  </p>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-semibold mb-2">Payment Method *</label>
-                  <div className="flex gap-4">
-                    {['Credit Card', 'Debit Card', 'Mobile Payment'].map(method => (
-                      <label key={method} className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value={method}
-                          checked={formData.paymentMethod === method}
-                          onChange={handleInputChange}
-                          className="w-4 h-4"
-                        />
-                        <span>{method}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Card Number *</label>
-                    <input
-                      type="text"
-                      name="cardNumber"
-                      value={formData.cardNumber}
-                      onChange={handleInputChange}
-                      placeholder="1234 5678 9012 3456"
-                      maxLength="19"
-                      className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                        errors.cardNumber ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                      }`}
-                    />
-                    {errors.cardNumber && <p className="text-red-500 text-sm mt-1">{errors.cardNumber}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Name on Card *</label>
-                    <input
-                      type="text"
-                      name="cardName"
-                      value={formData.cardName}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                        errors.cardName ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                      }`}
-                    />
-                    {errors.cardName && <p className="text-red-500 text-sm mt-1">{errors.cardName}</p>}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">Expiry Date *</label>
-                      <div className="flex gap-2">
-                        <select
-                          name="expiryMonth"
-                          value={formData.expiryMonth}
-                          onChange={handleInputChange}
-                          className={`flex-1 px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                            errors.expiry ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                          }`}
-                        >
-                          <option value="">MM</option>
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={String(i + 1).padStart(2, '0')}>
-                              {String(i + 1).padStart(2, '0')}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="expiryYear"
-                          value={formData.expiryYear}
-                          onChange={handleInputChange}
-                          className={`flex-1 px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                            errors.expiry ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                          }`}
-                        >
-                          <option value="">YYYY</option>
-                          {Array.from({ length: 10 }, (_, i) => (
-                            <option key={i} value={2025 + i}>
-                              {2025 + i}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {errors.expiry && <p className="text-red-500 text-sm mt-1">{errors.expiry}</p>}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold mb-2">Payment Method *</label>
+                    <div className="flex gap-4">
+                      {['Credit Card', 'Debit Card', 'Mobile Payment'].map(method => (
+                        <label key={method} className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value={method}
+                            checked={formData.paymentMethod === method}
+                            onChange={handleInputChange}
+                            className="w-4 h-4"
+                          />
+                          <span>{method}</span>
+                        </label>
+                      ))}
                     </div>
+                  </div>
+
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold mb-2">CVV *</label>
+                      <label className="block text-sm font-semibold mb-2">Card Number *</label>
                       <input
                         type="text"
-                        name="cvv"
-                        value={formData.cvv}
+                        name="cardNumber"
+                        value={formData.cardNumber}
                         onChange={handleInputChange}
-                        placeholder="123"
-                        maxLength="4"
+                        placeholder="1234 5678 9012 3456"
+                        maxLength="19"
                         className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.cvv ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                          errors.cardNumber ? 'border-red-500' : 'border-gray-300 focus:border-brand'
                         }`}
                       />
-                      {errors.cvv && <p className="text-red-500 text-sm mt-1">{errors.cvv}</p>}
+                      {errors.cardNumber && <p className="text-red-500 text-sm mt-1">{errors.cardNumber}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Name on Card *</label>
+                      <input
+                        type="text"
+                        name="cardName"
+                        value={formData.cardName}
+                        onChange={handleInputChange}
+                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                          errors.cardName ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                        }`}
+                      />
+                      {errors.cardName && <p className="text-red-500 text-sm mt-1">{errors.cardName}</p>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">Expiry Date *</label>
+                        <div className="flex gap-2">
+                          <select
+                            name="expiryMonth"
+                            value={formData.expiryMonth}
+                            onChange={handleInputChange}
+                            className={`flex-1 px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                              errors.expiry ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                            }`}
+                          >
+                            <option value="">MM</option>
+                            {Array.from({ length: 12 }, (_, i) => (
+                              <option key={i + 1} value={String(i + 1).padStart(2, '0')}>
+                                {String(i + 1).padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="expiryYear"
+                            value={formData.expiryYear}
+                            onChange={handleInputChange}
+                            className={`flex-1 px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                              errors.expiry ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                            }`}
+                          >
+                            <option value="">YYYY</option>
+                            {Array.from({ length: 10 }, (_, i) => (
+                              <option key={i} value={2025 + i}>
+                                {2025 + i}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {errors.expiry && <p className="text-red-500 text-sm mt-1">{errors.expiry}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold mb-2">CVV *</label>
+                        <input
+                          type="text"
+                          name="cvv"
+                          value={formData.cvv}
+                          onChange={handleInputChange}
+                          placeholder="123"
+                          maxLength="4"
+                          className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
+                            errors.cvv ? 'border-red-500' : 'border-gray-300 focus:border-brand'
+                          }`}
+                        />
+                        {errors.cvv && <p className="text-red-500 text-sm mt-1">{errors.cvv}</p>}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Additional Options */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-6">Additional Options</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Gift Message (Optional)</label>
-                    <textarea
-                      name="giftMessage"
-                      value={formData.giftMessage}
-                      onChange={handleInputChange}
-                      rows="3"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand"
-                      placeholder="Add a special message to your gift..."
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="newsletterSubscribe"
-                      checked={formData.newsletterSubscribe}
-                      onChange={handleInputChange}
-                      className="w-5 h-5"
-                    />
-                    <label className="text-sm">Subscribe to newsletter for exclusive offers and updates</label>
+              {/* Additional Options (only show when there are gift items and an amount is due) */}
+              {showAdditionalOptions && (
+                <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
+                  <h2 className="text-2xl font-bold mb-6">Additional Options</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Gift Message (Optional)</label>
+                      <textarea
+                        name="giftMessage"
+                        value={formData.giftMessage}
+                        onChange={handleInputChange}
+                        rows="3"
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand"
+                        placeholder="Add a special message to your gift..."
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="newsletterSubscribe"
+                        checked={formData.newsletterSubscribe}
+                        onChange={handleInputChange}
+                        className="w-5 h-5"
+                      />
+                      <label className="text-sm">Subscribe to newsletter for exclusive offers and updates</label>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <button
                 type="submit"

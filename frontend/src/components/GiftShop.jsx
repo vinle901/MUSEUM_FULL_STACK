@@ -37,13 +37,16 @@ const GiftShop = () => {
   // Categories matching database enum
   const categories = ['All', 'Posters', 'Books', 'Postcards', 'Jewelry', 'Souvenirs', 'Toys', 'Stationery', 'Other']
 
-  // Filter and sort items
+  // Filter items by category (include out-of-stock items so they remain visible)
   const filteredItems = giftShopItems.filter(item => 
-    (selectedCategory === 'All' || item.category === selectedCategory) &&
-    item.is_available // Only show available items
+    (selectedCategory === 'All' || item.category === selectedCategory)
   )
 
   const sortedItems = [...filteredItems].sort((a, b) => {
+    // Put available items first
+    const aAvail = a.is_available ? 1 : 0
+    const bAvail = b.is_available ? 1 : 0
+    if (aAvail !== bAvail) return bAvail - aAvail
     switch (sortBy) {
       case 'price-low':
         return a.price - b.price

@@ -12,7 +12,7 @@
 .pos-header,
 .portal-header,
 .reports-header {
-  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  background: linear-gradient(135deg, #149ab8 0%, #0d7294 100%);
   color: white;
   padding: 30px;
   border-radius: 10px;
@@ -73,9 +73,9 @@
 }
 
 .category-tab.active {
-  background: #14b8a6;
+  background: #149ab8;
   color: white;
-  border-color: #14b8a6;
+  border-color: #0d7294;
 }
 
 .menu-items-grid {
@@ -101,7 +101,7 @@
 .menu-item-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-  border-color: #14b8a6;
+  border-color: #149ab8;
 }
 
 .menu-item-card.disabled {
@@ -127,7 +127,7 @@
 }
 
 .item-price {
-  color: #14b8a6;
+  color: #149ab8;
   font-size: 1.2rem;
   font-weight: 700;
   margin-bottom: 10px;
@@ -159,9 +159,9 @@
 
 .info-btn {
   padding: 6px 12px;
-  border: 1px solid #14b8a6;
+  border: 1px solid #0d7294;
   background: #fff;
-  color: #14b8a6;
+  color: #149ab8;
   border-radius: 16px;
   font-size: 0.85rem;
   font-weight: 600;

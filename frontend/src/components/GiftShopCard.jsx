@@ -14,6 +14,8 @@ const GiftShopCard = ({ item }) => {
     ? parseInt(item.stock_quantity, 10)
     : item.stock_quantity
 
+  const isAvailable = Boolean(item.is_available && stockQuantity > 0)
+
   const handleAddToCart = () => {
     if (!item.is_available || stockQuantity < 1) return
 
@@ -26,38 +28,41 @@ const GiftShopCard = ({ item }) => {
     }, 500)
   }
 
+  const containerClass = isAvailable
+    ? 'bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-brand hover:shadow-xl transition-all group'
+    : 'bg-white border-2 border-gray-200 rounded-xl overflow-hidden'
+
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-brand hover:shadow-xl transition-all group">
+    <div className={containerClass}>
       {/* Image */}
       <div className="relative h-64 bg-gray-100 overflow-hidden">
         <img
           src={getImageUrl(item.image_url)}
           alt={item.item_name}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className={`w-full h-full object-cover transition-transform duration-300 ${isAvailable ? 'group-hover:scale-105' : ''} ${!isAvailable ? 'filter brightness-60' : ''}`}
         />
         
         {/* Category Badge */}
-        <div className="absolute top-3 left-3">
+        <div className="absolute top-3 left-3 z-20">
           <span className="px-3 py-1 bg-brand text-white text-xs font-semibold rounded-full">
             {item.category}
           </span>
         </div>
 
-        {/* Stock Badge */}
-        {stockQuantity < 10 && stockQuantity > 0 && (
-          <div className="absolute top-3 right-3">
+        {/* Stock Badge or Out-of-Stock Badge (keep badge above overlay) */}
+        {(!item.is_available || stockQuantity < 1) ? (
+          <div className="absolute top-3 right-3 z-20">
+            <span className="px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded-full">
+              Out of stock
+            </span>
+          </div>
+        ) : (stockQuantity < 10 && (
+          <div className="absolute top-3 right-3 z-20">
             <span className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded-full">
               Only {stockQuantity} left
             </span>
           </div>
-        )}
-
-        {/* Out of Stock Overlay */}
-        {(!item.is_available || stockQuantity < 1) && (
-          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-            <span className="text-white text-xl font-bold">Out of Stock</span>
-          </div>
-        )}
+        ))}
       </div>
 
       {/* Content */}

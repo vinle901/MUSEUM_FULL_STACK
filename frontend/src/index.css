@@ -131,31 +131,31 @@ body {
 }
 
 .pos-link {
-  background-color: #059669;
+  background-color: #09b17c;
 }
 
 .pos-link:hover {
-  background-color: #047857;
+  background-color: #0e8c68;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .admin-link {
-  background-color: #7c3aed;
+  background-color: #9a6bea;
 }
 
 .admin-link:hover {
-  background-color: #6d28d9;
+  background-color: #8650db;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .reports-link {
-  background-color: #0891b2;
+  background-color: #15a9ce;
 }
 
 .reports-link:hover {
-  background-color: #0e7490;
+  background-color: #1686a5;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
