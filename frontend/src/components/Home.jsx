@@ -315,7 +315,7 @@ const Home = () => {
             <div className="mt-12 flex justify-center">
               <Link
                 to="/calendar"
-                className="px-6 py-3 bg-brand text-white hover:bg-brand-dark rounded-lg"
+                className="px-6 py-3 mt-10 bg-brand text-white hover:bg-brand-dark rounded-lg"
               >
                 Explore More
               </Link>
