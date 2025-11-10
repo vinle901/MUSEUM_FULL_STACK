@@ -201,6 +201,16 @@ router.post('/login', async (req, res) => {
       })
     }
 
+    // Check and update user's membership status on login
+    await db.query(
+      `UPDATE Membership
+       SET is_active = FALSE
+       WHERE user_id = ?
+         AND expiration_date < CURDATE()
+         AND is_active = TRUE`,
+      [user.user_id],
+    )
+
     // Determine role by checking Employee table
     const roleDetails = await getUserRoleDetails(user.user_id)
 

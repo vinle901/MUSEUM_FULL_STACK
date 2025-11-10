@@ -166,7 +166,9 @@ export default function Profile() {
 
   function formatDate(dateString) {
     if (!dateString) return "N/A";
-    const date = new Date(dateString);
+    // Parse as local date to avoid timezone issues
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -278,6 +280,7 @@ export default function Profile() {
                 </div>
 
                 {/* Membership Information */}
+                {console.log('Profile membership data:', profile?.membership)}
                 {profile?.membership ? (
                   <div className="border-b border-gray-200 pb-4">
                     <h3 className="text-lg font-semibold mb-3">Membership</h3>

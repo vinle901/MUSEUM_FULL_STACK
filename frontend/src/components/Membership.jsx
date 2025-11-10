@@ -54,7 +54,7 @@ export default function Membership() {
     }
 
     // Navigate to checkout with membership data
-    navigate("/checkout-membership", {
+    navigate("/checkout/membership", {
       state: {
         checkoutType: "membership",
         membershipData: {

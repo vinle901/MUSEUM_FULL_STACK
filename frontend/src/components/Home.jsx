@@ -411,7 +411,7 @@ const Home = () => {
       <section className="mx-auto">
         <div
           className="relative w-full h-[320px] sm:h-[360px] md:h-[420px] lg:h-[460px] bg-center bg-cover"
-          style={{ backgroundImage: "url('https://acmeticketing.com/wp-content/uploads/2024/04/museum-exhibit-design.jpg')" }}
+          style={{ backgroundImage: "url('https://www.marquette.edu/.ldp/.private_ldp/a11572/production/master/4c327237-0cba-42a3-95ea-b87e9751b500.jpg')" }}
         >
           <div className="absolute inset-0 bg-black/60"></div>
           <div className="relative h-full flex items-center justify-center">

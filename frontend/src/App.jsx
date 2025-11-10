@@ -26,6 +26,7 @@ import Profile from "./components/Profile.jsx"
 import EventRSVP from './components/EventRSVP.jsx'
 import PasswordChangeGuard from "./components/PasswordChangeGuard.jsx"
 import ScrollToTop from './components/ScrollToTop'
+import MembershipExpirationBanner from "./components/MembershipExpirationBanner.jsx"
 
 // Employee Portal Components
 import EmployeePOS from "./components/employee/EmployeePOS"
@@ -42,6 +43,7 @@ function App() {
       <ScrollToTop />
       <div className="min-h-screen bg-white">
         <NavBar />
+        <MembershipExpirationBanner />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/visit" element={<Visit />} />

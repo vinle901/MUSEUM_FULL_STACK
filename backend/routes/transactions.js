@@ -904,9 +904,9 @@ router.post('/membership-checkout', async (req, res) => {
     const taxAmount = parseFloat((annualFee * TAX_RATE).toFixed(2))
     const totalPrice = parseFloat((annualFee + taxAmount).toFixed(2))
 
-    // Step 2: Check if user already has an active membership
+    // Step 2: Check if user already has a membership (active or expired)
     const [existingMemberships] = await connection.query(
-      'SELECT * FROM Membership WHERE user_id = ? AND is_active = TRUE',
+      'SELECT * FROM Membership WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
       [user_id],
     )
 
@@ -924,34 +924,107 @@ router.post('/membership-checkout', async (req, res) => {
     console.log('Transaction created:', transactionId)
 
     // Step 4: Create or update membership record
-    if (isRenewal) {
-      // Deactivate old membership
-      await connection.query(
-        'UPDATE Membership SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE',
-        [user_id],
-      )
-      console.log('Deactivated old membership')
+    let membershipId
+    let startDate
+    let expirationDate
+
+    // Format dates in local timezone to avoid UTC conversion issues
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
     }
 
-    // Create new membership
-    const startDate = new Date()
-    const expirationDate = new Date()
-    expirationDate.setFullYear(expirationDate.getFullYear() + 1) // Add 1 year
+    if (isRenewal) {
+      // RENEW existing membership by extending expiration date
+      const existingMembership = existingMemberships[0]
+      
+      // Get current expiration date string (YYYY-MM-DD format)
+      let expirationDateStr
+      if (existingMembership.expiration_date instanceof Date) {
+        const d = existingMembership.expiration_date
+        const year = d.getUTCFullYear()
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(d.getUTCDate()).padStart(2, '0')
+        expirationDateStr = `${year}-${month}-${day}`
+      } else {
+        expirationDateStr = existingMembership.expiration_date.split('T')[0]
+      }
+      
+      // Get today's date string (YYYY-MM-DD format)
+      const now = new Date()
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      
+      let newExpirationStr
+      let startDateStr
+      
+      if (expirationDateStr < todayStr) {
+        // Membership expired: start from today + 1 year
+        const [year, month, day] = todayStr.split('-')
+        newExpirationStr = `${parseInt(year, 10) + 1}-${month}-${day}`
+      } else {
+        // Membership still active: extend from current expiration + 1 year
+        const [year, month, day] = expirationDateStr.split('-')
+        newExpirationStr = `${parseInt(year, 10) + 1}-${month}-${day}`
+      }
+      
+      // Get start_date string (YYYY-MM-DD format)
+      if (existingMembership.start_date instanceof Date) {
+        const d = existingMembership.start_date
+        const year = d.getUTCFullYear()
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(d.getUTCDate()).padStart(2, '0')
+        startDateStr = `${year}-${month}-${day}`
+      } else {
+        startDateStr = existingMembership.start_date.split('T')[0]
+      }
 
-    const [membershipResult] = await connection.query(
-      `INSERT INTO Membership
-       (user_id, membership_type, start_date, expiration_date, is_active)
-       VALUES (?, ?, ?, ?, TRUE)`,
-      [
-        user_id,
-        membership_type,
-        startDate.toISOString().split('T')[0],
-        expirationDate.toISOString().split('T')[0],
-      ],
-    )
+      console.log('DEBUG: Renewal dates:', {
+        oldExpiration: expirationDateStr,
+        newExpiration: newExpirationStr,
+        startDate: startDateStr
+      })
 
-    const membershipId = membershipResult.insertId
-    console.log('Membership created:', membershipId)
+      // UPDATE existing membership - this fires the trigger!
+      await connection.query(
+        `UPDATE Membership
+         SET expiration_date = ?,
+             membership_type = ?,
+             is_active = TRUE
+         WHERE membership_id = ?`,
+        [
+          newExpirationStr,
+          membership_type,
+          existingMembership.membership_id,
+        ],
+      )
+
+      membershipId = existingMembership.membership_id
+      startDate = startDateStr
+      expirationDate = newExpirationStr
+      console.log('Renewed existing membership:', membershipId, 'New expiration:', newExpirationStr)
+    } else {
+      // Create new membership for first-time purchase
+      startDate = new Date()
+      expirationDate = new Date()
+      expirationDate.setFullYear(expirationDate.getFullYear() + 1) // Add 1 year
+
+      const [membershipResult] = await connection.query(
+        `INSERT INTO Membership
+         (user_id, membership_type, start_date, expiration_date, is_active, show_warning)
+         VALUES (?, ?, ?, ?, TRUE, FALSE)`,
+        [
+          user_id,
+          membership_type,
+          formatLocalDate(startDate),
+          formatLocalDate(expirationDate),
+        ],
+      )
+
+      membershipId = membershipResult.insertId
+      console.log('Created new membership:', membershipId)
+    }
 
     // Step 5: Create membership purchase record (line_total does NOT include tax)
     await connection.query(
@@ -961,11 +1034,8 @@ router.post('/membership-checkout', async (req, res) => {
       [transactionId, membershipId, annualFee, isRenewal],
     )
 
-    console.log('Membership purchase record created')
-
     // Commit the transaction
     await connection.commit()
-    console.log('Database transaction committed successfully')
 
     res.status(201).json({
       success: true,
@@ -973,8 +1043,8 @@ router.post('/membership-checkout', async (req, res) => {
       transaction_id: transactionId,
       membership_id: membershipId,
       membership_type,
-      start_date: startDate.toISOString().split('T')[0],
-      expiration_date: expirationDate.toISOString().split('T')[0],
+      start_date: typeof startDate === 'string' ? startDate : formatLocalDate(startDate),
+      expiration_date: typeof expirationDate === 'string' ? expirationDate : formatLocalDate(expirationDate),
       total_paid: totalPrice,
       is_renewal: isRenewal,
     })
@@ -990,9 +1060,11 @@ router.post('/membership-checkout', async (req, res) => {
     }
 
     console.error('Membership checkout error:', error)
+    console.error('Error stack:', error.stack)
     res.status(500).json({
       error: 'Failed to process membership purchase',
       details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     })
   } finally {
     // Release connection back to pool

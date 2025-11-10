@@ -24,6 +24,7 @@ const Checkout = () => {
   
   // Check if this is a membership checkout
   const isMembershipCheckout = location.state?.checkoutType === 'membership'
+  const isRenewal = location.state?.isRenewal || false
   const membershipData = location.state?.membershipData
 
   const [formData, setFormData] = useState({
@@ -184,8 +185,8 @@ const Checkout = () => {
       return
     }
 
-    // Prevent purchasing a membership when already active
-    if (isMembershipCheckout && hasActiveMembership) {
+    // Prevent purchasing a membership when already active (but allow renewals)
+    if (isMembershipCheckout && hasActiveMembership && !isRenewal) {
       alert('You already have an active membership and cannot purchase another at this time.')
       return
     }
@@ -449,11 +450,11 @@ const Checkout = () => {
       <div className="bg-brand text-white py-16 px-8">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-5xl font-bold">
-            {isMembershipCheckout ? 'Complete Your Membership' : 'Checkout'}
+            {isMembershipCheckout ? (isRenewal ? 'Renew Your Membership' : 'Complete Your Membership') : 'Checkout'}
           </h1>
           {isMembershipCheckout && membershipData && (
             <p className="text-xl mt-2 opacity-90">
-              {membershipData.plan.membership_type} Membership - ${parseFloat(membershipData.plan.annual_fee).toFixed(2)}/year
+              {isRenewal && '🔄 Renewal: '}{membershipData.plan.membership_type} Membership - ${parseFloat(membershipData.plan.annual_fee).toFixed(2)}/year
             </p>
           )}
         </div>
@@ -463,7 +464,14 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-8">
-              {isMembershipCheckout && !orderComplete && hasActiveMembership && (
+              {isMembershipCheckout && !orderComplete && isRenewal && (
+                <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+                  <p className="text-blue-800 font-semibold">
+                    🔄 You are renewing your {membershipData?.plan?.membership_type || 'membership'}. Your membership will be extended by 1 year from your current expiration date.
+                  </p>
+                </div>
+              )}
+              {isMembershipCheckout && !orderComplete && hasActiveMembership && !isRenewal && (
                 <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
                   <p className="text-red-800 font-semibold">
                     You already have an active membership{membership?.membership_type ? ` (${membership.membership_type})` : ''}. Purchasing another is disabled.
@@ -731,7 +739,7 @@ const Checkout = () => {
 
               <button
                 type="submit"
-                disabled={isProcessing || (isMembershipCheckout && hasActiveMembership)}
+                disabled={isProcessing || (isMembershipCheckout && hasActiveMembership && !isRenewal)}
                 className="w-full bg-brand text-white py-4 rounded-lg font-bold text-xl hover:bg-brand-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {isProcessing ? 'Processing...' : `Complete Purchase - $${total.toFixed(2)}`}
@@ -756,7 +764,7 @@ const Checkout = () => {
                       <p className="text-sm text-gray-600 mb-1">Annual Fee</p>
                       <p className="font-semibold text-brand">${parseFloat(membershipData.plan.annual_fee).toFixed(2)}</p>
                     </div>
-                    {hasActiveMembership && (
+                    {hasActiveMembership && !isRenewal && (
                       <div className="bg-red-50 border border-red-200 rounded-md p-3">
                         <p className="text-sm text-red-800 font-semibold">Active membership detected. Checkout is disabled.</p>
                       </div>

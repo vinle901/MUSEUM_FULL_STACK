@@ -131,6 +131,7 @@ CREATE TABLE `Membership`(
     `start_date` DATE NOT NULL,
     `expiration_date` DATE NOT NULL,
     `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
+    `show_warning` BOOLEAN NOT NULL DEFAULT FALSE,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY(`membership_id`),
