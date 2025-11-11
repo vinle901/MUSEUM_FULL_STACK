@@ -41,21 +41,47 @@ router.get('/sales', async (req, res) => {
     const { startDate: s, endDate: e } = req.query;
     const { startDate, endDate } = clampDateRange(s, e);
     
-    // Get total sales for the period
+    // Get total sales for the period (only tickets, gift shop, cafeteria)
     const [totalSalesResult] = await db.query(`
       SELECT 
-        SUM(t.total_price) as totalSales,
+        (
+          SELECT COALESCE(SUM(tp.line_total),0) FROM Ticket_Purchase tp
+          JOIN Transactions t ON tp.transaction_id = t.transaction_id
+          WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+            AND t.transaction_status = 'Completed'
+            AND NOT EXISTS (
+              SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+            )
+        )
+        + (
+          SELECT COALESCE(SUM(gsp.line_total),0) FROM Gift_Shop_Purchase gsp
+          JOIN Transactions t ON gsp.transaction_id = t.transaction_id
+          WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+            AND t.transaction_status = 'Completed'
+            AND NOT EXISTS (
+              SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+            )
+        )
+        + (
+          SELECT COALESCE(SUM(cp.line_total),0) FROM Cafeteria_Purchase cp
+          JOIN Transactions t ON cp.transaction_id = t.transaction_id
+          WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+            AND t.transaction_status = 'Completed'
+            AND NOT EXISTS (
+              SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+            )
+        ) as totalSales,
         COUNT(*) as transactionCount,
         AVG(t.total_price) as averageOrderValue
       FROM Transactions t
-      WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
         )
-    `, [startDate, endDate]);
+    `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
 
-    // Get daily sales
+    // Get daily sales (only tickets, gift shop, cafeteria; exclude membership and donation)
     const [dailySales] = await db.query(`
       SELECT 
         DATE(t.transaction_date) as date,
@@ -65,6 +91,14 @@ router.get('/sales', async (req, res) => {
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM Membership_Purchase mp WHERE mp.transaction_id = t.transaction_id
+        )
+        AND (
+          EXISTS (SELECT 1 FROM Ticket_Purchase tp WHERE tp.transaction_id = t.transaction_id)
+          OR EXISTS (SELECT 1 FROM Gift_Shop_Purchase gsp WHERE gsp.transaction_id = t.transaction_id)
+          OR EXISTS (SELECT 1 FROM Cafeteria_Purchase cp WHERE cp.transaction_id = t.transaction_id)
         )
       GROUP BY DATE(t.transaction_date)
       ORDER BY date
@@ -156,7 +190,7 @@ router.get('/sales/transactions', async (req, res) => {
         t.total_price as total
       FROM ${joinTable} j
       JOIN Transactions t ON j.transaction_id = t.transaction_id
-      WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
