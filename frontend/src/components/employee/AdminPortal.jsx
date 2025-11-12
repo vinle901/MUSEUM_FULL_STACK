@@ -9,10 +9,12 @@ import NotificationBell from './NotificationBell';
 
 
 function AdminPortal() {
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordChangeEmployee, setPasswordChangeEmployee] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const location = useLocation();
-
-  // ---------- core state ----------
-  
   const [activeTab, setActiveTab] = useState('employees');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,47 @@ function AdminPortal() {
   const [artists, setArtists] = useState([]);
   const [exhibitions, setExhibitions] = useState([]);
   const [showTempPw, setShowTempPw] = useState(false);
+  // Open the modal for a given employee row (object with first_name/last_name/id)
+  const openPasswordModal = (employee) => {
+    setPasswordChangeEmployee(employee || null);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordChangeEmployee(null);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+  };
+
+  // Validate and submit to backend (adjust API path if yours differs)
+  const handlePasswordChange = async () => {
+    if (!newPassword || newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      await api.post('/api/employees/change-password', {
+        employee_id: passwordChangeEmployee?.employee_id ?? passwordChangeEmployee?.id,
+        new_password: newPassword,
+      });
+      alert('Password updated.');
+      closePasswordModal();
+    } catch (err) {
+      console.error('Password change failed:', err);
+      setPasswordError(err.response?.data?.error || 'Failed to change password.');
+    }
+  };
+
   const [pay, setPay] = useState({
     cardNumber: '',
     expMonth: '',
@@ -142,7 +185,7 @@ const handleCreateMember = async () => {
           subscribe_to_newsletter: !!newMember.subscribe_to_newsletter,
           temp_password: chosenPassword,
           birthdate: birthdateISO,      // normalized
-          sex: newMember.sex || null,
+          sex: newMember.sex,
         },
         membership: {
           membership_type: newMember.membership_type,
@@ -168,7 +211,7 @@ const handleCreateMember = async () => {
           subscribe_to_newsletter: !!newMember.subscribe_to_newsletter,
           temp_password: chosenPassword,
           birthdate: birthdateISO,
-          sex: newMember.sex || null,
+          sex: newMember.sex,
         },
         membership: {
           membership_type: newMember.membership_type,
@@ -213,27 +256,59 @@ const handleCreateMember = async () => {
     card_cvc: '',
   });
 
-  const openMemberModal = (r) => {
-    setMemberForm({
-      membership_id: r.primary_membership_id,
-      first_name: r.first_name || '',
-      last_name: r.last_name || '',
-      email: r.email || '',
-      phone_number: (r.phone_number && r.phone_number !== '—') ? r.phone_number : '',
-      subscribe_to_newsletter: !!r.subscribe_to_newsletter,
-      membership_type: r.membership_type || '',
-      start_date: '', // unknown in list; admin can set if they want
-      expiration_date: r.expiration_date ? r.expiration_date.slice(0,10) : '',
-      is_active: !!r.is_active,
+const openMemberModal = (r) => {
+  const membershipId =
+    r.primary_membership_id ??
+    r.membership_id ??
+    r.latest?.row?.membership_id ??
+    null;
 
-      charge_amount: '',
-      card_number: '',
-      card_exp_month: '',
-      card_exp_year: '',
-      card_cvc: '',
-    });
-    setShowMemberModal(true);
-  };
+  if (!membershipId) {
+    alert('Cannot edit: missing membership_id for this row.');
+    return;
+  }
+
+  const start = r.start_date
+    ? String(r.start_date).slice(0,10)
+    : (r.latest?.row?.start_date ? String(r.latest.row.start_date).slice(0,10) : toLocalYMD(new Date()));
+
+  const exp = r.expiration_date
+    ? String(r.expiration_date).slice(0,10)
+    : (r.latest?.row?.expiration_date ? String(r.latest.row.expiration_date).slice(0,10) : '');
+
+  setMemberForm({
+    membership_id: membershipId,
+    user_id: r.user_id ?? r.userId ?? r.latest?.row?.user_id ?? null,
+
+    // keep the original email so backend can find the row even if user edits email
+    original_email: (r.email || '').toLowerCase(),
+    email: (r.email || '').toLowerCase(),
+
+    first_name: r.first_name || '',
+    last_name: r.last_name || '',
+    phone_number: (r.phone_number && r.phone_number !== '—') ? r.phone_number : '',
+    subscribe_to_newsletter: !!r.subscribe_to_newsletter,
+    membership_type: r.membership_type || '',
+    start_date: start,
+    expiration_date: exp,
+    is_active: !!r.is_active,
+
+    // optional
+    sex: (r.sex || '').toUpperCase(),
+    birthdate: r.birthdate ? String(r.birthdate).slice(0,10) : '',
+
+    // payment fields – blank in edit modal
+    charge_amount: '',
+    card_number: '',
+    card_exp_month: '',
+    card_exp_year: '',
+    card_cvc: '',
+  });
+
+  setShowMemberModal(true);
+};
+
+
 
   const closeMemberModal = () => {
     setShowMemberModal(false);
@@ -245,46 +320,70 @@ const handleCreateMember = async () => {
   };
 
   const submitMemberUpdate = async () => {
-    try {
-      // 1) Update user + membership
-      await api.put(`/api/reports/membership-signups/member/${memberForm.membership_id}`, {
-        first_name: memberForm.first_name,
-        last_name: memberForm.last_name,
-        email: memberForm.email,
-        phone_number: memberForm.phone_number,
-        subscribe_to_newsletter: !!memberForm.subscribe_to_newsletter,
-        membership_type: memberForm.membership_type,
-        start_date: memberForm.start_date || null,
-        expiration_date: memberForm.expiration_date || null,
-        is_active: !!memberForm.is_active,
-      });
-
-      // 2) Optional payment (only if an amount is entered)
-      const amt = parseFloat(memberForm.charge_amount || '0');
-      if (amt > 0) {
-        await api.post('/api/payments/charge', {
-          membership_id: memberForm.membership_id,
-          amount: Math.round(amt * 100), // cents
-          card: {
-            number: memberForm.card_number,
-            exp_month: memberForm.card_exp_month,
-            exp_year: memberForm.card_exp_year,
-            cvc: memberForm.card_cvc,
-          },
-          reason: 'Membership update charge',
-        });
-        alert('Member updated and payment processed.');
-      } else {
-        alert('Member updated.');
+    console.log('[Edit] Save clicked');
+  // 👇 hoist for catch logging
+  let payloadDebug = null;
+  try {
+    const toISO = (s) => (s ? String(s).slice(0,10) : null);
+    if (!memberForm?.membership_id) {
+        alert('Missing membership_id for edit'); 
+        return;
       }
 
-      closeMemberModal();
-      await fetchItems();
-    } catch (err) {
-      console.error('Member update error:', err);
-      alert(err.response?.data?.error || err.message || 'Failed to update member');
+    const payload = {
+      membership_id: memberForm.membership_id,
+      // send both — backend can use original_email in WHERE, and email as the new value
+      original_email: memberForm.original_email?.trim().toLowerCase(),
+      email: memberForm.email?.trim().toLowerCase(),
+
+      first_name: memberForm.first_name || '',
+      last_name: memberForm.last_name || '',
+      phone_number: memberForm.phone_number ?? null,
+      subscribe_to_newsletter: !!memberForm.subscribe_to_newsletter,
+      membership_type: memberForm.membership_type,
+      start_date: toISO(memberForm.start_date),
+      expiration_date: toISO(memberForm.expiration_date),
+      is_active: !!memberForm.is_active,
+
+      // some backends require this; harmless if ignored
+      temp_password: Math.random().toString(36).slice(2,10) + 'A!1',
+
+      birthdate: toISO(memberForm.birthdate),
+    };
+
+    const sexUpper = (memberForm.sex || '').toString().trim().toUpperCase();
+    if (sexUpper === 'M' || sexUpper === 'F') {
+      payload.sex = sexUpper; // only send valid values
     }
-  };
+
+    const url = (api.defaults?.baseURL || '').endsWith('/api')
+      ? '/reports/membership-signups/member'
+      : '/api/reports/membership-signups/member';
+
+    // POST ONCE
+    const { data } = await api.post(url, payload);
+
+    // refresh and close
+    await fetchItems({ startDate, endDate }); // keep filters if you have them
+    const res = await api.post(url, payload);
+    closeMemberModal();
+    alert('Member updated successfully');
+  } catch (err) {
+    const res = err.response;
+
+    // 🧠 Add debug info for yourself in the browser console:
+    console.error('Member update error:', {
+      status: res?.status,
+      data: res?.data,
+      payload: payloadDebug, // This logs the exact payload you just sent
+    });
+
+    // bubble up exact backend message if available
+    alert(res?.data?.error ||  res?.data || err.message || 'Failed to update member');
+  }
+};
+
+
 
   const tabs = [
     { id: 'employees', label: 'Employees', endpoint: '/api/employees' },
@@ -295,17 +394,36 @@ const handleCreateMember = async () => {
     { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
     { id: 'exhibitions', label: 'Exhibitions', endpoint: '/api/exhibitions' },
     { id: 'events', label: 'Museum Events', endpoint: '/api/events' },
-    
-    // Visitor services
-    { id: 'tickets', label: 'Ticket Types', endpoint: '/api/tickets/types' },
-    { id: 'giftshop', label: 'Gift Shop Items', endpoint: '/api/giftshop' },
-    { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
-
-    // Reports (read-only)
     { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups' },
-    { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
+    //{ id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
   ];
+  const handleEdit = (item) => {
+  // close “add new” if it was open
+  setShowAddForm(false);
 
+  // normalize dates for inputs so the fields show values
+  const toYMD = (v) => (v ? new Date(v).toISOString().slice(0, 10) : '');
+
+  const normalized = { ...item };
+
+  if (activeTab === 'employees') {
+    normalized.birthdate = toYMD(item.birthdate);
+    normalized.hire_date = toYMD(item.hire_date);
+  } else if (activeTab === 'artworks') {
+    normalized.acquisition_date = toYMD(item.acquisition_date);
+    normalized.creation_date   = toYMD(item.creation_date);
+  } else if (activeTab === 'events') {
+    // if you keep date-only in DB this is fine; adjust if it’s datetime
+    normalized.event_date = toYMD(item.event_date);
+  } else if (activeTab === 'exhibitions') {
+    normalized.start_date = toYMD(item.start_date);
+    normalized.end_date   = toYMD(item.end_date);
+  }
+
+  // seed the form and flip editor on
+  setFormData(normalized);
+  setEditingItem(item);          // truthy -> editor overlay renders
+};
   // Handle navigation from notification bell
   useEffect(() => {
     if (location.state?.openTab && location.state?.editItemId) {
@@ -1664,8 +1782,12 @@ const handleCreateMember = async () => {
               <label>Sex: *</label>
               <select
                 value={formData.sex || ''}
-                onChange={(e) => handleInputChange('sex', e.target.value)}
+                onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+              required
               >
+                <option value="" disabled>
+                  Select Sex
+                </option>
                 <option value="">Select</option>
                 <option value="M">Male</option>
                 <option value="F">Female</option>
@@ -2882,6 +3004,17 @@ const handleCreateMember = async () => {
                       placeholder="(555) 123-4567"
                     />
                   </div>
+                  <select
+                    className="field-input"
+                    value={memberForm.sex ?? ''}
+                    onChange={(e) => handleMemberField('sex', e.target.value)}
+                  >
+                    <option value="">Select…</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                    {/* for non-binary / prefer not to say, use value="" so nothing is sent */}
+                    <option value="">Prefer not to say</option>
+                  </select>
                 </div>
               </div>
 
@@ -2899,8 +3032,8 @@ const handleCreateMember = async () => {
                       <option value="">Select plan</option>
                       <option value="Individual">Individual</option>
                       <option value="Family">Family</option>
-                      <option value="Student">Student</option>
-                      <option value="Senior">Senior</option>
+                      <option value="Dual">Dual</option>
+                      <option value="Patron">Patron</option>
                     </select>
                   </div>
 
