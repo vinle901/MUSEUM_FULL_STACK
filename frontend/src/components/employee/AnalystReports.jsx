@@ -1,9 +1,7 @@
 // File: frontend/src/components/employee/AnalystReports.jsx
-// Purpose: Enhanced analytics and reports system with schema-driven filters
-// This is a COMPLETE file replacement - copy this entire file to your project
 
-import React, { useState } from 'react';
-import { FaChartBar, FaCalendarAlt, FaDownload, FaFilter, FaTable } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaChartBar, FaDownload, FaFilter, FaTable, FaUsers, FaShoppingCart, FaTicketAlt } from 'react-icons/fa';
 import { 
   ResponsiveContainer, 
   BarChart, 
@@ -16,18 +14,24 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  Legend, 
   Cell, 
-  ComposedChart, 
-  Area 
+  ComposedChart,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  Legend
 } from 'recharts';
 import api from '../../services/api';
 import './EmployeePortal.css';
 
+const COLORS = [
+  '#149ab8', '#10b981', '#06b6d4', '#f59e0b', '#8b5cf6', 
+  '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
+];
+
 function AnalystReports() {
   // ==================== HELPER FUNCTIONS ====================
   
-  // Helper: format a Date as YYYY-MM-DD in local time
   const toLocalDateString = (date) => {
     const d = date instanceof Date ? date : new Date(date);
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
@@ -35,9 +39,27 @@ function AnalystReports() {
       .split('T')[0];
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric'
+    });
+  };
+
+  // Check if two date ranges overlap
+  const dateRangesOverlap = (start1, end1, start2, end2) => {
+    const s1 = new Date(start1);
+    const e1 = new Date(end1);
+    const s2 = new Date(start2);
+    const e2 = new Date(end2);
+    return s1 <= e2 && s2 <= e1;
+  };
+
   // ==================== STATE MANAGEMENT ====================
   
-  // State for filters - cascading and dynamic based on schema
   const [reportType, setReportType] = useState('');
   const [dateRange, setDateRange] = useState({
     startDate: (() => { 
@@ -48,83 +70,76 @@ function AnalystReports() {
     endDate: toLocalDateString(new Date())
   });
   
-  // Enhanced filters based on database schema
+  const [comparisonDateRange, setComparisonDateRange] = useState({
+    startDate: (() => { 
+      const d = new Date(); 
+      d.setDate(d.getDate() - 61); 
+      return toLocalDateString(d); 
+    })(),
+    endDate: (() => { 
+      const d = new Date(); 
+      d.setDate(d.getDate() - 31); 
+      return toLocalDateString(d); 
+    })()
+  });
+  
   const [filters, setFilters] = useState({
-    // Sales specific (from Transactions table)
     category: 'all',
-    paymentMethod: 'all',
-    transactionStatus: 'Completed',
-    
-    // Gift Shop specific (from Gift_Shop_Items table)
+    ticketType: 'all',
     giftShopCategory: 'all',
-    
-    // Cafeteria specific (from Cafeteria_Items table)
     cafeteriaCategory: 'all',
     dietaryFilter: 'all',
-    
-    // Donation specific (from Donation table)
-    donationType: 'all',
-    includeAnonymous: true,
-    
-    // Membership specific (from Membership table)
+    topK: '10',
     membershipType: 'all',
-    includeRenewals: true,
-    
-    // General
-    granularity: 'daily',
-    compareWithPrevious: false
+    paymentMethod: 'all',
+    enableComparison: false
   });
 
-  // State for generated report
   const [reportData, setReportData] = useState(null);
   const [comparisonData, setComparisonData] = useState(null);
   const [rawData, setRawData] = useState([]);
+  const [comparisonRawData, setComparisonRawData] = useState([]);
+  const [activeVisualizationTab, setActiveVisualizationTab] = useState('primary');
+  const [activeRawDataTab, setActiveRawDataTab] = useState('primary');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // ==================== CLEAR DATA ON REPORT TYPE CHANGE ====================
+  
+  useEffect(() => {
+    // Clear all data when report type changes to prevent stale data/bugs
+    setReportData(null);
+    setComparisonData(null);
+    setRawData([]);
+    setComparisonRawData([]);
+    setErrorMsg('');
+    setActiveVisualizationTab('primary');
+    setActiveRawDataTab('primary');
+  }, [reportType]);
+
   // ==================== CONFIGURATION ====================
   
-  // Report type definitions with descriptions
   const reportTypes = [
     { 
       id: 'sales', 
       label: 'Sales Analysis', 
-      icon: FaChartBar, 
-      description: 'Analyze sales by category, payment method, and time' 
+      icon: FaShoppingCart, 
+      description: 'Comprehensive sales analysis with category filtering and popular items' 
     },
     { 
       id: 'attendance', 
       label: 'Visitor Attendance', 
-      icon: FaCalendarAlt, 
+      icon: FaUsers, 
       description: 'Track visitor patterns and ticket sales' 
-    },
-    { 
-      id: 'popular-items', 
-      label: 'Popular Items', 
-      icon: FaChartBar, 
-      description: 'View top-selling gift shop and cafeteria items' 
-    },
-    { 
-      id: 'revenue', 
-      label: 'Revenue Breakdown', 
-      icon: FaChartBar, 
-      description: 'Comprehensive revenue analysis by source' 
     },
     { 
       id: 'membership', 
       label: 'Membership Analytics', 
-      icon: FaChartBar, 
+      icon: FaTicketAlt, 
       description: 'Track memberships, renewals, and retention' 
-    },
-    { 
-      id: 'donations', 
-      label: 'Donation Analytics', 
-      icon: FaChartBar, 
-      description: 'Analyze donations by type and donor patterns' 
     },
   ];
 
-  // Dynamic options from database schema ENUMs
   const giftShopCategories = [
     'Posters', 'Books', 'Postcards', 'Jewelry', 
     'Souvenirs', 'Toys', 'Stationery', 'Other'
@@ -134,24 +149,23 @@ function AnalystReports() {
     'Hot Beverages', 'Cold Beverages', 'Sandwiches', 
     'Salads', 'Desserts', 'Snacks', 'Main Dishes'
   ];
-  
-  const donationTypes = [
-    'General Fund', 'Exhibition Support', 'Education Programs', 
-    'Artwork Acquisition', 'Building Maintenance', 'Other'
+
+  const ticketTypes = [
+    'Adults', 'Children (6-13)', 'Students (with ID)', 
+    'Seniors (65+)', 'Members'
   ];
-  
+
+  const membershipTypes = [
+    'Individual', 'Dual', 'Family', 'Student', 'Senior', 'Patron'
+  ];
+
   const paymentMethods = [
     'Cash', 'Credit Card', 'Debit Card', 'Mobile Payment'
-  ];
-  
-  const transactionStatuses = [
-    'Completed', 'Pending', 'Cancelled', 'Refunded'
   ];
 
   // ==================== DATE HANDLING ====================
   
-  // Handle quick date range selection
-  const handleQuickDateRange = (range) => {
+  const handleQuickDateRange = (range, isComparison = false) => {
     const today = new Date();
     let start = new Date();
     
@@ -171,10 +185,17 @@ function AnalystReports() {
       case 'lastMonth':
         start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        setDateRange({
-          startDate: toLocalDateString(start),
-          endDate: toLocalDateString(endOfLastMonth)
-        });
+        if (isComparison) {
+          setComparisonDateRange({
+            startDate: toLocalDateString(start),
+            endDate: toLocalDateString(endOfLastMonth)
+          });
+        } else {
+          setDateRange({
+            startDate: toLocalDateString(start),
+            endDate: toLocalDateString(endOfLastMonth)
+          });
+        }
         return;
       case 'thisYear':
         start = new Date(today.getFullYear(), 0, 1);
@@ -183,26 +204,38 @@ function AnalystReports() {
         return;
     }
     
-    setDateRange({
-      startDate: toLocalDateString(start),
-      endDate: toLocalDateString(today)
-    });
-  };
-
-  // Calculate date difference in days
-  const calculateDateDiff = (start, end) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    return Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    if (isComparison) {
+      setComparisonDateRange({
+        startDate: toLocalDateString(start),
+        endDate: toLocalDateString(today)
+      });
+    } else {
+      setDateRange({
+        startDate: toLocalDateString(start),
+        endDate: toLocalDateString(today)
+      });
+    }
   };
 
   // ==================== REPORT GENERATION ====================
   
-  // Main function to generate report (only runs when user clicks button)
   const generateReport = async () => {
     if (!reportType) {
       setErrorMsg('Please select a report type');
       return;
+    }
+
+    // Validate comparison date ranges don't overlap
+    if (filters.enableComparison) {
+      if (dateRangesOverlap(
+        dateRange.startDate, 
+        dateRange.endDate, 
+        comparisonDateRange.startDate, 
+        comparisonDateRange.endDate
+      )) {
+        setErrorMsg('Primary and comparison date ranges cannot overlap. Please adjust the dates.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -210,1123 +243,117 @@ function AnalystReports() {
     setReportData(null);
     setComparisonData(null);
     setRawData([]);
+    setComparisonRawData([]);
+    setActiveVisualizationTab('primary');
 
     try {
-      // Fetch current period data
-      const response = await api.get(`/api/reports/${reportType}`, {
-        params: {
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        }
-      });
+      let params = {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      };
 
+      // Add filters based on report type
+      if (reportType === 'sales') {
+        params.category = filters.category;
+        params.paymentMethod = filters.paymentMethod;
+        params.topK = filters.topK;
+        
+        if (filters.category === 'tickets') {
+          params.ticketType = filters.ticketType;
+        } else if (filters.category === 'giftshop') {
+          params.giftShopCategory = filters.giftShopCategory;
+        } else if (filters.category === 'cafeteria') {
+          params.cafeteriaCategory = filters.cafeteriaCategory;
+          params.dietaryFilter = filters.dietaryFilter;
+        }
+      } else if (reportType === 'attendance') {
+        params.ticketType = filters.ticketType;
+      } else if (reportType === 'membership') {
+        params.membershipType = filters.membershipType;
+      }
+
+      const response = await api.get(`/api/reports/${reportType}`, { params });
       setReportData(response.data);
       
-      // If comparison is enabled, fetch previous period data
-      if (filters.compareWithPrevious) {
-        const daysDiff = calculateDateDiff(dateRange.startDate, dateRange.endDate);
-        const prevEnd = new Date(dateRange.startDate);
-        prevEnd.setDate(prevEnd.getDate() - 1);
-        const prevStart = new Date(prevEnd);
-        prevStart.setDate(prevStart.getDate() - daysDiff);
-        
+      // Get raw data
+      const rawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params });
+      setRawData(rawResponse.data.data || []);
+
+      // Load comparison data if enabled
+      if (filters.enableComparison) {
         try {
-          const prevResponse = await api.get(`/api/reports/${reportType}`, {
-            params: {
-              startDate: toLocalDateString(prevStart),
-              endDate: toLocalDateString(prevEnd)
-            }
-          });
-          setComparisonData(prevResponse.data);
+          const compParams = {
+            ...params,
+            startDate: comparisonDateRange.startDate,
+            endDate: comparisonDateRange.endDate
+          };
+          
+          const compResponse = await api.get(`/api/reports/${reportType}`, { params: compParams });
+          setComparisonData(compResponse.data);
+
+          // Get comparison raw data
+          const compRawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params: compParams });
+          setComparisonRawData(compRawResponse.data.data || []);
         } catch (err) {
           console.error('Failed to load comparison data:', err);
+          setErrorMsg('Warning: Failed to load comparison data. Showing primary data only.');
         }
       }
-      
-      // Generate comprehensive raw data table
-      const raw = generateRawDataTable(reportType, response.data);
-      setRawData(raw);
 
     } catch (error) {
-      console.error('Error fetching report data:', error);
-      setReportData(null);
-      setRawData([]);
-      setErrorMsg(error?.response?.data?.error || 'Failed to load report data.');
+      console.error('Report generation error:', error);
+      setErrorMsg(error.response?.data?.error || 'Failed to generate report');
     } finally {
       setLoading(false);
     }
   };
 
-  // ==================== RAW DATA GENERATION ====================
+  // ==================== FILTER OPTIONS RENDERING ====================
   
-  // Generate raw data table with contextual columns for each report type
-  const generateRawDataTable = (type, data) => {
-    switch(type) {
-      case 'sales':
-        if (data.dailySales) {
-          return data.dailySales.map(d => ({
-            Date: d.date,
-            Sales: `$${Number(d.sales).toFixed(2)}`,
-            'Day of Week': new Date(d.date).toLocaleDateString('en-US', { weekday: 'long' })
-          }));
-        }
-        return [];
-      
-      case 'attendance':
-        if (data.dailyAttendance) {
-          return data.dailyAttendance.map(d => ({
-            Date: d.date,
-            Visitors: d.visitors,
-            'Day of Week': new Date(d.date).toLocaleDateString('en-US', { weekday: 'long' }),
-            'Percentage of Peak': data.peakDay?.visitors 
-              ? `${((d.visitors / data.peakDay.visitors) * 100).toFixed(1)}%` 
-              : 'N/A'
-          }));
-        }
-        return [];
-      
-      case 'popular-items':
-        if (data.topGiftShopItems) {
-          return data.topGiftShopItems.map((item, idx) => ({
-            Rank: idx + 1,
-            Item: item.item_name,
-            Category: item.category,
-            'Units Sold': item.total_quantity,
-            Revenue: `$${Number(item.total_revenue).toFixed(2)}`,
-            'Avg Price': `$${(Number(item.total_revenue) / Number(item.total_quantity)).toFixed(2)}`
-          }));
-        }
-        if (data.topCafeteriaItems) {
-          return data.topCafeteriaItems.map((item, idx) => ({
-            Rank: idx + 1,
-            Item: item.item_name,
-            Category: item.category,
-            'Units Sold': item.total_quantity,
-            Revenue: `$${Number(item.total_revenue).toFixed(2)}`,
-            'Avg Price': `$${(Number(item.total_revenue) / Number(item.total_quantity)).toFixed(2)}`
-          }));
-        }
-        return [];
-      
-      case 'revenue':
-        if (data.breakdown) {
-          return data.breakdown.map(b => ({
-            Source: b.source,
-            Amount: `$${Number(b.amount).toFixed(2)}`,
-            Percentage: `${b.percentage}%`,
-            'Percentage of Total': `${((Number(b.amount) / Number(data.totalRevenue)) * 100).toFixed(2)}%`
-          }));
-        }
-        return [];
-      
-      case 'membership':
-        if (data.signUps) {
-          return data.signUps.map(m => ({
-            'Member Name': `${m.first_name} ${m.last_name}`,
-            Email: m.email,
-            Phone: m.phone_number || 'N/A',
-            'Membership Type': m.membership_type,
-            'Purchase Date': new Date(m.purchased_at).toLocaleDateString(),
-            Amount: `$${Number(m.line_total).toFixed(2)}`,
-            'Renewal': m.is_renewal ? 'Yes' : 'No'
-          }));
-        }
-        return [];
-      
-      case 'donations':
-        if (data.dailySales) {
-          const totalDonations = data.dailySales.reduce((sum, d) => sum + Number(d.sales), 0);
-          return data.dailySales.map(d => ({
-            Date: d.date,
-            'Donation Amount': `$${Number(d.sales).toFixed(2)}`,
-            '% of Total': totalDonations > 0 
-              ? `${((Number(d.sales) / totalDonations) * 100).toFixed(2)}%` 
-              : '0%',
-            'Day of Week': new Date(d.date).toLocaleDateString('en-US', { weekday: 'long' })
-          }));
-        }
-        return [];
-      
-      default:
-        return [];
-    }
-  };
-
-  // ==================== CSV EXPORT ====================
-  
-  // Export raw data to CSV file
-  const exportToCSV = () => {
-    if (!rawData || rawData.length === 0) return;
-
-    const headers = Object.keys(rawData[0]);
-    const csvContent = [
-      headers.join(','),
-      ...rawData.map(row => 
-        headers.map(header => {
-          const value = row[header];
-          // Escape commas and quotes in CSV
-          return typeof value === 'string' && (value.includes(',') || value.includes('"'))
-            ? `"${value.replace(/"/g, '""')}"` 
-            : value;
-        }).join(',')
-      )
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${reportType}-report-${dateRange.startDate}-to-${dateRange.endDate}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  // ==================== COMPARISON METRICS ====================
-  
-  // Render comparison metric with % change vs previous period
-  const renderComparisonMetric = (currentValue, previousValue) => {
-    if (!comparisonData || previousValue === null || previousValue === undefined) return null;
-    
-    const current = Number(currentValue) || 0;
-    const previous = Number(previousValue) || 0;
-    const diff = current - previous;
-    const percentChange = previous !== 0 ? ((diff / previous) * 100) : 0;
-    const isPositive = diff >= 0;
-    
-    return (
-      <div style={{ 
-        marginTop: '0.5rem', 
-        fontSize: '0.85rem', 
-        color: isPositive ? '#059669' : '#dc2626',
-        fontWeight: '600'
-      }}>
-        {isPositive ? '↑' : '↓'} {Math.abs(percentChange).toFixed(1)}% vs previous period
-      </div>
-    );
-  };
-
-  // ==================== VISUALIZATION RENDERERS ====================
-  
-  // Main visualization router based on report type
-  const renderVisualization = () => {
-    if (!reportData) return null;
-
-    switch(reportType) {
-      case 'sales':
-        return renderSalesVisualization();
-      case 'attendance':
-        return renderAttendanceVisualization();
-      case 'popular-items':
-        return renderPopularItemsVisualization();
-      case 'revenue':
-        return renderRevenueVisualization();
-      case 'membership':
-        return renderMembershipVisualization();
-      case 'donations':
-        return renderDonationsVisualization();
-      default:
-        return null;
-    }
-  };
-
-  // Sales Analysis Visualization
-  const renderSalesVisualization = () => {
-    const data = reportData;
-    
-    return (
-      <div className="report-content">
-        {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>Sales Analysis Report</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Period: {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Sales</h3>
-                <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                  ${Number(data.totalSales).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                {renderComparisonMetric(data.totalSales, comparisonData?.totalSales)}
-              </div>
-              <FaChartBar size={32} style={{ opacity: 0.5 }} />
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-              {data.transactionCount || 0} transactions
-            </span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Average Order Value</h3>
-                <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                  ${Number(data.averageOrderValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                {renderComparisonMetric(data.averageOrderValue, comparisonData?.averageOrderValue)}
-              </div>
-              <FaChartBar size={32} style={{ opacity: 0.5 }} />
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>Per transaction</span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Top Category</h3>
-                <p className="summary-value" style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                  {data.categorySales && data.categorySales.length > 0 
-                    ? data.categorySales.reduce((max, cat) => Number(cat.value) > Number(max.value) ? cat : max).category
-                    : 'N/A'}
-                </p>
-              </div>
-              <FaChartBar size={32} style={{ opacity: 0.5 }} />
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-              {data.categorySales && data.categorySales.length > 0 
-                ? `$${Number(data.categorySales.reduce((max, cat) => Number(cat.value) > Number(max.value) ? cat : max).value).toLocaleString()}`
-                : 'No data'}
-            </span>
-          </div>
-        </div>
-
-        {/* Daily Sales Chart */}
-        <div className="chart-container" style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ margin: 0, color: '#0f172a' }}>Daily Sales Trend</h3>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                className={filters.granularity === 'daily' ? 'toggle-btn active' : 'toggle-btn'}
-                onClick={() => setFilters({...filters, granularity: 'daily'})}
-              >
-                Daily
-              </button>
-              <button 
-                className={filters.granularity === 'weekly' ? 'toggle-btn active' : 'toggle-btn'}
-                onClick={() => setFilters({...filters, granularity: 'weekly'})}
-              >
-                Weekly
-              </button>
-              <button 
-                className={filters.granularity === 'monthly' ? 'toggle-btn active' : 'toggle-btn'}
-                onClick={() => setFilters({...filters, granularity: 'monthly'})}
-              >
-                Monthly
-              </button>
-            </div>
-          </div>
-          
-          <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={data.dailySales || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip 
-                formatter={(value) => `$${Number(value).toFixed(2)}`}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-              />
-              <Legend />
-              <Bar dataKey="sales" fill="#149ab8" name="Sales" radius={[8, 8, 0, 0]} />
-              {data.dailySales && data.dailySales.length > 5 && (
-                <Line type="monotone" dataKey="sales" stroke="#0d7294" strokeWidth={2} dot={false} name="Trend" />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Category Breakdown */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-          <div className="chart-container">
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Sales by Category</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={data.categorySales || []}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={true}
-                  label={({ category, percent }) => `${category}: ${(percent * 100).toFixed(1)}%`}
-                  outerRadius={100}
-                  fill="#149ab8"
-                  dataKey="value"
-                >
-                  {(data.categorySales || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="chart-container">
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Category Details</h3>
-            <table className="report-table" style={{ width: '100%', fontSize: '0.9rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>Category</th>
-                  <th style={{ textAlign: 'right' }}>Amount</th>
-                  <th style={{ textAlign: 'right' }}>% of Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.categorySales || []).map((cat, idx) => {
-                  const total = (data.categorySales || []).reduce((sum, c) => sum + Number(c.value), 0);
-                  const percentage = total > 0 ? ((Number(cat.value) / total) * 100).toFixed(1) : '0.0';
-                  return (
-                    <tr key={idx}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ 
-                            width: '12px', 
-                            height: '12px', 
-                            borderRadius: '3px', 
-                            background: COLORS[idx % COLORS.length] 
-                          }}></div>
-                          {cat.category}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: '600' }}>
-                        ${Number(cat.value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>{percentage}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Attendance Visualization
-  const renderAttendanceVisualization = () => {
-    const data = reportData;
-    
-    return (
-      <div className="report-content">
-        <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>Visitor Attendance Report</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Period: {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-
-        <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Visitors</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {Number(data.totalVisitors || 0).toLocaleString()}
-              </p>
-              {renderComparisonMetric(data.totalVisitors, comparisonData?.totalVisitors)}
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-              {dateRange.startDate} — {dateRange.endDate}
-            </span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Average Daily</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {Number(data.averageDaily || 0).toLocaleString()}
-              </p>
-              {renderComparisonMetric(data.averageDaily, comparisonData?.averageDaily)}
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>Per day average</span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Peak Day</h3>
-              <p className="summary-value" style={{ fontSize: '1.5rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {data.peakDay?.visitors || 0}
-              </p>
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-              {data.peakDay?.date ? new Date(data.peakDay.date).toLocaleDateString() : 'N/A'}
-            </span>
-          </div>
-        </div>
-
-        <div className="chart-container" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Daily Visitor Attendance</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={data.dailyAttendance || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-              <Legend />
-              <Area type="monotone" dataKey="visitors" fill="#a7f3d0" stroke="#149ab8" strokeWidth={2} name="Visitors" />
-              <Line type="monotone" dataKey="visitors" stroke="#0d7294" strokeWidth={3} dot={{ fill: '#149ab8', r: 4 }} name="Trend" />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {data.ticketTypeDistribution && (
-          <div className="chart-container" style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Ticket Type Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.ticketTypeDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="type" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                <Legend />
-                <Bar dataKey="count" fill="#10b981" name="Tickets Sold" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Popular Items Visualization
-  const renderPopularItemsVisualization = () => {
-    const data = reportData;
-    
-    return (
-      <div className="report-content">
-        <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>Popular Items Report</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Period: {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-
-        {data.topGiftShopItems && data.topGiftShopItems.length > 0 && (
-          <div className="chart-container" style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Top 10 Gift Shop Items</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={data.topGiftShopItems.slice(0, 10)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis dataKey="item_name" type="category" width={180} tick={{ fontSize: 11 }} />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    name === 'total_quantity' ? value.toLocaleString() : `$${Number(value).toFixed(2)}`,
-                    name === 'total_quantity' ? 'Units Sold' : 'Revenue'
-                  ]}
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                />
-                <Legend />
-                <Bar dataKey="total_quantity" fill="#149ab8" name="Units Sold" />
-                <Bar dataKey="total_revenue" fill="#149ab8" name="Revenue ($)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {data.topCafeteriaItems && data.topCafeteriaItems.length > 0 && (
-          <div className="chart-container" style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Top 10 Cafeteria Items</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={data.topCafeteriaItems.slice(0, 10)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis dataKey="item_name" type="category" width={180} tick={{ fontSize: 11 }} />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    name === 'total_quantity' ? value.toLocaleString() : `$${Number(value).toFixed(2)}`,
-                    name === 'total_quantity' ? 'Units Sold' : 'Revenue'
-                  ]}
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                />
-                <Legend />
-                <Bar dataKey="total_quantity" fill="#06b6d4" name="Units Sold" />
-                <Bar dataKey="total_revenue" fill="#0891b2" name="Revenue ($)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Revenue Visualization
-  const renderRevenueVisualization = () => {
-    const data = reportData;
-    
-    return (
-      <div className="report-content">
-        <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>Revenue Breakdown Report</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Period: {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-
-        <div className="report-summary" style={{ marginBottom: '2rem', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Revenue</h3>
-              <p className="summary-value" style={{ fontSize: '2.5rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                ${Number(data.totalRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              {renderComparisonMetric(data.totalRevenue, comparisonData?.totalRevenue)}
-            </div>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Top Source</h3>
-              <p className="summary-value" style={{ fontSize: '1.3rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {data.breakdown && data.breakdown.length > 0
-                  ? data.breakdown.reduce((max, src) => Number(src.amount) > Number(max.amount) ? src : max).source
-                  : 'N/A'}
-              </p>
-              <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-                {data.breakdown && data.breakdown.length > 0
-                  ? `$${Number(data.breakdown.reduce((max, src) => Number(src.amount) > Number(max.amount) ? src : max).amount).toLocaleString()}`
-                  : 'No data'}
-              </span>
-            </div>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Sources</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {data.breakdown ? data.breakdown.length : 0}
-              </p>
-              <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>Revenue streams</span>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-          <div className="chart-container">
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Revenue by Source</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={data.breakdown || []}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={true}
-                  label={({ source, percentage }) => `${source}: ${percentage}%`}
-                  outerRadius={100}
-                  fill="#149ab8"
-                  dataKey="amount"
-                >
-                  {(data.breakdown || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="chart-container">
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Revenue Comparison</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.breakdown || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="source" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={100} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  formatter={(value) => `$${Number(value).toFixed(2)}`}
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                />
-                <Bar dataKey="amount" fill="#10b981" name="Revenue" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Membership Visualization
-  const renderMembershipVisualization = () => {
-    const data = reportData;
-    
-    return (
-      <div className="report-content">
-        <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>Membership Analytics Report</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Period: {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-
-        <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>New Members</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {data.newMemberships || 0}
-              </p>
-              {renderComparisonMetric(data.newMemberships, comparisonData?.newMemberships)}
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>New sign-ups</span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Renewals</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {data.renewals || 0}
-              </p>
-              {renderComparisonMetric(data.renewals, comparisonData?.renewals)}
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>Renewed memberships</span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Active Members</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {data.activeMembers || 0}
-              </p>
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>Current total</span>
-          </div>
-        </div>
-
-        {data.membershipTypes && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-            <div className="chart-container">
-              <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Membership Types Distribution</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={data.membershipTypes}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ type, count }) => `${type}: ${count}`}
-                    outerRadius={100}
-                    fill="#149ab8"
-                    dataKey="count"
-                  >
-                    {data.membershipTypes.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="chart-container">
-              <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Membership Type Details</h3>
-              <table className="report-table" style={{ width: '100%', fontSize: '0.9rem' }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left' }}>Type</th>
-                    <th style={{ textAlign: 'right' }}>Count</th>
-                    <th style={{ textAlign: 'right' }}>% of Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.membershipTypes.map((type, idx) => {
-                    const total = data.membershipTypes.reduce((sum, t) => sum + Number(t.count), 0);
-                    const percentage = total > 0 ? ((Number(type.count) / total) * 100).toFixed(1) : '0.0';
-                    return (
-                      <tr key={idx}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <div style={{ 
-                              width: '12px', 
-                              height: '12px', 
-                              borderRadius: '3px', 
-                              background: COLORS[idx % COLORS.length] 
-                            }}></div>
-                            {type.type}
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: '600' }}>{type.count}</td>
-                        <td style={{ textAlign: 'right' }}>{percentage}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {data.dailySignups && (
-          <div className="chart-container" style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Daily Membership Sign-ups</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data.dailySignups}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                <Legend />
-                <Line type="monotone" dataKey="signups" stroke="#149ab8" strokeWidth={2} dot={{ fill: '#149ab8', r: 4 }} name="Sign-ups" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Donations Visualization
-  const renderDonationsVisualization = () => {
-    const data = reportData;
-    
-    return (
-      <div className="report-content">
-        <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ margin: '0 0 0.5rem 0', color: '#0f172a' }}>Donation Analytics Report</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-            Period: {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - {new Date(dateRange.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        </div>
-
-        <div className="report-summary" style={{ marginBottom: '2rem' }}>
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Donations</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                ${Number(data.totalSales || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              {renderComparisonMetric(data.totalSales, comparisonData?.totalSales)}
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>Total donated</span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Average Donation</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                ${Number(data.averageOrderValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              {renderComparisonMetric(data.averageOrderValue, comparisonData?.averageOrderValue)}
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>Per donation</span>
-          </div>
-          
-          <div className="summary-card" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: '600', opacity: 0.9 }}>Total Donors</h3>
-              <p className="summary-value" style={{ fontSize: '2rem', fontWeight: '700', margin: '0.5rem 0' }}>
-                {data.transactionCount || 0}
-              </p>
-              {data.anonymousCount !== undefined && (
-                <span style={{ fontSize: '0.85rem', opacity: 0.9 }}>
-                  ({data.anonymousCount} anonymous)
-                </span>
-              )}
-            </div>
-            <span className="summary-period" style={{ fontSize: '0.85rem', opacity: 0.9 }}>Unique donors</span>
-          </div>
-        </div>
-
-        <div className="chart-container" style={{ marginBottom: '2rem' }}>
-          <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Daily Donation Trend</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={data.dailySales || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip 
-                formatter={(value) => `$${Number(value).toFixed(2)}`}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-              />
-              <Legend />
-              <Bar dataKey="sales" fill="#149ab8" name="Donations" radius={[8, 8, 0, 0]} />
-              {data.dailySales && data.dailySales.length > 5 && (
-                <Line type="monotone" dataKey="sales" stroke="#0d7294" strokeWidth={2} dot={false} name="Trend" />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-          <div className="chart-container">
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Donations by Type</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={data.categorySales || []}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={true}
-                  label={({ category, percent }) => `${category}: ${(percent * 100).toFixed(1)}%`}
-                  outerRadius={100}
-                  fill="#149ab8"
-                  dataKey="value"
-                >
-                  {(data.categorySales || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="chart-container">
-            <h3 style={{ marginBottom: '1rem', color: '#0f172a' }}>Donation Type Details</h3>
-            <table className="report-table" style={{ width: '100%', fontSize: '0.9rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>Type</th>
-                  <th style={{ textAlign: 'right' }}>Amount</th>
-                  <th style={{ textAlign: 'right' }}>% of Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.categorySales || []).map((cat, idx) => {
-                  const total = (data.categorySales || []).reduce((sum, c) => sum + Number(c.value), 0);
-                  const percentage = total > 0 ? ((Number(cat.value) / total) * 100).toFixed(1) : '0.0';
-                  return (
-                    <tr key={idx}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ 
-                            width: '12px', 
-                            height: '12px', 
-                            borderRadius: '3px', 
-                            background: COLORS[idx % COLORS.length] 
-                          }}></div>
-                          {cat.category}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: '600' }}>
-                        ${Number(cat.value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>{percentage}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ==================== RAW DATA TABLE ====================
-  
-  // Render raw data table with export functionality
-  const renderRawDataTable = () => {
-    if (!rawData || rawData.length === 0) return null;
-
-    const headers = Object.keys(rawData[0]);
-
-    return (
-      <div className="chart-container" style={{ marginTop: '2rem', background: '#f8fafc' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div>
-            <h3 style={{ margin: '0 0 0.25rem 0', color: '#0f172a' }}>
-              <FaTable style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
-              Raw Data Export
-            </h3>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
-              Detailed data table with {rawData.length} records
-            </p>
-          </div>
-          <button 
-            className="toggle-btn" 
-            onClick={exportToCSV}
-            style={{ 
-              background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)',
-              color: 'white',
-              border: 'none',
-              padding: '0.6rem 1.2rem',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            <FaDownload />
-            Export to CSV
-          </button>
-        </div>
-        
-        <div style={{ 
-          overflowX: 'auto', 
-          maxHeight: '500px', 
-          overflowY: 'auto',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          background: 'white'
-        }}>
-          <table className="report-table" style={{ width: '100%', fontSize: '0.9rem' }}>
-            <thead style={{ position: 'sticky', top: 0, background: '#149ab8', zIndex: 1 }}>
-              <tr>
-                <th style={{ padding: '0.75rem', color: 'white', fontWeight: '600', textAlign: 'left', borderBottom: '2px solid #0d7294' }}>
-                  #
-                </th>
-                {headers.map(header => (
-                  <th key={header} style={{ padding: '0.75rem', color: 'white', fontWeight: '600', textAlign: 'left', borderBottom: '2px solid #0d7294' }}>
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rawData.map((row, idx) => (
-                <tr key={idx} style={{ 
-                  background: idx % 2 === 0 ? 'white' : '#f8fafc',
-                  transition: 'background 0.2s'
-                }}>
-                  <td style={{ padding: '0.75rem', color: '#64748b', fontWeight: '500' }}>
-                    {idx + 1}
-                  </td>
-                  {headers.map(header => (
-                    <td key={header} style={{ padding: '0.75rem', color: '#0f172a' }}>
-                      {row[header]}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#64748b', fontSize: '0.9rem' }}>
-              <strong style={{ color: '#0f172a' }}>{rawData.length}</strong> records displayed
-            </span>
-            <span style={{ color: '#64748b', fontSize: '0.85rem' }}>
-              Report generated on {new Date().toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric', 
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ==================== FILTER OPTIONS ====================
-  
-  // Render additional filters based on report type (cascading)
   const renderFilterOptions = () => {
     if (!reportType) return null;
 
     return (
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: '#0f172a' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#0f172a', fontSize: '1rem' }}>
           3. Additional Filters
         </label>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          {/* Sales Specific Filters */}
-          {reportType === 'sales' && (
-            <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                  Category
-                </label>
-                <select
-                  value={filters.category}
-                  onChange={(e) => setFilters({...filters, category: e.target.value})}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.6rem', 
-                    border: '1px solid #e2e8f0', 
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    background: 'white'
-                  }}
-                >
-                  <option value="all">All Categories</option>
-                  <option value="tickets">Tickets Only</option>
-                  <option value="giftshop">Gift Shop Only</option>
-                  <option value="cafeteria">Cafeteria Only</option>
-                </select>
-              </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                  Payment Method
-                </label>
-                <select
-                  value={filters.paymentMethod}
-                  onChange={(e) => setFilters({...filters, paymentMethod: e.target.value})}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.6rem', 
-                    border: '1px solid #e2e8f0', 
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    background: 'white'
-                  }}
-                >
-                  <option value="all">All Methods</option>
-                  {paymentMethods.map(method => (
-                    <option key={method} value={method}>{method}</option>
-                  ))}
-                </select>
-              </div>
+        {reportType === 'sales' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            {/* Category Selection */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                Category
+              </label>
+              <select
+                value={filters.category}
+                onChange={(e) => setFilters({...filters, category: e.target.value})}
+                style={{ 
+                  width: '100%',
+                  padding: '0.6rem', 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  background: 'white'
+                }}
+              >
+                <option value="all">All Categories</option>
+                <option value="tickets">Tickets Only</option>
+                <option value="giftshop">Gift Shop Only</option>
+                <option value="cafeteria">Cafeteria Only</option>
+              </select>
+            </div>
 
+            {/* Dynamic Sub-category Filters */}
+            {filters.category === 'tickets' && (
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                  Transaction Status
+                  Ticket Type
                 </label>
                 <select
-                  value={filters.transactionStatus}
-                  onChange={(e) => setFilters({...filters, transactionStatus: e.target.value})}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.6rem', 
-                    border: '1px solid #e2e8f0', 
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    background: 'white'
-                  }}
-                >
-                  {transactionStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
-
-          {/* Donation Specific Filters */}
-          {reportType === 'donations' && (
-            <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                  Donation Type
-                </label>
-                <select
-                  value={filters.donationType}
-                  onChange={(e) => setFilters({...filters, donationType: e.target.value})}
+                  value={filters.ticketType}
+                  onChange={(e) => setFilters({...filters, ticketType: e.target.value})}
                   style={{ 
                     width: '100%',
                     padding: '0.6rem', 
@@ -1337,52 +364,15 @@ function AnalystReports() {
                   }}
                 >
                   <option value="all">All Types</option>
-                  {donationTypes.map(type => (
+                  {ticketTypes.map(type => (
                     <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
               </div>
+            )}
 
-              <div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={filters.includeAnonymous}
-                    onChange={(e) => setFilters({...filters, includeAnonymous: e.target.checked})}
-                    style={{ width: '18px', height: '18px' }}
-                  />
-                  <span style={{ fontSize: '0.9rem', color: '#0f172a' }}>Include Anonymous Donations</span>
-                </label>
-              </div>
-            </>
-          )}
-
-          {/* Popular Items Specific Filters */}
-          {reportType === 'popular-items' && (
-            <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                  Item Source
-                </label>
-                <select
-                  value={filters.category}
-                  onChange={(e) => setFilters({...filters, category: e.target.value})}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.6rem', 
-                    border: '1px solid #e2e8f0', 
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    background: 'white'
-                  }}
-                >
-                  <option value="all">Both Gift Shop & Cafeteria</option>
-                  <option value="giftshop">Gift Shop Only</option>
-                  <option value="cafeteria">Cafeteria Only</option>
-                </select>
-              </div>
-
-              {filters.category !== 'cafeteria' && (
+            {filters.category === 'giftshop' && (
+              <>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
                     Gift Shop Category
@@ -1405,117 +395,1214 @@ function AnalystReports() {
                     ))}
                   </select>
                 </div>
-              )}
-
-              {filters.category !== 'giftshop' && (
-                <>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                      Cafeteria Category
-                    </label>
-                    <select
-                      value={filters.cafeteriaCategory}
-                      onChange={(e) => setFilters({...filters, cafeteriaCategory: e.target.value})}
-                      style={{ 
-                        width: '100%',
-                        padding: '0.6rem', 
-                        border: '1px solid #e2e8f0', 
-                        borderRadius: '8px',
-                        fontSize: '0.9rem',
-                        background: 'white'
-                      }}
-                    >
-                      <option value="all">All Categories</option>
-                      {cafeteriaCategories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                      Dietary Filter
-                    </label>
-                    <select
-                      value={filters.dietaryFilter}
-                      onChange={(e) => setFilters({...filters, dietaryFilter: e.target.value})}
-                      style={{ 
-                        width: '100%',
-                        padding: '0.6rem', 
-                        border: '1px solid #e2e8f0', 
-                        borderRadius: '8px',
-                        fontSize: '0.9rem',
-                        background: 'white'
-                      }}
-                    >
-                      <option value="all">All Items</option>
-                      <option value="vegetarian">Vegetarian Only</option>
-                      <option value="vegan">Vegan Only</option>
-                    </select>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {/* Membership Specific Filters */}
-          {reportType === 'membership' && (
-            <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                  Membership Type
-                </label>
-                <select
-                  value={filters.membershipType}
-                  onChange={(e) => setFilters({...filters, membershipType: e.target.value})}
-                  style={{ 
-                    width: '100%',
-                    padding: '0.6rem', 
-                    border: '1px solid #e2e8f0', 
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    background: 'white'
-                  }}
-                >
-                  <option value="all">All Types</option>
-                  <option value="Basic">Basic</option>
-                  <option value="Premium">Premium</option>
-                  <option value="Family">Family</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                    Top Items to Show
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={filters.includeRenewals}
-                    onChange={(e) => setFilters({...filters, includeRenewals: e.target.checked})}
-                    style={{ width: '18px', height: '18px' }}
+                    type="number"
+                    min="3"
+                    max="50"
+                    value={filters.topK}
+                    onChange={(e) => setFilters({...filters, topK: e.target.value})}
+                    style={{ 
+                      width: '100%',
+                      padding: '0.6rem', 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      background: 'white'
+                    }}
                   />
-                  <span style={{ fontSize: '0.9rem', color: '#0f172a' }}>Include Renewals</span>
-                </label>
-              </div>
-            </>
-          )}
+                </div>
+              </>
+            )}
 
-          {/* General: Compare with Previous Period */}
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={filters.compareWithPrevious}
-                onChange={(e) => setFilters({...filters, compareWithPrevious: e.target.checked})}
-                style={{ width: '18px', height: '18px' }}
-              />
-              <span style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: '500' }}>
-                Compare with previous period
-              </span>
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                (Shows trend arrows and % changes)
-              </span>
+            {filters.category === 'cafeteria' && (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                    Cafeteria Category
+                  </label>
+                  <select
+                    value={filters.cafeteriaCategory}
+                    onChange={(e) => setFilters({...filters, cafeteriaCategory: e.target.value})}
+                    style={{ 
+                      width: '100%',
+                      padding: '0.6rem', 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="all">All Categories</option>
+                    {cafeteriaCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                    Dietary Filter
+                  </label>
+                  <select
+                    value={filters.dietaryFilter}
+                    onChange={(e) => setFilters({...filters, dietaryFilter: e.target.value})}
+                    style={{ 
+                      width: '100%',
+                      padding: '0.6rem', 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="all">All Items</option>
+                    <option value="vegetarian">Vegetarian Only</option>
+                    <option value="vegan">Vegan Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                    Top Items to Show
+                  </label>
+                  <input
+                    type="number"
+                    min="3"
+                    max="50"
+                    value={filters.topK}
+                    onChange={(e) => setFilters({...filters, topK: e.target.value})}
+                    style={{ 
+                      width: '100%',
+                      padding: '0.6rem', 
+                      border: '1px solid #e2e8f0', 
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      background: 'white'
+                    }}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Payment Method Filter (applies to all categories) */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+                Payment Method
+              </label>
+              <select
+                value={filters.paymentMethod}
+                onChange={(e) => setFilters({...filters, paymentMethod: e.target.value})}
+                style={{ 
+                  width: '100%',
+                  padding: '0.6rem', 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  background: 'white'
+                }}
+              >
+                <option value="all">All Methods</option>
+                {paymentMethods.map(method => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {reportType === 'attendance' && (
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+              Ticket Type
             </label>
+            <select
+              value={filters.ticketType}
+              onChange={(e) => setFilters({...filters, ticketType: e.target.value})}
+              style={{ 
+                maxWidth: '300px',
+                padding: '0.6rem', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                background: 'white'
+              }}
+            >
+              <option value="all">All Types</option>
+              {ticketTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {reportType === 'membership' && (
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+              Membership Type
+            </label>
+            <select
+              value={filters.membershipType}
+              onChange={(e) => setFilters({...filters, membershipType: e.target.value})}
+              style={{ 
+                maxWidth: '300px',
+                padding: '0.6rem', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                background: 'white'
+              }}
+            >
+              <option value="all">All Types</option>
+              {membershipTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ==================== COMPARISON DATE RANGE SELECTOR ====================
+  
+  const renderComparisonDateSelector = () => {
+    if (!filters.enableComparison) return null;
+
+    const hasOverlap = dateRangesOverlap(
+      dateRange.startDate, 
+      dateRange.endDate, 
+      comparisonDateRange.startDate, 
+      comparisonDateRange.endDate
+    );
+
+    return (
+      <div style={{ 
+        marginTop: '1.5rem', 
+        padding: '1.5rem', 
+        background: '#f0fdfa', 
+        border: `2px solid ${hasOverlap ? '#fecaca' : '#99f6e4'}`, 
+        borderRadius: '12px' 
+      }}>
+        <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#0f172a', fontSize: '1rem' }}>
+          📊 Comparison Period
+        </label>
+        
+        {hasOverlap && (
+          <div style={{ 
+            background: '#fee2e2', 
+            border: '1px solid #fecaca', 
+            padding: '0.75rem', 
+            borderRadius: '8px', 
+            marginBottom: '1rem',
+            color: '#991b1b',
+            fontSize: '0.9rem'
+          }}>
+            ⚠️ Warning: Date ranges overlap! Please adjust dates so they don't overlap.
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+              Comparison Start Date
+            </label>
+            <input
+              type="date"
+              value={comparisonDateRange.startDate}
+              onChange={(e) => setComparisonDateRange({...comparisonDateRange, startDate: e.target.value})}
+              style={{ 
+                padding: '0.6rem', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                background: 'white'
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
+              Comparison End Date
+            </label>
+            <input
+              type="date"
+              value={comparisonDateRange.endDate}
+              onChange={(e) => setComparisonDateRange({...comparisonDateRange, endDate: e.target.value})}
+              style={{ 
+                padding: '0.6rem', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                background: 'white'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button className="toggle-btn" onClick={() => handleQuickDateRange('last7', true)}>Last 7 days</button>
+            <button className="toggle-btn" onClick={() => handleQuickDateRange('last30', true)}>Last 30 days</button>
+            <button className="toggle-btn" onClick={() => handleQuickDateRange('lastMonth', true)}>Last month</button>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  // ==================== VISUALIZATION RENDERING ====================
+  
+  const renderVisualization = () => {
+    if (!reportData) return null;
+
+    // Determine which data to display based on active tab
+    const activeData = activeVisualizationTab === 'primary' ? reportData : comparisonData;
+    const activeDateRange = activeVisualizationTab === 'primary' ? dateRange : comparisonDateRange;
+
+    if (!activeData) return null;
+
+    const reportTitle = reportType === 'sales' ? 'Sales Analysis Report' :
+                       reportType === 'attendance' ? 'Visitor Attendance Report' :
+                       'Membership Analytics Report';
+
+    const periodText = `${formatDate(activeDateRange.startDate)} - ${formatDate(activeDateRange.endDate)}`;
+
+    if (reportType === 'sales') {
+      return renderSalesVisualization(reportTitle, periodText, activeData);
+    } else if (reportType === 'attendance') {
+      return renderAttendanceVisualization(reportTitle, periodText, activeData);
+    } else if (reportType === 'membership') {
+      return renderMembershipVisualization(reportTitle, periodText, activeData);
+    }
+  };
+
+  const renderSalesVisualization = (title, period, data) => {
+    const { 
+      totalSales = 0, 
+      transactionCount = 0, 
+      averageOrderValue = 0,
+      categorySales = [],
+      dailySales = [],
+      topItems = [],
+      paymentMethodBreakdown = [],
+      categoryDetails = []
+    } = data;
+
+    const changeIndicator = (current, previous) => {
+      if (!comparisonData || !previous) return null;
+      const change = ((current - previous) / previous * 100).toFixed(1);
+      const color = change >= 0 ? '#10b981' : '#ef4444';
+      const arrow = change >= 0 ? '↑' : '↓';
+      return (
+        <span style={{ color, fontSize: '0.85rem', marginLeft: '0.5rem', fontWeight: '600' }}>
+          {arrow} {Math.abs(change)}%
+        </span>
+      );
+    };
+
+    // Prepare bubble chart data
+    const bubbleData = topItems.map((item, idx) => ({
+      name: item.name,
+      x: item.unitsSold,
+      y: item.revenue,
+      z: item.revenue,
+      revenue: item.revenue,
+      unitsSold: item.unitsSold,
+      color: COLORS[idx % COLORS.length]
+    }));
+
+    return (
+      <>
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.75rem' }}>{title}</h3>
+          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>
+            Primary: {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
+            {filters.enableComparison && comparisonData && (
+              <> | Comparison: {formatDate(comparisonDateRange.startDate)} - {formatDate(comparisonDateRange.endDate)}</>
+            )}
+          </p>
+        </div>
+
+        {/* KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Total Sales</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              ${(reportData?.totalSales || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {changeIndicator(reportData?.totalSales || 0, comparisonData?.totalSales)}
+            </div>
+            {filters.category !== 'all' && (
+              <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>
+                Category: {filters.category === 'giftshop' ? 'Gift Shop' : filters.category === 'cafeteria' ? 'Cafeteria' : 'Tickets'}
+              </div>
+            )}
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Total Transactions</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {reportData?.transactionCount || 0}
+              {changeIndicator(reportData?.transactionCount || 0, comparisonData?.transactionCount)}
+            </div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Avg Order Value</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              ${(reportData?.averageOrderValue || 0).toFixed(2)}
+              {changeIndicator(reportData?.averageOrderValue || 0, comparisonData?.averageOrderValue)}
+            </div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>
+              {filters.category === 'tickets' ? 'Top Ticket Type' : 'Top Item/Category'}
+            </div>
+            <div style={{ fontSize: '1.2rem', fontWeight: '700' }}>
+              {filters.category === 'tickets' ? 
+                (categoryDetails[0]?.type || 'N/A') : 
+                filters.category === 'all' ? 
+                  (categorySales[0]?.category || 'N/A') : 
+                  (topItems[0]?.name || 'N/A')
+              }
+            </div>
+          </div>
+        </div>
+
+        {/* Period Toggle Tabs */}
+        {filters.enableComparison && comparisonData && (
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.5rem', 
+            marginBottom: '2rem',
+            borderBottom: '2px solid #e2e8f0',
+            paddingBottom: '1rem'
+          }}>
+            <button
+              onClick={() => setActiveVisualizationTab('primary')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: activeVisualizationTab === 'primary' ? 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' : 'white',
+                color: activeVisualizationTab === 'primary' ? 'white' : '#475569',
+                border: activeVisualizationTab === 'primary' ? 'none' : '2px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+            >
+              📊 Primary Period
+            </button>
+            <button
+              onClick={() => setActiveVisualizationTab('comparison')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: activeVisualizationTab === 'comparison' ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'white',
+                color: activeVisualizationTab === 'comparison' ? 'white' : '#475569',
+                border: activeVisualizationTab === 'comparison' ? 'none' : '2px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+            >
+              📈 Comparison Period
+            </button>
+          </div>
+        )}
+
+        {/* Current Period Label */}
+        <div style={{ 
+          background: '#f8fafc', 
+          padding: '0.75rem 1rem', 
+          borderRadius: '8px', 
+          marginBottom: '1.5rem',
+          border: '1px solid #e2e8f0'
+        }}>
+          <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>
+            Viewing: 
+          </span>
+          <span style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: '600', marginLeft: '0.5rem' }}>
+            {period}
+          </span>
+        </div>
+
+        {/* Charts */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '2rem' }}>
+          {/* Daily Sales Trend */}
+          <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+            <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Daily Sales Trend</h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dailySales}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Sales']}
+                  labelFormatter={(date) => formatDate(date)}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="sales" 
+                  stroke={activeVisualizationTab === 'primary' ? '#149ab8' : '#94a3b8'} 
+                  strokeWidth={2} 
+                  dot={{ r: 3 }} 
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Category Distribution - only for "all" categories */}
+          {filters.category === 'all' && categorySales.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Sales by Category</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categorySales}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ category, value }) => `${category}: $${value.toFixed(0)}`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categorySales.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Bubble Chart for Top Items */}
+          {(filters.category === 'giftshop' || filters.category === 'cafeteria') && topItems.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', gridColumn: '1 / -1' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>
+                Top {filters.topK} {filters.category === 'giftshop' ? 'Gift Shop' : 'Cafeteria'} Items
+              </h4>
+              <ResponsiveContainer width="100%" height={Math.max(400, bubbleData.length * 35)}>
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis 
+                    type="number" 
+                    dataKey="x" 
+                    name="Units Sold" 
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Units Sold', position: 'insideBottom', offset: -10, fontSize: 12 }}
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="y" 
+                    name="Revenue" 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => `$${value.toFixed(0)}`}
+                    label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', fontSize: 12 }}
+                  />
+                  <ZAxis type="number" dataKey="z" range={[400, 4000]} name="Revenue" />
+                  <Tooltip 
+                    cursor={{ strokeDasharray: '3 3' }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div style={{ 
+                            background: 'white', 
+                            border: '2px solid #149ab8', 
+                            padding: '0.75rem', 
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                          }}>
+                            <p style={{ margin: 0, fontWeight: '600', color: '#0f172a', marginBottom: '0.5rem' }}>
+                              {data.name}
+                            </p>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
+                              Revenue: <strong>${data.revenue.toFixed(2)}</strong>
+                            </p>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
+                              Units Sold: <strong>{data.unitsSold}</strong>
+                            </p>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
+                              Avg Price: <strong>${(data.revenue / data.unitsSold).toFixed(2)}</strong>
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Scatter name="Items" data={bubbleData} fill="#149ab8">
+                    {bubbleData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Category Details for Gift Shop */}
+          {filters.category === 'giftshop' && (!filters.giftShopCategory || filters.giftShopCategory === 'all') && categoryDetails.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Gift Shop Category Breakdown</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={categoryDetails}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="category" tick={{ fontSize: 11 }} />
+                  <YAxis />
+                  <Tooltip formatter={(value) => value.toLocaleString()} />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#149ab8" name="Revenue ($)" />
+                  <Bar dataKey="itemsSold" fill="#10b981" name="Items Sold" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Category Details for Cafeteria */}
+          {filters.category === 'cafeteria' && (!filters.cafeteriaCategory || filters.cafeteriaCategory === 'all') && categoryDetails.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Cafeteria Category Breakdown</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={categoryDetails}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="category" tick={{ fontSize: 11 }} />
+                  <YAxis />
+                  <Tooltip formatter={(value) => value.toLocaleString()} />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#149ab8" name="Revenue ($)" />
+                  <Bar dataKey="itemsSold" fill="#10b981" name="Items Sold" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Ticket Type Details */}
+          {filters.category === 'tickets' && categoryDetails.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Ticket Type Breakdown</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={categoryDetails}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="type" tick={{ fontSize: 11 }} />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      name === 'revenue' ? `$${value}` : value,
+                      name === 'revenue' ? 'Revenue' : name === 'visitors' ? 'Visitors' : 'Transactions'
+                    ]}
+                  />
+                  <Legend />
+                  <Bar dataKey="visitors" fill="#149ab8" name="Visitors" />
+                  <Bar dataKey="revenue" fill="#10b981" name="Revenue" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Payment Method Breakdown */}
+          {paymentMethodBreakdown && paymentMethodBreakdown.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Payment Methods</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={paymentMethodBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ method, total }) => `${method}: $${total.toFixed(0)}`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="total"
+                  >
+                    {paymentMethodBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  const renderAttendanceVisualization = (title, period, data) => {
+    const { 
+      totalVisitors = 0,
+      averageDailyVisitors = 0,
+      averageGroupSize = 0,
+      dailyAttendance = [],
+      ticketTypeBreakdown = []
+    } = data;
+
+    const changeIndicator = (current, previous) => {
+      if (!comparisonData || !previous) return null;
+      const change = ((current - previous) / previous * 100).toFixed(1);
+      const color = change >= 0 ? '#10b981' : '#ef4444';
+      const arrow = change >= 0 ? '↑' : '↓';
+      return (
+        <span style={{ color, fontSize: '0.85rem', marginLeft: '0.5rem', fontWeight: '600' }}>
+          {arrow} {Math.abs(change)}%
+        </span>
+      );
+    };
+
+    return (
+      <>
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.75rem' }}>{title}</h3>
+          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>
+            Primary: {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
+            {filters.enableComparison && comparisonData && (
+              <> | Comparison: {formatDate(comparisonDateRange.startDate)} - {formatDate(comparisonDateRange.endDate)}</>
+            )}
+          </p>
+        </div>
+
+        {/* KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Total Visitors</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {(reportData?.totalVisitors || 0).toLocaleString()}
+              {changeIndicator(reportData?.totalVisitors || 0, comparisonData?.totalVisitors)}
+            </div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Average Daily</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {(reportData?.averageDailyVisitors || 0).toFixed(0)}
+              {changeIndicator(reportData?.averageDailyVisitors || 0, comparisonData?.averageDailyVisitors)}
+            </div>
+            <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>visitors per day</div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Avg Group Size</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {(reportData?.averageGroupSize || 0).toFixed(1)}
+              {changeIndicator(reportData?.averageGroupSize || 0, comparisonData?.averageGroupSize)}
+            </div>
+            <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>visitors per transaction</div>
+          </div>
+        </div>
+
+        {/* Period Toggle Tabs */}
+        {filters.enableComparison && comparisonData && (
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.5rem', 
+            marginBottom: '2rem',
+            borderBottom: '2px solid #e2e8f0',
+            paddingBottom: '1rem'
+          }}>
+            <button
+              onClick={() => setActiveVisualizationTab('primary')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: activeVisualizationTab === 'primary' ? 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' : 'white',
+                color: activeVisualizationTab === 'primary' ? 'white' : '#475569',
+                border: activeVisualizationTab === 'primary' ? 'none' : '2px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+            >
+              📊 Primary Period
+            </button>
+            <button
+              onClick={() => setActiveVisualizationTab('comparison')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: activeVisualizationTab === 'comparison' ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'white',
+                color: activeVisualizationTab === 'comparison' ? 'white' : '#475569',
+                border: activeVisualizationTab === 'comparison' ? 'none' : '2px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+            >
+              📈 Comparison Period
+            </button>
+          </div>
+        )}
+
+        {/* Current Period Label */}
+        <div style={{ 
+          background: '#f8fafc', 
+          padding: '0.75rem 1rem', 
+          borderRadius: '8px', 
+          marginBottom: '1.5rem',
+          border: '1px solid #e2e8f0'
+        }}>
+          <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>
+            Viewing: 
+          </span>
+          <span style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: '600', marginLeft: '0.5rem' }}>
+            {period}
+          </span>
+        </div>
+
+        {/* Charts */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '2rem' }}>
+          <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+            <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Daily Attendance</h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dailyAttendance}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  formatter={(value, name) => [value, name === 'visitors' ? 'Visitors' : 'Transactions']}
+                  labelFormatter={(date) => formatDate(date)}
+                />
+                <Bar dataKey="visitors" fill={activeVisualizationTab === 'primary' ? '#149ab8' : '#94a3b8'} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {ticketTypeBreakdown.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Visitor Distribution by Ticket Type</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={ticketTypeBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ type, visitors }) => `${type}: ${visitors}`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="visitors"
+                  >
+                    {ticketTypeBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => value.toLocaleString()} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  const renderMembershipVisualization = (title, period, data) => {
+    const { 
+      newMembers = 0,
+      totalMembers = 0,
+      renewalRate = '0',
+      memberRetention = 0,
+      membershipTypesDistribution = [],
+      membershipTrend = []
+    } = data;
+
+    const changeIndicator = (current, previous) => {
+      if (!comparisonData || !previous) return null;
+      const change = ((current - previous) / previous * 100).toFixed(1);
+      const color = change >= 0 ? '#10b981' : '#ef4444';
+      const arrow = change >= 0 ? '↑' : '↓';
+      return (
+        <span style={{ color, fontSize: '0.85rem', marginLeft: '0.5rem', fontWeight: '600' }}>
+          {arrow} {Math.abs(change)}%
+        </span>
+      );
+    };
+
+    return (
+      <>
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.75rem' }}>{title}</h3>
+          <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>
+            Primary: {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
+            {filters.enableComparison && comparisonData && (
+              <> | Comparison: {formatDate(comparisonDateRange.startDate)} - {formatDate(comparisonDateRange.endDate)}</>
+            )}
+          </p>
+        </div>
+
+        {/* KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div style={{ background: 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>New Members</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {reportData?.newMembers || 0}
+              {changeIndicator(reportData?.newMembers || 0, comparisonData?.newMembers)}
+            </div>
+            <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>New sign-ups in period</div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Total Members</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {reportData?.totalMembers || 0}
+              {changeIndicator(reportData?.totalMembers || 0, comparisonData?.totalMembers)}
+            </div>
+            <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>Active memberships</div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Renewal Rate</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {reportData?.renewalRate || '0'}%
+              {changeIndicator(parseFloat(reportData?.renewalRate || '0'), comparisonData ? parseFloat(comparisonData.renewalRate) : null)}
+            </div>
+            <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>Member retention</div>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>Active Members</div>
+            <div style={{ fontSize: '2rem', fontWeight: '700' }}>
+              {reportData?.memberRetention || 0}
+              {changeIndicator(reportData?.memberRetention || 0, comparisonData?.memberRetention)}
+            </div>
+            <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>Currently active</div>
+          </div>
+        </div>
+
+        {/* Period Toggle Tabs */}
+        {filters.enableComparison && comparisonData && (
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.5rem', 
+            marginBottom: '2rem',
+            borderBottom: '2px solid #e2e8f0',
+            paddingBottom: '1rem'
+          }}>
+            <button
+              onClick={() => setActiveVisualizationTab('primary')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: activeVisualizationTab === 'primary' ? 'linear-gradient(135deg, #149ab8 0%, #0d7294 100%)' : 'white',
+                color: activeVisualizationTab === 'primary' ? 'white' : '#475569',
+                border: activeVisualizationTab === 'primary' ? 'none' : '2px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+            >
+              📊 Primary Period
+            </button>
+            <button
+              onClick={() => setActiveVisualizationTab('comparison')}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: activeVisualizationTab === 'comparison' ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'white',
+                color: activeVisualizationTab === 'comparison' ? 'white' : '#475569',
+                border: activeVisualizationTab === 'comparison' ? 'none' : '2px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s'
+              }}
+            >
+              📈 Comparison Period
+            </button>
+          </div>
+        )}
+
+        {/* Current Period Label */}
+        <div style={{ 
+          background: '#f8fafc', 
+          padding: '0.75rem 1rem', 
+          borderRadius: '8px', 
+          marginBottom: '1.5rem',
+          border: '1px solid #e2e8f0'
+        }}>
+          <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>
+            Viewing: 
+          </span>
+          <span style={{ fontSize: '0.9rem', color: '#0f172a', fontWeight: '600', marginLeft: '0.5rem' }}>
+            {period}
+          </span>
+        </div>
+
+        {/* Charts */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '2rem' }}>
+          {membershipTrend.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Membership Activity Over Time</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={membershipTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value, name) => [value, name === 'newSignups' ? 'New Members' : 'Renewals']}
+                    labelFormatter={(date) => formatDate(date)}
+                  />
+                  <Legend />
+                  <Bar dataKey="newSignups" fill={activeVisualizationTab === 'primary' ? '#149ab8' : '#94a3b8'} name="New Members" />
+                  <Bar dataKey="renewals" fill={activeVisualizationTab === 'primary' ? '#10b981' : '#86efac'} name="Renewals" />
+                  <Line type="monotone" dataKey="newSignups" stroke={activeVisualizationTab === 'primary' ? '#0d7294' : '#64748b'} strokeWidth={2} dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {membershipTypesDistribution.length > 0 && (
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>
+                {filters.membershipType !== 'all' ? `${filters.membershipType} Memberships` : 'Membership Types Distribution'}
+              </h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={membershipTypesDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="type" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      name === 'count' ? value : `$${value}`,
+                      name === 'count' ? 'Members' : 'Annual Fee'
+                    ]}
+                  />
+                  <Legend />
+                  <Bar dataKey="count" fill={activeVisualizationTab === 'primary' ? '#149ab8' : '#94a3b8'} name="Active Members" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  // ==================== RAW DATA TABLE WITH TABS ====================
+  
+  const renderRawDataTable = () => {
+    const currentData = activeRawDataTab === 'primary' ? rawData : comparisonRawData;
+    
+    if (!currentData || currentData.length === 0) return null;
+
+    const exportToCSV = () => {
+      const headers = Object.keys(currentData[0]).join(',');
+      const rows = currentData.map(row => 
+        Object.values(row).map(val => {
+          if (val === null || val === undefined) return '';
+          if (typeof val === 'string' && val.includes(',')) return `"${val}"`;
+          return val;
+        }).join(',')
+      );
+      
+      const csv = [headers, ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const periodLabel = activeRawDataTab === 'primary' ? 'primary' : 'comparison';
+      const periodDates = activeRawDataTab === 'primary' 
+        ? `${dateRange.startDate}-to-${dateRange.endDate}`
+        : `${comparisonDateRange.startDate}-to-${comparisonDateRange.endDate}`;
+      a.download = `${reportType}-report-${periodLabel}-${periodDates}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    };
+
+    const getTableHeaders = () => {
+      if (reportType === 'sales') {
+        return ['Transaction ID', 'Date', 'Item/Type', 'Category', 'Quantity', 'Unit Price', 'Line Total', 'Payment', 'Status'];
+      } else if (reportType === 'attendance') {
+        return ['Purchase ID', 'Transaction ID', 'Visit Date', 'Purchase Date', 'Ticket Type', 'Visitors', 'Base Price', 'Discount', 'Final Price', 'Line Total', 'Customer', 'Used'];
+      } else if (reportType === 'membership') {
+        return ['Purchase ID', 'Transaction ID', 'Purchase Date', 'Member Name', 'Email', 'Phone', 'Type', 'Start Date', 'Expiration', 'Amount', 'Renewal', 'Active'];
+      }
+      return Object.keys(currentData[0]);
+    };
+
+    const formatCellValue = (value, header) => {
+      if (value === null || value === undefined) return 'N/A';
+      
+      if (header.toLowerCase().includes('date')) {
+        return formatDate(value);
+      }
+      if (header.toLowerCase().includes('price') || header.toLowerCase().includes('total') || header.toLowerCase().includes('amount') || header.toLowerCase().includes('discount')) {
+        return `$${Number(value).toFixed(2)}`;
+      }
+      if (typeof value === 'boolean' || header.toLowerCase() === 'used' || header.toLowerCase() === 'renewal' || header.toLowerCase() === 'active') {
+        return value ? 'Yes' : 'No';
+      }
+      return value;
+    };
+
+    const headers = getTableHeaders();
+
+    return (
+      <div style={{ marginTop: '3rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <h4 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FaTable />
+              Raw Database Records ({currentData.length} records)
+            </h4>
+            
+            {/* Tabs for Primary vs Comparison */}
+            {filters.enableComparison && comparisonRawData.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => setActiveRawDataTab('primary')}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: activeRawDataTab === 'primary' ? '#149ab8' : 'white',
+                    color: activeRawDataTab === 'primary' ? 'white' : '#475569',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Primary Period
+                </button>
+                <button
+                  onClick={() => setActiveRawDataTab('comparison')}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: activeRawDataTab === 'comparison' ? '#94a3b8' : 'white',
+                    color: activeRawDataTab === 'comparison' ? 'white' : '#475569',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  Comparison Period
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <button
+            onClick={exportToCSV}
+            style={{
+              background: '#10b981',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.9rem',
+              fontWeight: '500'
+            }}
+          >
+            <FaDownload />
+            Export to CSV
+          </button>
+        </div>
+
+        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                {headers.map((header, idx) => (
+                  <th key={idx} style={{ 
+                    padding: '0.75rem 1rem', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid #e2e8f0',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    color: '#475569',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {currentData.slice(0, 100).map((row, rowIdx) => (
+                <tr key={rowIdx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  {headers.map((header, colIdx) => {
+                    const fieldMap = {
+                      'Transaction ID': 'transaction_id',
+                      'Date': 'transaction_date',
+                      'Item/Type': 'item_type',
+                      'Category': 'category',
+                      'Quantity': 'quantity',
+                      'Unit Price': 'unit_price',
+                      'Line Total': 'line_total',
+                      'Payment': 'payment_method',
+                      'Status': 'status',
+                      'Purchase ID': 'purchase_id',
+                      'Visit Date': 'visit_date',
+                      'Purchase Date': 'purchase_date',
+                      'Ticket Type': 'ticket_type',
+                      'Visitors': 'visitors',
+                      'Base Price': 'base_price',
+                      'Discount': 'discount_amount',
+                      'Final Price': 'final_price',
+                      'Customer': 'customer_name',
+                      'Used': 'is_used',
+                      'Member Name': 'member_name',
+                      'Email': 'member_email',
+                      'Phone': 'member_phone',
+                      'Type': 'membership_type',
+                      'Start Date': 'start_date',
+                      'Expiration': 'expiration_date',
+                      'Amount': 'amount',
+                      'Renewal': 'is_renewal',
+                      'Active': 'is_active'
+                    };
+                    
+                    const field = fieldMap[header] || header.toLowerCase().replace(/\s/g, '_');
+                    const value = row[field];
+                    
+                    return (
+                      <td key={colIdx} style={{ 
+                        padding: '0.75rem 1rem', 
+                        fontSize: '0.85rem',
+                        color: '#0f172a'
+                      }}>
+                        {formatCellValue(value, header)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {currentData.length > 100 && (
+          <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.85rem', textAlign: 'center' }}>
+            Showing first 100 of {currentData.length} records. Export to CSV to see all records.
+          </p>
+        )}
       </div>
     );
   };
@@ -1524,22 +1611,19 @@ function AnalystReports() {
   
   return (
     <div className="reports-container" style={{ padding: '2rem', background: '#f8fafc', minHeight: '100vh' }}>
-      {/* Header */}
       <div className="reports-header">
         <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem', fontWeight: '700' }}>Analytics & Reports</h2>
         <p style={{ margin: 0, opacity: 0.9, fontSize: '1rem' }}>
-          Generate custom reports with advanced filters and data export
+          Generate custom reports with advanced filters and database record export
         </p>
       </div>
 
-      {/* Filter Panel */}
       <div className="chart-container" style={{ marginBottom: '2rem', background: 'white', border: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #e2e8f0' }}>
           <FaFilter style={{ marginRight: '0.75rem', color: '#149ab8', fontSize: '1.25rem' }} />
           <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem' }}>Report Configuration</h3>
         </div>
 
-        {/* Step 1: Select Report Type */}
         <div style={{ marginBottom: '2rem' }}>
           <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#0f172a', fontSize: '1rem' }}>
             1. Select Report Type
@@ -1581,10 +1665,9 @@ function AnalystReports() {
           </div>
         </div>
 
-        {/* Step 2: Select Date Range */}
         <div style={{ marginBottom: '2rem' }}>
           <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#0f172a', fontSize: '1rem' }}>
-            2. Select Date Range
+            2. Primary Date Range
           </label>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div>
@@ -1622,20 +1705,35 @@ function AnalystReports() {
               />
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button className="toggle-btn" onClick={() => handleQuickDateRange('last7')}>Last 7 days</button>
-              <button className="toggle-btn" onClick={() => handleQuickDateRange('last30')}>Last 30 days</button>
-              <button className="toggle-btn" onClick={() => handleQuickDateRange('last90')}>Last 90 days</button>
-              <button className="toggle-btn" onClick={() => handleQuickDateRange('thisMonth')}>This month</button>
-              <button className="toggle-btn" onClick={() => handleQuickDateRange('lastMonth')}>Last month</button>
-              <button className="toggle-btn" onClick={() => handleQuickDateRange('thisYear')}>This year</button>
+              <button className="toggle-btn" onClick={() => handleQuickDateRange('last7', false)}>Last 7 days</button>
+              <button className="toggle-btn" onClick={() => handleQuickDateRange('last30', false)}>Last 30 days</button>
+              <button className="toggle-btn" onClick={() => handleQuickDateRange('last90', false)}>Last 90 days</button>
+              <button className="toggle-btn" onClick={() => handleQuickDateRange('thisMonth', false)}>This month</button>
+              <button className="toggle-btn" onClick={() => handleQuickDateRange('lastMonth', false)}>Last month</button>
+              <button className="toggle-btn" onClick={() => handleQuickDateRange('thisYear', false)}>This year</button>
             </div>
           </div>
+
+          {/* Comparison Toggle */}
+          <div style={{ marginTop: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={filters.enableComparison}
+                onChange={(e) => setFilters({...filters, enableComparison: e.target.checked})}
+                style={{ width: '18px', height: '18px' }}
+              />
+              <span style={{ fontSize: '0.9rem', color: '#475569', fontWeight: '500' }}>
+                📊 Compare with another time period
+              </span>
+            </label>
+          </div>
+
+          {renderComparisonDateSelector()}
         </div>
 
-        {/* Step 3: Additional Filters */}
         {renderFilterOptions()}
 
-        {/* Generate Button */}
         <div style={{ textAlign: 'center', marginTop: '2rem', paddingTop: '1.5rem', borderTop: '2px solid #e2e8f0' }}>
           <button
             onClick={generateReport}
@@ -1678,7 +1776,6 @@ function AnalystReports() {
         </div>
       </div>
 
-      {/* Error Message */}
       {errorMsg && (
         <div style={{ 
           background: '#fef2f2', 
@@ -1696,61 +1793,12 @@ function AnalystReports() {
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '4rem',
-          background: 'white',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0'
-        }}>
-          <div style={{ 
-            width: '60px', 
-            height: '60px', 
-            border: '4px solid #e2e8f0', 
-            borderTop: '4px solid #149ab8', 
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 1rem'
-          }}></div>
-          <p style={{ color: '#64748b', fontSize: '1.1rem' }}>Generating your report...</p>
-        </div>
-      )}
-
-      {/* Report Visualization */}
-      {!loading && reportData && (
-        <div style={{ background: 'white', borderRadius: '12px', padding: '2rem', border: '1px solid #e2e8f0' }}>
+      {reportData && (
+        <div className="chart-container" style={{ background: 'white', border: '1px solid #e2e8f0' }}>
           {renderVisualization()}
           {renderRawDataTable()}
         </div>
       )}
-
-      {/* Empty State */}
-      {!loading && !reportData && !errorMsg && (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '4rem', 
-          color: '#64748b',
-          background: 'white',
-          borderRadius: '12px',
-          border: '2px dashed #e2e8f0'
-        }}>
-          <FaChartBar size={64} style={{ color: '#149ab8', marginBottom: '1.5rem', opacity: 0.5 }} />
-          <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.5rem' }}>No Report Generated</h3>
-          <p style={{ margin: 0, fontSize: '1rem' }}>
-            Configure your filters above and click <strong>Generate Report</strong> to view analytics
-          </p>
-        </div>
-      )}
-
-      {/* Spinner Animation */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
