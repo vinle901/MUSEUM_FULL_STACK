@@ -3,7 +3,7 @@
 import express from 'express';
 import db from '../config/database.js';
 import middleware from '../utils/middleware.js';
-
+import bcrypt from 'bcrypt';
 const router = express.Router();
 const isISODate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 const normalizeDate = (s) => {
@@ -34,6 +34,7 @@ const clampDateRange = (startDate, endDate) => {
   if (safeStart > safeEnd) safeStart = safeEnd;
   return { startDate: safeStart, endDate: safeEnd };
 };
+
 
 // ----------------------------- SALES ---------------------------------
 router.get('/sales', async (req, res) => {
@@ -74,7 +75,7 @@ router.get('/sales', async (req, res) => {
         COUNT(*) as transactionCount,
         AVG(t.total_price) as averageOrderValue
       FROM Transactions t
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+      WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
@@ -104,58 +105,69 @@ router.get('/sales', async (req, res) => {
       ORDER BY date
     `, [startDate, endDate]);
 
-    // Get sales by category
-    const [categorySales] = await db.query(`
-      SELECT 'Tickets' as category, SUM(tp.line_total) as value
-      FROM Ticket_Purchase tp
-      JOIN Transactions t ON tp.transaction_id = t.transaction_id
+    // Get all completed transactions in the date range
+    const [txRows] = await db.query(`
+      SELECT t.transaction_id, t.total_price
+      FROM Transactions t
       WHERE DATE(t.transaction_date) BETWEEN ? AND ?
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
         )
-      UNION ALL
-      SELECT 'Gift Shop' as category, SUM(gsp.line_total) as value
-      FROM Gift_Shop_Purchase gsp
-      JOIN Transactions t ON gsp.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
-        AND t.transaction_status = 'Completed'
-        AND NOT EXISTS (
-          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
-        )
-      UNION ALL
-      SELECT 'Cafeteria' as category, SUM(cp.line_total) as value
-      FROM Cafeteria_Purchase cp
-      JOIN Transactions t ON cp.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
-        AND t.transaction_status = 'Completed'
-        AND NOT EXISTS (
-          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
-        )
-      UNION ALL
-      -- For memberships, sum the transaction total for transactions that include a membership purchase
-      SELECT 'Memberships' as category, SUM(t.total_price) as value
-      FROM Membership_Purchase mp
-      JOIN Transactions t ON mp.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
-        AND t.transaction_status = 'Completed'
-        AND NOT EXISTS (
-          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
-        )
-    `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
+    `, [startDate, endDate]);
+
+    // For each transaction, get line totals for each category
+    let ticketsTotal = 0, giftShopTotal = 0, cafeteriaTotal = 0;
+    for (const tx of txRows) {
+      const [tickets] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Ticket_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [giftShop] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Gift_Shop_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [cafeteria] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Cafeteria_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const ticketsSum = Number(tickets[0].sum);
+      const giftShopSum = Number(giftShop[0].sum);
+      const cafeteriaSum = Number(cafeteria[0].sum);
+      const subtotal = ticketsSum + giftShopSum;
+      const tax = Math.max(0, Number(tx.total_price) - (ticketsSum + giftShopSum + cafeteriaSum));
+
+      // Cafeteria only
+      if (cafeteriaSum > 0 && ticketsSum === 0 && giftShopSum === 0) {
+        cafeteriaTotal += Number(tx.total_price);
+      }
+      // Tickets only
+      else if (ticketsSum > 0 && giftShopSum === 0 && cafeteriaSum === 0) {
+        ticketsTotal += Number(tx.total_price);
+      }
+      // Gift shop only
+      else if (giftShopSum > 0 && ticketsSum === 0 && cafeteriaSum === 0) {
+        giftShopTotal += Number(tx.total_price);
+      }
+      // Mixed: only tickets and gift shop
+      else if (ticketsSum > 0 && giftShopSum > 0 && cafeteriaSum === 0) {
+        ticketsTotal += ticketsSum + (ticketsSum / subtotal) * tax;
+        giftShopTotal += giftShopSum + (giftShopSum / subtotal) * tax;
+      }
+    }
+
+    const toFixed2 = v => Number(v).toFixed(2);
+    const ticketsRounded = toFixed2(ticketsTotal);
+    const giftShopRounded = toFixed2(giftShopTotal);
+    const cafeteriaRounded = toFixed2(cafeteriaTotal);
+    const categorySales = [
+      { category: 'Tickets', value: ticketsRounded },
+      { category: 'Gift Shop', value: giftShopRounded },
+      { category: 'Cafeteria', value: cafeteriaRounded }
+    ];
+    const totalSalesRounded = toFixed2(Number(ticketsTotal) + Number(giftShopTotal) + Number(cafeteriaTotal));
+    const avgOrderValueRounded = toFixed2(totalSalesResult[0].averageOrderValue || 0);
 
     res.json({
-      totalSales: parseFloat(totalSalesResult[0].totalSales) || 0,
+      totalSales: totalSalesRounded,
       transactionCount: totalSalesResult[0].transactionCount || 0,
-      averageOrderValue: parseFloat(totalSalesResult[0].averageOrderValue) || 0,
+      averageOrderValue: avgOrderValueRounded,
       dailySales: dailySales.map(d => ({
         date: d.date,
-        sales: parseFloat(d.sales)
+        sales: toFixed2(d.sales)
       })),
-      categorySales: categorySales.map(c => ({
-        category: c.category,
-        value: parseFloat(c.value) || 0
-      }))
+      categorySales: categorySales
     });
   } catch (error) {
     console.error('Sales report error:', error);
@@ -190,7 +202,7 @@ router.get('/sales/transactions', async (req, res) => {
         t.total_price as total
       FROM ${joinTable} j
       JOIN Transactions t ON j.transaction_id = t.transaction_id
-      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+      WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
         AND t.transaction_status = 'Completed'
         AND NOT EXISTS (
           SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
@@ -198,13 +210,37 @@ router.get('/sales/transactions', async (req, res) => {
       ORDER BY t.transaction_date DESC
     `, [startDate, endDate]);
 
-    res.json({
-      category: category,
-      transactions: rows.map(r => ({
+    // For each transaction, fetch line items for all categories
+    const transactions = await Promise.all(rows.map(async (r) => {
+      const [tickets] = await db.query(`
+        SELECT COALESCE(tt.ticket_name, CONCAT('Type ', tp.ticket_type_id)) as name, tp.quantity, tp.line_total
+        FROM Ticket_Purchase tp
+        LEFT JOIN Ticket_Types tt ON tt.ticket_type_id = tp.ticket_type_id
+        WHERE tp.transaction_id = ?
+      `, [r.id]);
+      const [giftShop] = await db.query(`
+        SELECT item_name as name, quantity, line_total
+        FROM Gift_Shop_Purchase
+        WHERE transaction_id = ?
+      `, [r.id]);
+      const [cafeteria] = await db.query(`
+        SELECT item_name as name, quantity, line_total
+        FROM Cafeteria_Purchase
+        WHERE transaction_id = ?
+      `, [r.id]);
+      return {
         id: r.id,
         date: r.date,
-        total: parseFloat(r.total) || 0
-      }))
+        total: parseFloat(r.total) || 0,
+        tickets,
+        giftShop,
+        cafeteria
+      };
+    }));
+
+    res.json({
+      category: category,
+      transactions
     });
   } catch (error) {
     console.error('Sales transactions list error:', error);
@@ -417,36 +453,54 @@ router.get('/revenue', async (req, res) => {
     const { startDate: s, endDate: e } = req.query;
     const { startDate, endDate } = clampDateRange(s, e);
     
-    // Get revenue breakdown by source
-    const [breakdown] = await db.query(`
-      SELECT source, SUM(amount) as amount FROM (
-        SELECT 'Ticket Sales' as source, SUM(line_total) as amount
-        FROM Ticket_Purchase tp
-        JOIN Transactions t ON tp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-          AND t.transaction_status = 'Completed'
-        UNION ALL
-        SELECT 'Gift Shop' as source, SUM(line_total) as amount
-        FROM Gift_Shop_Purchase gsp
-        JOIN Transactions t ON gsp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-          AND t.transaction_status = 'Completed'
-        UNION ALL
-        SELECT 'Cafeteria' as source, SUM(line_total) as amount
-        FROM Cafeteria_Purchase cp
-        JOIN Transactions t ON cp.transaction_id = t.transaction_id
-        WHERE DATE(t.transaction_date) >= ? AND DATE(t.transaction_date) <= ?
-          AND t.transaction_status = 'Completed'
-        UNION ALL
-        -- Membership revenue uses line_total from Membership_Purchase
-        SELECT 'Memberships' as source, SUM(mp.line_total) as amount
-        FROM Membership_Purchase mp
-        JOIN Transactions t ON mp.transaction_id = t.transaction_id
-        WHERE t.transaction_date >= ? AND t.transaction_date < DATE_ADD(?, INTERVAL 1 DAY)
-          AND t.transaction_status = 'Completed'
-      ) revenue_sources
-      GROUP BY source
-    `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
+    // Get revenue breakdown by source, splitting out categories per transaction and allocating proportional tax, excluding donations
+    const [txRows] = await db.query(`
+      SELECT t.transaction_id, t.total_price
+      FROM Transactions t
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+        AND t.transaction_status = 'Completed'
+        AND NOT EXISTS (
+          SELECT 1 FROM Donation d WHERE d.transaction_id = t.transaction_id
+        )
+    `, [startDate, endDate]);
+
+    let ticketsTotal = 0, giftShopTotal = 0, cafeteriaTotal = 0, membershipTotal = 0;
+    for (const tx of txRows) {
+      const [tickets] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Ticket_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [giftShop] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Gift_Shop_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [cafeteria] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Cafeteria_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const [membership] = await db.query(`SELECT COALESCE(SUM(line_total),0) as sum FROM Membership_Purchase WHERE transaction_id = ?`, [tx.transaction_id]);
+      const ticketsSum = Number(tickets[0].sum);
+      const giftShopSum = Number(giftShop[0].sum);
+      const cafeteriaSum = Number(cafeteria[0].sum);
+      const membershipSum = Number(membership[0].sum);
+      const subtotal = ticketsSum + giftShopSum;
+      const tax = Math.max(0, Number(tx.total_price) - (ticketsSum + giftShopSum + cafeteriaSum + membershipSum));
+
+      // Mixed: only tickets and gift shop
+      if (ticketsSum > 0 && giftShopSum > 0 && cafeteriaSum === 0 && membershipSum === 0) {
+        ticketsTotal += ticketsSum + (ticketsSum / subtotal) * tax;
+        giftShopTotal += giftShopSum + (giftShopSum / subtotal) * tax;
+      } else {
+        if (ticketsSum > 0) ticketsTotal += Number(tx.total_price);
+        if (giftShopSum > 0) giftShopTotal += Number(tx.total_price);
+        if (cafeteriaSum > 0) cafeteriaTotal += Number(tx.total_price);
+        if (membershipSum > 0) membershipTotal += Number(tx.total_price);
+      }
+    }
+
+    const toFixed2 = v => Number(v).toFixed(2);
+    const ticketsRounded = toFixed2(ticketsTotal);
+    const giftShopRounded = toFixed2(giftShopTotal);
+    const cafeteriaRounded = toFixed2(cafeteriaTotal);
+    const membershipRounded = toFixed2(membershipTotal);
+    const totalRevenue = toFixed2(Number(ticketsTotal) + Number(giftShopTotal) + Number(cafeteriaTotal) + Number(membershipTotal));
+    const breakdown = [
+      { source: 'Ticket Sales', amount: ticketsRounded },
+      { source: 'Gift Shop', amount: giftShopRounded },
+      { source: 'Cafeteria', amount: cafeteriaRounded },
+      { source: 'Memberships', amount: membershipRounded }
+    ];
 
     // Get monthly trend from non-donation sources (ONLY_FULL_GROUP_BY-safe)
     const [monthlyTrend] = await db.query(`
@@ -499,8 +553,6 @@ router.get('/revenue', async (req, res) => {
       ORDER BY period
       LIMIT 6
     `, [endDate, endDate, endDate, endDate, endDate, endDate, endDate, endDate]);
-    // Derive totalRevenue from breakdown (excludes donations by construction)
-    const totalRevenue = breakdown.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
     
     res.json({
       totalRevenue: totalRevenue,
@@ -608,35 +660,75 @@ router.get('/membership', async (req, res) => {
 // --------------------- MEMBERSHIP SIGN-UPS (DETAIL) ------------------
 
 // GET /api/reports/membership-signups?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+// --------------------- MEMBERSHIP SIGN-UPS (DETAIL) ------------------
 router.get('/membership-signups', async (req, res) => {
   try {
-    const { startDate: s, endDate: e } = req.query;
-    if (!s || !e) {
-      return res.status(400).json({ error: 'startDate and endDate are required (YYYY-MM-DD)' });
-    }
-    const { startDate, endDate } = clampDateRange(s, e);
+    // 1) Dates: accept empty, normalize, and default last 30 days
+    const rawS = (req.query.startDate ?? '').trim();
+    const rawE = (req.query.endDate ?? '').trim();
 
-    // Detail rows
+    const sNorm = rawS ? normalizeDate(rawS) : null;
+    const eNorm = rawE ? normalizeDate(rawE) : null;
+
+    // ❗ Use normalized vars (NOT s/e)
+    const { startDate, endDate } = clampDateRange(sNorm, eNorm);
+
+    // 2) Detect the actual users table and optional columns at runtime
+    //    This avoids case/pluralization and “unknown column” crashes.
+    const [[usersTableRow] = []] = await db.query(
+      `
+      SELECT TABLE_NAME AS name
+      FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME IN ('users','Users','User')
+      LIMIT 1
+      `
+    );
+
+    if (!usersTableRow?.name) {
+      return res.status(500).json({ error: "Could not find a users table (users/Users/User)." });
+    }
+    const usersTableName = String(usersTableRow.name).replace(/`/g, '');
+    const USERS_TABLE = `\`${usersTableName}\``;
+
+    const [optCols] = await db.query(
+      `
+      SELECT COLUMN_NAME AS name
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = '${usersTableName}'
+        AND COLUMN_NAME IN ('phone_number','subscribe_to_newsletter')
+      `,
+    );
+    const hasPhone = optCols.some(c => c.name === 'phone_number');
+    const hasNews  = optCols.some(c => c.name === 'subscribe_to_newsletter');
+
+    // Build SELECT list safely
+    const userCols = [
+      "u.`user_id`",
+      "u.`first_name`",
+      "u.`last_name`",
+      "u.`email`",
+      hasPhone ? "u.`phone_number`" : "NULL AS `phone_number`",
+      hasNews  ? "u.`subscribe_to_newsletter`" : "0 AS `subscribe_to_newsletter`",
+    ].join(",\n        ");
+
+    // 3) Detail rows
     const [rows] = await db.query(
       `
       SELECT
-        u.\`user_id\`,
-        u.\`first_name\`,
-        u.\`last_name\`,
-        u.\`email\`,
-        u.\`phone_number\`,
-        u.\`subscribe_to_newsletter\`,
+        ${userCols},
         m.\`membership_id\`,
         m.\`membership_type\`,
         m.\`is_active\`,
         m.\`expiration_date\`,
-        COALESCE(mp.\`line_total\`, 0)                 AS line_total,
-        t.\`transaction_date\`                         AS purchased_at
+        COALESCE(mp.\`line_total\`, 0) AS line_total,
+        t.\`transaction_date\`         AS purchased_at
       FROM \`Membership\` m
-      JOIN \`users\` u                ON u.\`user_id\`         = m.\`user_id\`
-      JOIN \`Membership_Purchase\` mp ON mp.\`membership_id\`  = m.\`membership_id\`
-      JOIN \`Transactions\` t         ON t.\`transaction_id\`  = mp.\`transaction_id\`
-      WHERE DATE(t.\`transaction_date\`) >= ? 
+      JOIN ${USERS_TABLE} u           ON u.\`user_id\`        = m.\`user_id\`
+      JOIN \`Membership_Purchase\` mp ON mp.\`membership_id\` = m.\`membership_id\`
+      JOIN \`Transactions\` t         ON t.\`transaction_id\` = mp.\`transaction_id\`
+      WHERE DATE(t.\`transaction_date\`) >= ?
         AND DATE(t.\`transaction_date\`) <= ?
         AND t.\`transaction_status\` = 'Completed'
       ORDER BY t.\`transaction_date\` ASC, m.\`membership_id\` ASC
@@ -644,22 +736,23 @@ router.get('/membership-signups', async (req, res) => {
       [startDate, endDate]
     );
 
-    // Summary totals
+    // 4) Summary
     const [summary] = await db.query(
       `
       SELECT
-        COUNT(*)                                 AS signupCount,
-        SUM(COALESCE(mp.\`line_total\`, 0))      AS totalAmount
+        COUNT(*)                            AS signupCount,
+        SUM(COALESCE(mp.\`line_total\`, 0)) AS totalAmount
       FROM \`Membership\` m
       JOIN \`Membership_Purchase\` mp ON mp.\`membership_id\` = m.\`membership_id\`
       JOIN \`Transactions\` t         ON t.\`transaction_id\` = mp.\`transaction_id\`
-      WHERE DATE(t.\`transaction_date\`) >= ? 
+      WHERE DATE(t.\`transaction_date\`) >= ?
         AND DATE(t.\`transaction_date\`) <= ?
         AND t.\`transaction_status\` = 'Completed'
       `,
       [startDate, endDate]
     );
 
+    // 5) Response
     res.json({
       window: { startDate, endDate },
       summary: {
@@ -671,7 +764,7 @@ router.get('/membership-signups', async (req, res) => {
         first_name: r.first_name,
         last_name: r.last_name,
         email: r.email,
-        phone_number: r.phone_number,
+        phone_number: r.phone_number ?? null,
         subscribe_to_newsletter: !!r.subscribe_to_newsletter,
         membership_id: r.membership_id,
         membership_type: r.membership_type,
@@ -693,283 +786,319 @@ router.get('/membership-signups', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// ---------------- MEMBERSHIP SIGN-UPS — MUTATIONS (same router) ---------------
-function normalizeSex(input) {
-  if (!input) return null;
-  const s = String(input).trim().toUpperCase();
-  // accept common variants
-  if (s === 'M' || s === 'MALE') return 'M';
-  if (s === 'F' || s === 'FEMALE') return 'F';
-  // if your DB allows only M/F, fall back to null for others
-  return null;
-}
-// Helper: find or create user by email (minimal fields)
-async function ensureUserByEmail(db, {
-  email,
-  first_name = '',
-  last_name = '',
-  phone_number = null,
-  subscribe_to_newsletter = false,
-  temp_password = null,            // NEW: plaintext from UI (we’ll hash)
-  birthdate = null,                // NEW: "YYYY-MM-DD" required by your DB
-  sex = null,                   // NEW: optional
-}) {
-  const [[existing]] = await db.query('SELECT user_id FROM users WHERE email = ?', [email]);
-  if (existing) return existing.user_id;
-  const bd = normalizeDate(birthdate);
-  if (!bd) {
-    throw new Error('birthdate is required for new users');
-  }
-
-  // hash password (fallback to random if none provided)
-  const raw = String(temp_password || `Tmp!${Date.now()}`);
-  const passwordHash = await bcrypt.hash(raw, 10);
-  const sexCode = normalizeSex(sex);
-  const [ins] = await db.query(
-    `INSERT INTO users
-       (email, first_name, last_name, phone_number, subscribe_to_newsletter,
-        password, birthdate, sex)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      email, first_name, last_name, phone_number, !!subscribe_to_newsletter,
-      passwordHash, bd, sexCode
-    ]
-  );
-  return ins.insertId;
-}
-
-// POST /api/reports/membership-signups/member
-// Create a new membership (by user_id OR by email). Keep it here so your AdminPortal stays on the reports tab.
+// backend/routes/reports.js
+// backend/routes/reports.js
 router.post('/membership-signups/member', async (req, res) => {
-  try {
-    const {
-      user_id, email, first_name, last_name, phone_number, subscribe_to_newsletter,
-      membership_type, start_date, expiration_date, temp_password, birthdate, sex,
-    } = req.body;
-    const bd = normalizeDate(birthdate);
-    const sd = normalizeDate(start_date);
-    const ed = normalizeDate(expiration_date);
-    if (!user_id && !email) return res.status(400).json({ error: 'Provide user_id or email' });
-    if (!membership_type || !start_date || !expiration_date) {
-      return res.status(400).json({ error: 'membership_type, start_date, expiration_date are required' });
-    }
-
-    let uid = user_id;
-    if (!uid) {
-      uid = await ensureUserByEmail(db, {
-        email: String(email).toLowerCase().trim(),
-        first_name, last_name, phone_number, subscribe_to_newsletter, temp_password, birthdate: bd, sex,
-      });
-    }
-
-    const [result] = await db.query(
-      `INSERT INTO Membership (user_id, membership_type, start_date, expiration_date, is_active)
-       VALUES (?, ?, ?, ?, TRUE)`,
-      [uid, membership_type, sd, ed]
-    );
-
-    res.status(201).json({ membership_id: result.insertId, message: 'Membership created' });
-  } catch (error) {
-    console.error('Create membership error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-router.post('/membership-signups/checkout', async (req, res) => {
-  const { users, membership, payment } = req.body || {};
-  const errors = [];
-
-  if (!users?.email) errors.push('users.email is required');
-  if (!users?.first_name) errors.push('users.first_name is required');
-  if (!users?.last_name) errors.push('users.last_name is required');
-  if (!users?.birthdate) errors.push('users.birthdate is required');
-  if (!membership?.membership_type) errors.push('membership.membership_type is required');
-  if (!membership?.start_date) errors.push('membership.start_date is required');
-  if (!membership?.expiration_date) errors.push('membership.expiration_date is required');
-
-  if (errors.length) return res.status(400).json({ error: errors.join(' | ') });
-
-  const qty = Math.max(1, Number(membership?.quantity || 1));
-  const PLAN_PRICES = { Individual: 60, Family: 120, Student: 30, Senior: 40 };
-  const unit_price = PLAN_PRICES[membership?.membership_type] ?? null;
-  const line_total = unit_price * qty;
-  const total_price = line_total;
-  const bd = normalizeDate(users.birthdate);
-  const start  = normalizeDate(membership.start_date);
-  const end    = normalizeDate(membership.expiration_date);
-
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    const email = String(users.email).toLowerCase().trim();
-    const userId = await ensureUserByEmail(conn, {
-      email,
-      first_name: users.first_name,
-      last_name: users.last_name,
-      phone_number: users.phone_number ?? null,
-      subscribe_to_newsletter: !!users.subscribe_to_newsletter,
-      temp_password: users.temp_password,
-      birthdate: bd,
-      sex: users.sex ?? null,
-    });
-
-    // Ensure basic user info is fresh
-    await conn.query(
-      `UPDATE users
-         SET first_name = ?, last_name = ?, phone_number = ?, subscribe_to_newsletter = ?,
-             birthdate = COALESCE(?, birthdate), sex = COALESCE(?, sex)
-       WHERE user_id = ?`,
-      [
-        users.first_name,
-        users.last_name,
-        users.phone_number ?? null,
-        !!users.subscribe_to_newsletter,
-        bd || null,
-        users.sex || null,
-        userId,
-      ]
-    );
-
-    // Create transaction
-    const [tx] = await conn.query(
-      `INSERT INTO Transactions (transaction_date, total_price, transaction_status)
-       VALUES (NOW(), ?, 'Completed')`,
-      [total_price]
-    );
-    const transactionId = tx.insertId;
-
-    // Create membership
-    const [m] = await conn.query(
-      `INSERT INTO Membership (user_id, membership_type, start_date, expiration_date, is_active)
-       VALUES (?, ?, ?, ?, TRUE)`,
-      [userId, membership.membership_type, start, end]
-    );
-    const membershipId = m.insertId;
-
-    // Record membership purchase
-    await conn.query(
-      `INSERT INTO Membership_Purchase
-         (membership_id, transaction_id, membership_type, quantity, unit_price, line_total, is_renewal)
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
-      [membershipId, transactionId, membership.membership_type, qty, unit_price, line_total]
-    );
-
-    // Optional payment record
-    if (payment && payment.cardNumber && payment.expMonth && payment.expYear && payment.cvc) {
-      await conn.query(
-        `INSERT INTO Payments (transaction_id, amount, provider, provider_ref, status, created_at)
-         VALUES (?, ?, 'manual', ?, 'captured', NOW())`,
-        [transactionId, total_price, `ADMIN-${Date.now()}`]
-      );
-    }
-
-    await conn.commit();
-    res.status(201).json({
-      ok: true,
-      user_id: userId,
-      transaction_id: transactionId,
-      membership_id: membershipId,
-      total_price,
-    });
-  } catch (err) {
-    await conn.rollback();
-    console.error('Checkout create membership error:', err);
-    res.status(500).json({ error: err.message });
-  } finally {
-    conn.release();
-  }
-});
-
-
-// PUT /api/reports/membership-signups/member/:membershipId
-// Update membership AND the linked user's basic fields (email/name/phone/newsletter).
-router.put('/membership-signups/member/:id', async (req, res) => {
-  const { id } = req.params;
   const {
-    first_name, last_name, email, phone_number, subscribe_to_newsletter,
-    membership_type, start_date, expiration_date, is_active,
-    birthdate, sex
+    first_name,
+    last_name,
+    email,
+    phone_number,
+    subscribe_to_newsletter,
+    membership_type,
+    start_date,
+    expiration_date,
+    birthdate,
+    sex,
+    temp_password,               // <-- frontend is already sending this
   } = req.body;
 
+  if (!temp_password) {
+    return res.status(400).json({ error: 'temp_password is required' });
+  }
+
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-
-    // find linked user
-    const [[m]] = await conn.query(
-      'SELECT user_id FROM Membership WHERE membership_id = ?',
-      [id]
-    );
-    if (!m) {
-      await conn.rollback();
-      return res.status(404).json({ error: 'Membership not found' });
+    const [[usersTableRow] = []] = await conn.query(`
+      SELECT TABLE_NAME AS name
+      FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME IN ('users','Users','User')
+      LIMIT 1
+    `);
+    if (!usersTableRow?.name) {
+      throw new Error('Could not find a users table (users/Users/User).');
     }
-    const bd = birthdate ? normalizeDate(birthdate) : null;
-    // update user (only provided fields)
-    await conn.query(
-      `UPDATE users SET 
-         first_name = COALESCE(?, first_name),
-         last_name  = COALESCE(?, last_name),
-         email      = COALESCE(?, email),
-         phone_number = COALESCE(?, phone_number),
-         is_active       = COALESCE(?, is_active),
-         subscribe_to_newsletter = COALESCE(?, subscribe_to_newsletter),
-         birthdate = COALESCE(?, birthdate),
-         sex = COALESCE(?, sex)
-       WHERE user_id = ?`,
-      [
-        first_name ?? null,
-        last_name ?? null,
-        email ? String(email).toLowerCase().trim() : null,
-        phone_number ?? null,
-        typeof subscribe_to_newsletter === 'boolean' ? subscribe_to_newsletter : null,
-        bd || null,
-        normalizeSex(sex),
-        m.user_id
-      ]
-    );
+    const usersTableName = String(usersTableRow.name).replace(/`/g, '');
+    const USERS_TABLE = `\`${usersTableName}\``;
 
-    // update membership (only provided fields)
-    await conn.query(
-      `UPDATE Membership SET
-         membership_type = COALESCE(?, membership_type),
-         start_date      = COALESCE(?, start_date),
-         expiration_date = COALESCE(?, expiration_date),
-         is_active       = COALESCE(?, is_active)
-       WHERE membership_id = ?`,
-      [
-        membership_type ?? null,
-        start_date ? normalizeDate(start_date) : null,
-        expiration_date ? normalizeDate(expiration_date) : null,
-        typeof is_active === 'boolean' ? is_active : null,
-        id
-      ]
+    // find which password-ish columns exist
+    const [cols] = await conn.query(
+      `
+      SELECT COLUMN_NAME AS name
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = '${usersTableName}'
+        AND COLUMN_NAME IN ('password','password_hash','require_password_change')
+      `
     );
+    const hasPasswordCol = cols.some(c => c.name === 'password');
+    const hasHashCol     = cols.some(c => c.name === 'password_hash');
+    const hasRequireFlag = cols.some(c => c.name === 'require_password_change');
+    const normalizeSex = (v) => {
+      if (v == null) return undefined;
+      const s = String(v).trim().toUpperCase();
+      if (s === 'M' || s === 'F') return s; // add 'O' if your enum has it
+      return undefined;
+    };
 
+    const providedSex = normalizeSex(sex);
+    const insertSex = providedSex ?? 'M';
+    // hash the temp password once
+    const pwHash = await bcrypt.hash(String(temp_password), 10);
+
+    // build INSERT ... ON DUPLICATE KEY UPDATE dynamically
+    const fields = [
+      'first_name','last_name','email',
+      'phone_number','subscribe_to_newsletter','birthdate','sex'
+    ];
+    const placeholders = ['?','?','?','?','?','?','?'];
+    const values = [
+      first_name,
+      last_name,
+      email,
+      phone_number || null,
+      !!subscribe_to_newsletter,
+      birthdate || null,
+      insertSex,
+    ];
+
+    if (hasPasswordCol) {
+      fields.push('password');
+      placeholders.push('?');
+      values.push(pwHash);
+    } else if (hasHashCol) {
+      fields.push('password_hash');
+      placeholders.push('?');
+      values.push(pwHash);
+    }
+
+    if (hasRequireFlag) {
+      fields.push('require_password_change');
+      placeholders.push('?');
+      values.push(1);
+    }
+
+    const updates = [
+      'first_name = VALUES(first_name)',
+      'last_name = VALUES(last_name)',
+      'phone_number = VALUES(phone_number)',
+      'subscribe_to_newsletter = VALUES(subscribe_to_newsletter)',
+      'birthdate = VALUES(birthdate)',
+      'sex = VALUES(sex)',
+    ];
+    if (hasPasswordCol) updates.push('password = VALUES(password)');
+    if (hasHashCol)     updates.push('password_hash = VALUES(password_hash)');
+    if (hasRequireFlag) updates.push('require_password_change = VALUES(require_password_change)');
+
+    const sql = `
+      INSERT INTO  ${USERS_TABLE} (${fields.join(', ')})
+      VALUES (${placeholders.join(', ')})
+      ON DUPLICATE KEY UPDATE ${updates.join(', ')}
+    `;
+    const [userRows] = await conn.query(sql, values);
+    
+    // resolve user_id
+    let user_id = userRows.insertId;
+    if (!user_id) {
+      const [[u]] = await conn.query(`SELECT user_id FROM ${USERS_TABLE} WHERE email = ? LIMIT 1`, [email]);
+      user_id = u?.user_id;
+    }
+    if (!user_id) throw new Error('Could not resolve user_id for email: ' + email);
+
+    // NOTE: use your actual table case; elsewhere you use "Membership"
+    const [mRows] = await conn.query(
+      `INSERT INTO Membership (user_id, membership_type, start_date, expiration_date, is_active)
+       VALUES (?, ?, ?, ?, TRUE)`,
+      [user_id, membership_type, start_date, expiration_date]
+    );
+    
     await conn.commit();
-    res.json({ message: 'Membership & user updated' });
-  } catch (error) {
+    res.json({ ok: true, user_id, membership_id: mRows.insertId });
+  } catch (e) {
     await conn.rollback();
-    console.error('Update membership error:', error);
-    res.status(500).json({ error: error.message });
+    console.error(e);
+    res.status(400).json({ error: e.message || 'Failed to create member' });
   } finally {
     conn.release();
   }
 });
+// ------ MEMBERSHIP CHECKOUT (creates Transaction + Membership_Purchase) ------
+router.post('/membership-signups/checkout', async (req, res) => {
+  const { users, membership, payment } = req.body;
 
-// DELETE /api/reports/membership-signups/member/:membershipId
-// Soft-delete (deactivate) to preserve history.
-router.delete('/membership-signups/member/:id', async (req, res) => {
   try {
-    const [r] = await db.query(
-      'UPDATE Membership SET is_active = FALSE WHERE membership_id = ?',
-      [req.params.id]
-    );
-    if (r.affectedRows === 0) return res.status(404).json({ error: 'Membership not found' });
-    res.json({ message: 'Membership deactivated' });
-  } catch (error) {
-    console.error('Delete membership error:', error);
-    res.status(500).json({ error: error.message });
+    // --------- VALIDATE INPUT ----------
+    if (!users || !users.email) {
+      return res.status(400).json({ error: 'User email is required' });
+    }
+    const mType = membership?.membership_type;
+    if (!mType) {
+      return res.status(400).json({ error: 'membership_type is required' });
+    }
+    const qty = Math.max(1, Number(membership?.quantity || 1));
+    const start_date = membership?.start_date || null;
+    const expiration_date = membership?.expiration_date || null;
+
+    // --------- PRICE ----------
+    const PLAN_PRICES = { Individual: 70, Dual: 95, Family: 115, Patron: 200 };
+    const unit = PLAN_PRICES[mType] || 0;
+    const expectedTotal = unit * qty;
+
+    if (payment?.amount != null && Number(payment.amount) !== expectedTotal) {
+      return res.status(400).json({ error: `Amount mismatch. Expected ${expectedTotal}, got ${payment.amount}` });
+    }
+
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // --------- PASSWORD COLUMNS IN users ----------
+      const [cols] = await conn.query(`
+        SELECT COLUMN_NAME AS name
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'users'
+          AND COLUMN_NAME IN ('password','password_hash','require_password_change')
+      `);
+      const hasPasswordCol = cols.some(c => c.name === 'password');
+      const hasHashCol     = cols.some(c => c.name === 'password_hash');
+      const hasRequireFlag = cols.some(c => c.name === 'require_password_change');
+
+      const rawTemp = users.temp_password || Math.random().toString(36).slice(2, 10);
+      const pwHash = await bcrypt.hash(String(rawTemp), 10);
+
+      // --------- UPSERT USER ----------
+      const uFields = ['first_name','last_name','email','phone_number','subscribe_to_newsletter','birthdate','sex'];
+      const uPH     = ['?','?','?','?','?','?','?'];
+      const uVals   = [
+        users.first_name || '',
+        users.last_name  || '',
+        String(users.email).toLowerCase(),
+        users.phone_number || null,
+        !!users.subscribe_to_newsletter,
+        users.birthdate || null,
+        users.sex || null,
+      ];
+      if (hasPasswordCol) { uFields.push('password'); uPH.push('?'); uVals.push(pwHash); }
+      if (hasHashCol)     { uFields.push('password_hash'); uPH.push('?'); uVals.push(pwHash); }
+      if (hasRequireFlag) { uFields.push('require_password_change'); uPH.push('?'); uVals.push(1); }
+
+      const uSql = `
+        INSERT INTO users (${uFields.join(', ')})
+        VALUES (${uPH.join(', ')})
+        ON DUPLICATE KEY UPDATE
+          first_name = VALUES(first_name),
+          last_name  = VALUES(last_name),
+          phone_number = VALUES(phone_number),
+          subscribe_to_newsletter = VALUES(subscribe_to_newsletter),
+          birthdate = VALUES(birthdate),
+          sex = VALUES(sex)
+          ${hasPasswordCol ? ', password = VALUES(password)' : ''}
+          ${hasHashCol ? ', password_hash = VALUES(password_hash)' : ''}
+          ${hasRequireFlag ? ', require_password_change = VALUES(require_password_change)' : ''}
+      `;
+      const [userRows] = await conn.query(uSql, uVals);
+
+      let user_id = userRows.insertId;
+      if (!user_id) {
+        const [[u]] = await conn.query(`SELECT user_id FROM users WHERE email = ? LIMIT 1`, [String(users.email).toLowerCase()]);
+        user_id = u?.user_id;
+      }
+      if (!user_id) throw new Error('Could not resolve user_id');
+
+      // --------- DETECT OPTIONAL COLUMNS ON RELATED TABLES ----------
+      const [txCols] = await conn.query(`
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'Transactions'
+          AND COLUMN_NAME IN ('user_id','customer_id')
+      `);
+      const hasTxUserId = txCols.some(c => c.COLUMN_NAME === 'user_id');
+      const hasTxCustomerId = txCols.some(c => c.COLUMN_NAME === 'customer_id');
+
+      const [mpCols] = await conn.query(`
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'Membership_Purchase'
+          AND COLUMN_NAME IN ('user_id')
+      `);
+      const hasMpUserId = mpCols.some(c => c.COLUMN_NAME === 'user_id');
+
+      // --------- CREATE TRANSACTION (include user ref only if column exists) ----------
+      let txSql, txParams;
+      if (hasTxUserId) {
+        txSql = `
+          INSERT INTO Transactions (user_id, transaction_date, total_price, transaction_status)
+          VALUES (?, NOW(), ?, 'Completed')
+        `;
+        txParams = [user_id, expectedTotal];
+      } else if (hasTxCustomerId) {
+        txSql = `
+          INSERT INTO Transactions (customer_id, transaction_date, total_price, transaction_status)
+          VALUES (?, NOW(), ?, 'Completed')
+        `;
+        txParams = [user_id, expectedTotal]; // reuse user_id as customer_id
+      } else {
+        txSql = `
+          INSERT INTO Transactions (transaction_date, total_price, transaction_status)
+          VALUES (NOW(), ?, 'Completed')
+        `;
+        txParams = [expectedTotal];
+      }
+      const [txRows] = await conn.query(txSql, txParams);
+      const transaction_id = txRows.insertId;
+
+      // --------- CREATE MEMBERSHIPS + PURCHASE LINES ----------
+      const membership_ids = [];
+      for (let i = 0; i < qty; i++) {
+        const [mRows] = await conn.query(
+          `INSERT INTO Membership (user_id, membership_type, start_date, expiration_date, is_active)
+           VALUES (?, ?, ?, ?, TRUE)`,
+          [user_id, mType, start_date, expiration_date]
+        );
+        const membership_id = mRows.insertId;
+        membership_ids.push(membership_id);
+
+        if (hasMpUserId) {
+          // Columns and values ORDER must match
+          await conn.query(
+            `INSERT INTO Membership_Purchase (membership_id, transaction_id, user_id, is_renewal, line_total)
+             VALUES (?, ?, ?, ?, ?)`,
+            [membership_id, transaction_id, user_id, false, unit]
+          );
+        } else {
+          await conn.query(
+            `INSERT INTO Membership_Purchase (membership_id, transaction_id, is_renewal, line_total)
+             VALUES (?, ?, ?, ?)`,
+            [membership_id, transaction_id, false, unit]
+          );
+        }
+      }
+
+      await conn.commit();
+      return res.json({
+        ok: true,
+        transaction_id,
+        membership_ids,
+        total_charged: expectedTotal,
+        temp_password: rawTemp,
+      });
+    } catch (err) {
+      await conn.rollback();
+      console.error('Checkout TX error:', err);
+      return res.status(400).json({ error: err.message || 'Checkout failed' });
+    } finally {
+      conn.release();
+    }
+  } catch (outer) {
+    console.error('Checkout outer error:', outer);
+    return res.status(400).json({ error: outer.message || 'Checkout failed' });
   }
 });
+
+
 export default router;

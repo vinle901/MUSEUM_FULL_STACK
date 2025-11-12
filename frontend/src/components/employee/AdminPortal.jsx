@@ -9,6 +9,7 @@ import NotificationBell from './NotificationBell';
 
 function AdminPortal() {
   // ---------- core state ----------
+  
   const [activeTab, setActiveTab] = useState('employees');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -160,21 +161,24 @@ const handleCreateMember = async () => {
         },
       });
     } else {
-      for (let i = 0; i < qty; i++) {
-        await api.post('/api/reports/membership-signups/member', {   // NOTE: no leading /api
+      await api.post('reports/membership-signups/checkout', {
+        users: {
           first_name: newMember.first_name,
-          last_name: newMember.last_name,
-          email: newMember.email.trim().toLowerCase(),
+          last_name:  newMember.last_name,
+          email:      newMember.email.trim().toLowerCase(),
           phone_number: newMember.phone_number || null,
           subscribe_to_newsletter: !!newMember.subscribe_to_newsletter,
-          membership_type: newMember.membership_type,
-          start_date: startISO,           // normalized
-          expiration_date: endISO,        // normalized
           temp_password: chosenPassword,
-          birthdate: birthdateISO,        // normalized
+          birthdate: birthdateISO,
           sex: newMember.sex || null,
-        });
-      }
+        },
+        membership: {
+          membership_type: newMember.membership_type,
+          start_date: startISO,
+          expiration_date: endISO,
+          quantity: qty,
+        },
+      });
     }
 
     // show temp password and reset
@@ -338,7 +342,7 @@ const handleCreateMember = async () => {
     }
   };
 
-  const fetchItems = async () => {
+  const fetchItems = async (override = {}) => {
     setLoading(true);
     try {
       const endpoint = tabs.find(tab => tab.id === activeTab).endpoint;
@@ -352,7 +356,15 @@ const handleCreateMember = async () => {
       }
 
       if (activeTab === 'membersignups') {
-        const { data } = await api.get(url, { params: { startDate, endDate } });
+        const sRaw = (override.startDate ?? startDate) || '';
+        const eRaw = (override.endDate   ?? endDate) || '';
+        let s = sRaw, e = eRaw;
+       if (s && !e) e = s;
+       if (e && !s) s = e;
+       const params = {};
+       if (s) params.startDate = s;
+       if (e) params.endDate   = e;
+        const { data } = await api.get(url, { params });
         setItems(data.rows || []);
         setMemberSummary({
           signupCount: Number(data?.summary?.signupCount || 0),
@@ -369,6 +381,13 @@ const handleCreateMember = async () => {
       setLoading(false);
     }
   };
+  const toLocalYMD = (dLike) => {
+    const d = dLike instanceof Date ? dLike : new Date(dLike);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   const joinTimes = (dates) => {
   // dates: array of JS Date objects (same day)
     const times = dates
@@ -381,105 +400,175 @@ const handleCreateMember = async () => {
   };
   // membership sign-ups aggregation by day (client-side grouping)
   const membershipAgg = useMemo(() => {
-    if (activeTab !== 'membersignups') return { groups: [], overall: 0, signupCount: 0 };
+  if (activeTab !== 'membersignups') return { groups: [], overall: 0, signupCount: 0 };
 
-    const sourceRows = (items || []).filter(r => {
-      if (activeFilter === 'all') return true;
-      return activeFilter === 'active' ? !!r.is_active : !r.is_active;
+  const sourceRows = (items || []).filter(r => {
+    if (activeFilter === 'all') return true;
+    return activeFilter === 'active' ? !!r.is_active : !r.is_active;
+  });
+
+  const byDay = new Map();
+  let overall = 0;
+
+  for (const r of sourceRows) {
+    const when = r.purchased_at || r.created_at;
+    const dateKey = toLocalYMD(when);                 // ✅ no UTC shift
+    if (!byDay.has(dateKey)) byDay.set(dateKey, []);
+    byDay.get(dateKey).push(r);
+    overall += Number(r.line_total ?? r.amount_paid ?? 0);
+  }
+
+  const groups = Array.from(byDay.entries()).map(([date, rows]) => {
+    // ensure stable order so “latest” really is latest
+    rows.sort((a, b) => new Date(a.purchased_at || a.created_at) - new Date(b.purchased_at || b.created_at));
+
+    const byPersonPlan = new Map();
+
+    rows.forEach((r) => {
+      const firstName = r.first_name || '';
+      const lastName  = r.last_name  || '';
+      const email     = (r.email || '').toLowerCase();
+      const plan      = r.membership_type || 'Unknown';
+
+      // key by email + plan (names may change, so don't lock the key to them)
+      const k = `${email}|${plan}`;
+
+      const purchaseDate = new Date(r.purchased_at || r.created_at);
+      const expDate      = r.expiration_date ? new Date(r.expiration_date) : null;
+
+      if (!byPersonPlan.has(k)) {
+        byPersonPlan.set(k, {
+          key: k,
+          // seed identity from first row
+          first_name: firstName,
+          last_name: lastName,
+          email: r.email,
+          phone_number: r.phone_number ?? '—',
+          subscribe_to_newsletter: !!r.subscribe_to_newsletter,
+          membership_type: plan,
+          user_id: r.user_id ?? r.userId ?? null,
+          count: 0,
+          total: 0,
+          times: [],
+          membership_ids: [],
+          latest: { id: r.membership_id, when: purchaseDate, is_active: !!r.is_active, row: r },
+          expiration_date: r.expiration_date || null,
+          _expiration_ts: expDate ? expDate.getTime() : null,
+        });
+      }
+
+      const agg = byPersonPlan.get(k);
+      agg.count += 1;
+      agg.total += Number(r.line_total ?? r.amount_paid ?? 0);
+      agg.times.push(purchaseDate);
+      agg.membership_ids.push(r.membership_id);
+
+      // update latest purchase
+      if (!agg.latest || purchaseDate > agg.latest.when) {
+        agg.latest = { id: r.membership_id, when: purchaseDate, is_active: !!r.is_active, row: r };
+      }
+
+      // keep the *most recent* identity info so names/emails/phone don’t go stale
+      if (agg.latest && agg.latest.row === r) {
+        agg.first_name = firstName;
+        agg.last_name  = lastName;
+        agg.email      = r.email;
+        agg.phone_number = r.phone_number ?? '—';
+        agg.subscribe_to_newsletter = !!r.subscribe_to_newsletter;
+      }
+
+      // keep max expiration
+      if (expDate) {
+        const ts = expDate.getTime();
+        if (agg._expiration_ts == null || ts > agg._expiration_ts) {
+          agg._expiration_ts = ts;
+          agg.expiration_date = r.expiration_date;
+        }
+      }
     });
-    // 1) group raw rows by calendar day
-    const byDay = new Map();
-    let overall = 0;
 
-    for (const r of sourceRows) {
-      const when = r.purchased_at || r.created_at;
-      const dateKey = new Date(when).toISOString().slice(0, 10); // YYYY-MM-DD
-      if (!byDay.has(dateKey)) byDay.set(dateKey, []);
-      byDay.get(dateKey).push(r);
-      overall += Number(r.line_total ?? r.amount_paid ?? 0);
-    }
+    const consolidated = Array.from(byPersonPlan.values()).map(x => ({
+      ...x,
+      line_total: x.total,
+      purchased_times_text: joinTimes(x.times),
+      primary_membership_id: x.latest?.id || x.membership_ids?.[0] || null,
+      is_active: x.latest?.is_active ?? false,
+    }));
 
-    // 2) inside each day, consolidate duplicates (same Name+Email+Plan)
-    const groups = Array.from(byDay.entries()).map(([date, rows]) => {
-      const byPersonPlan = new Map();
+    return [date, consolidated];
+  })
+  // newest day first
+  .sort((a, b) => (a[0] < b[0] ? 1 : -1));
 
-      rows.forEach((r) => {
-        const firstName = r.first_name || '';
-        const lastName  = r.last_name  || '';
-        const email     = (r.email || '').toLowerCase();
-        const plan      = r.membership_type || 'Unknown';
+  return { groups, overall, signupCount: sourceRows.length };
+}, [activeTab, items, activeFilter]);
 
-        // key uses email + plan; include name for readability/edge-cases
-        const k = `${email}|${plan}|${firstName.trim().toLowerCase()}|${lastName.trim().toLowerCase()}`;
-        const purchaseDate = new Date(r.purchased_at || r.created_at);
-        const expDate      = r.expiration_date ? new Date(r.expiration_date) : null;
-
-        if (!byPersonPlan.has(k)) {
-          byPersonPlan.set(k, {
-            key: k,
-            first_name: firstName,
-            last_name: lastName,
-            email: r.email,
-            phone_number: r.phone_number ?? '—',
-            membership_type: plan,
-            subscribe_to_newsletter: !!r.subscribe_to_newsletter,
-            count: 0,
-            total: 0,
-            times: [],
-            membership_ids: [],            // collect all
-            latest: { id: r.membership_id, when: purchaseDate, is_active: !!r.is_active }, // track latest for actions
-            expiration_date: r.expiration_date || null,
-            _expiration_ts: expDate ? expDate.getTime() : null,
-          });
-        }
-
-        const agg = byPersonPlan.get(k);
-        agg.count += 1;
-        agg.total += Number(r.line_total ?? r.amount_paid ?? 0);
-        agg.times.push(purchaseDate);
-        agg.membership_ids.push(r.membership_id);
-        if (!agg.latest || purchaseDate > agg.latest.when) {
-          agg.latest = { id: r.membership_id, when: purchaseDate, is_active: !!r.is_active };
-        }
-        if (expDate) {
-          const ts = expDate.getTime();
-          if (agg._expiration_ts == null || ts > agg._expiration_ts) {
-            agg._expiration_ts = ts;
-            agg.expiration_date = r.expiration_date;
-          }
-        }
-      });
-
-      const consolidated = Array.from(byPersonPlan.values()).map(x => ({
-        ...x,
-        line_total: x.total,                 // keep the field name your renderer expects
-        purchased_times_text: joinTimes(x.times),
-        primary_membership_id: x.latest?.id || x.membership_ids?.[0] || null,
-        expiration_date: x.expiration_date || null,
-        is_active: x.latest?.is_active ?? false,
-      }));
-
-      return [date, consolidated];
-    })
-    // keep your day ordering (newest first as before)
-    .sort((a, b) => (a[0] < b[0] ? 1 : -1));
-
-    return { groups, overall, signupCount: sourceRows.length };
-  }, [activeTab, items, activeFilter]);
-
+  // Replace your handleSetMembershipActive with this:
   const handleSetMembershipActive = async (membershipId, newActive) => {
+    
+    // Optimistic UI update
     setItems(prev =>
       prev.map(r =>
-        r.membership_id === membershipId ? { ...r, is_active: newActive } : r
+        r.membership_id === membershipId ? { ...r, is_active: !!newActive } : r
       )
     );
 
+    // Find the full row so we can send required fields (email, dates, etc.)
+    const row = (items || []).find(r => r.membership_id === membershipId);
+    if (!row) {
+      console.error('Row not found for membership_id', membershipId);
+      return;
+    }
+
+    const toISO = (d) => {
+      if (!d) {
+        // fallback to today's date if missing
+        const today = new Date();
+        return today.toISOString().slice(0, 10); // YYYY-MM-DD
+      }
+      return String(d).slice(0, 10);
+    };
+
+    const temp = Math.random().toString(36).slice(2, 10) + "A!1"; // backend requires temp_password
+    const normalizeSexForSend = (v) => {
+      if (v == null) return undefined;
+      const s = String(v).trim().toUpperCase();
+      if (s === 'M' || s === 'F' || s === 'O') return s; // keep only known single letters
+      return undefined; // anything else: don't send it
+    };
+
+    const sexSafe = normalizeSexForSend(row.sex);
+    const payload = {
+      email: row.email,
+      first_name: row.first_name ?? "",
+      last_name: row.last_name ?? "",
+      temp_password: temp,
+      membership_id: membershipId,
+      is_active: !!newActive,
+      membership_type: row.membership_type,
+      start_date: toISO(row.start_date),
+      expiration_date: toISO(row.expiration_date),
+      ...(sexSafe ? { sex: sexSafe } : {}),
+      phone_number: row.phone_number ?? null,
+      subscribe_to_newsletter: !!row.subscribe_to_newsletter,
+      birthdate: toISO(row.birthdate),
+    };
+
     try {
-      await api.put(`/api/reports/membership-signups/member/${membershipId}`, {
-        is_active: newActive, // backend expects boolean, it will coalesce
-      });
-      // Optional: re-fetch to stay perfectly in sync with server
-      await fetchItems();
+      const res = await api.post('/api/reports/membership-signups/member', payload);
+
+      // Align with server response if it returns the final membership
+      const isActiveFromServer = res?.data?.membership?.is_active;
+      if (typeof isActiveFromServer === 'boolean') {
+        setItems(prev =>
+          prev.map(r =>
+            r.membership_id === membershipId ? { ...r, is_active: isActiveFromServer } : r
+          )
+        );
+      }
+
+      // Optional: re-fetch to stay perfectly in sync
+      // await fetchItems();
     } catch (error) {
       // rollback optimistic change on error
       setItems(prev =>
@@ -491,6 +580,7 @@ const handleCreateMember = async () => {
       alert(error.response?.data?.error || 'Failed to update membership status');
     }
   };
+
   // Helper function to format foreign key constraint errors
   const formatConstraintError = (errorMessage, operation = 'delete') => {
     if (!errorMessage) return 'An unknown error occurred';
@@ -1758,9 +1848,10 @@ const handleCreateMember = async () => {
         return null;
     }
   };
+  
   const handleResetFilters = () => {
-    setStartDate(twoWeeksAgoISO);
-    setEndDate(todayISO);
+    setStartDate('');
+    setEndDate('');
     setActiveFilter('all');
     // No need to call fetchItems(): the useEffect on [startDate, endDate] will run.
   };
@@ -1795,21 +1886,21 @@ const handleCreateMember = async () => {
               </div>
               <div className="filter-field">
                 <label className="form-label mb-1">Start date</label>
-                <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <input type="date" className="form-control" value={startDate || ''} onChange={(e) => setStartDate(e.target.value)} />
               </div>
               <div className="filter-field">
                 <label className="form-label mb-1">End date</label>
-                <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input type="date" className="form-control" value={endDate || ''} onChange={(e) => setEndDate(e.target.value)} />
               </div>
-              <button className="btn btn-primary" style={{ height: '38px', marginTop: '22px', background: '#19667C', color: '#ffffffff', border: '1px solid #d1d5db', borderRadius: '6px', padding: '0 12px' }} onClick={fetchItems}>Apply</button>
+              <button className="btn btn-primary" style={{ height: '38px', marginTop: '22px', background: '	#eaa49c', color: '#ffffffff', border: '1px solid #d1d5db', borderRadius: '6px', padding: '0 12px' }} onClick={() => fetchItems({})}>Apply</button>
                <button
                   className="btn"
                   style={{
                     height: '38px',
                     marginTop: '22px',
-                    background: '#e5e7eb',
+                    background: '	#f3e7d6',
                     color: '#374151',
-                    border: '1px solid #d1d5db',
+                    border: '1px solid 	#f3e7d6',
                     borderRadius: '6px',
                     padding: '0 12px'
                   }}
@@ -1821,7 +1912,7 @@ const handleCreateMember = async () => {
                 Overall Total: {fmtMoney(overall)} &nbsp;•&nbsp; Sign-ups: {memberSummary.signupCount}
               </div>
               <button
-                className="btn btn-success add-item-fab"
+                className="add-item-btn"
                 onClick={openCreateMember}
                 title="Add New Member"
               >
@@ -1848,7 +1939,7 @@ const handleCreateMember = async () => {
                     <table className="admin-table">
                       <thead>
                         <tr>
-                          <th>#</th>
+                          <th>User ID</th>
                           <th>Name</th>
                           <th>Email</th>
                           <th>Phone</th>
@@ -1864,8 +1955,8 @@ const handleCreateMember = async () => {
                       </thead>
                       <tbody>
                         {rows.map((r, i) => (
-                          <tr key={`${date}-${r.email}-${r.membership_type}`}>
-                            <td>—</td>
+                          <tr key={`${date}-${(r.membership_id ?? r.user_id ?? r.email ?? 'x')}-${i}`}>
+                            <td>{r.user_id ?? '—'}</td>
                             <td>{r.first_name} {r.last_name}</td>
                             <td>{r.email}</td>
                             <td>{r.phone_number}</td>
@@ -2189,7 +2280,7 @@ const handleCreateMember = async () => {
                   <td>{item.exhibition_type}</td>
                   <td>{item.location}</td>
                   <td>{new Date(item.start_date).toLocaleDateString()}</td>
-                  <td>{new Date(item.end_date).toLocaleDateString()}</td>
+                  <td>{item.end_date ? new Date(item.end_date).toLocaleDateString() : 'No End Date'}</td>
                   <td>{item.is_active ? 'Yes' : 'No'}</td>
                   <td>
                     <button onClick={() => handleEdit(item)} className="edit-btn">
@@ -2293,9 +2384,55 @@ const handleCreateMember = async () => {
           </div>
         )}
 
-        {(showAddForm || editingItem) && renderForm()}
-        
-        {!showAddForm && !editingItem && renderItemsTable()}
+        {(showAddForm || editingItem) ? (
+          <div className="create-member-overlay">
+            <div className="bg-white/95 rounded-2xl shadow-2xl max-w-3xl w-full border border-gray-200/60 p-0 create-member-card">
+              {/* Header (matches Add New Member look) */}
+              <div className="p-6 border-b border-gray-200/70">
+                <div className="header flex items-center gap-3 px-6 py-4 border-b">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                    style={{ background: 'linear-gradient(135deg,#19667C,#127a86)' }}
+                  >
+                    {editingItem ? <FaEdit /> : <FaPlus />}
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-800">
+                    {editingItem
+                      ? `Edit ${currentTab?.label?.replace(/s$/, '') || 'Item'}`
+                      : `Add New ${currentTab?.label?.replace(/s$/, '') || 'Item'}`}
+                  </h2>
+
+                  <button
+                    aria-label="Close"
+                    className="member-modal-close"
+                    onClick={handleCancel}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                      <path fill="currentColor" d="M6.7 5.3 5.3 6.7 10.6 12l-5.3 5.3 1.4 1.4L12 13.4l5.3 5.3 1.4-1.4L13.4 12l5.3-5.3-1.4-1.4L12 10.6z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable content: render your existing form as-is */}
+              <div className="p-6 create-member-scroll modal-like">
+                {renderForm()}
+              </div>
+
+              {/* Sticky footer with unified Save/Cancel (hide inner buttons via CSS below) */}
+              <div className="create-member-footer px-6 py-4">
+                <div className="flex items-center justify-end gap-3">
+                  <button onClick={handleSave} className="btn-primary">Save</button>
+                  <button onClick={handleCancel} className="btn-secondary">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          renderItemsTable()
+        )}
+
       </div>
 
       {/* Password Change Modal */}

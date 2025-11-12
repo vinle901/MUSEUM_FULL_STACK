@@ -12,7 +12,7 @@
 .pos-header,
 .portal-header,
 .reports-header {
-  background: linear-gradient(135deg, #164e63 0%, #0a3847 100%);
+  background: linear-gradient(135deg, #088da5 0%, 	#c4e6ff 100%);
   color: white;
   padding: 30px;
   border-radius: 10px;
@@ -60,8 +60,8 @@
 
 .category-tab {
   padding: 10px 20px;
-  border: 2px solid #e0e0e0;
-  background: white;
+  border: 2px solid #e4eef5;
+  background: #e4eef5;
   border-radius: 25px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -69,13 +69,13 @@
 }
 
 .category-tab:hover {
-  background: #f0f0f0;
+  background: #e4eef5;
 }
 
 .category-tab.active {
-  background: #164e63;
+  background: 		#088da5;
   color: white;
-  border-color: #164e63;
+  border-color: 		#088da5;
 }
 
 .menu-items-grid {
@@ -101,7 +101,7 @@
 .menu-item-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-  border-color: #164e63;
+  border-color: #088da5;
 }
 
 .menu-item-card.disabled {
@@ -127,7 +127,7 @@
 }
 
 .item-price {
-  color: #164e63;
+  color: 		#3f5d6b;
   font-size: 1.2rem;
   font-weight: 700;
   margin-bottom: 10px;
@@ -142,13 +142,13 @@
 }
 
 .availability.available {
-  background: #d4edda;
-  color: #155724;
+  background: #d5f3ea;
+  color: 	#006b3c;
 }
 
 .availability.unavailable {
   background: #f8d7da;
-  color: #721c24;
+  color: 	#400000;
 }
 
 .item-actions {
@@ -159,9 +159,9 @@
 
 .info-btn {
   padding: 6px 12px;
-  border: 1px solid #164e63;
+  border: 1px solid 	#088da5;
   background: #fff;
-  color: #164e63;
+  color: 	#088da5;
   border-radius: 16px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -169,7 +169,7 @@
 }
 
 .info-btn:hover {
-  background: #e6f0f3;
+  background: #c4e6ff;
 }
 
 .pos-cart-section {
@@ -321,7 +321,7 @@
 }
 
 .total-amount {
-  color: #164e63;
+  color: #088da5;
 }
 
 .payment-select {
@@ -335,7 +335,7 @@
 .process-order-btn {
   width: 100%;
   padding: 15px;
-  background: linear-gradient(135deg, #164e63 0%, #0a3847 100%);
+  background: linear-gradient(135deg, 		#088da5 0%, 	#b0e0e6 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -454,12 +454,13 @@
 }
 
 .admin-tab:hover {
-  background: #e0e0e0;
+  background: #eae6f6;
 }
 
 .admin-tab.active {
-  background: #164e63;
-  color: white;
+  background: #eaa49c!important;
+  border-color: #eaa49c !important; /* slightly darker edge */
+  color: #ffffff !important;
 }
 
 .admin-content {
@@ -536,35 +537,81 @@
   justify-content: flex-end;
 }
 
-.save-btn,
-.cancel-btn {
-  padding: 10px 20px;
+/* ==========================================
+   BUTTON COLOR UPDATE — Match Admin Header
+   ========================================== */
+
+/* Add New Item Button */
+.add-item-btn,
+.add-new-btn,
+.btn-add {
+  background: linear-gradient(135deg, #006b3c, #458b74);
+  color: #fff;
+  font-weight: 600;
   border: none;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-weight: 500;
+  transition: background 0.25s ease, transform 0.15s ease;
+}
+.add-item-btn:hover,
+.add-new-btn:hover,
+.btn-add:hover {
+  background: linear-gradient(135deg, #eaa49c, #f6daa4);
+  color: #222;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(146, 131, 182, 0.25);
 }
 
-.save-btn {
-  background: #4caf50;
-  color: white;
+/* Edit Button — slightly darker purple base */
+.edit-btn {
+  background: #088da5 !important;
+  color: #fff !important;
+  border: none;
+  transition: background 0.2s ease;
+}
+.edit-btn:hover {
+  background: #b29ed1 !important;
+  color: #222 !important;
 }
 
-.save-btn:hover {
-  background: #45a049;
+/* Delete Button — soft coral with deeper hover */
+.delete-btn {
+  background: 	#a10101 !important;
+  color: #fff !important;
+  border: none;
+  transition: background 0.2s ease;
+}
+.delete-btn:hover {
+  background: #d78f88 !important;
 }
 
-.cancel-btn {
-  background: #f44336;
-  color: white;
+/* Save / Confirm Buttons */
+.save-btn,
+.primary-btn {
+  background: linear-gradient(135deg, #9283b6, #eaa49c);
+  color: #fff;
+  border: 1px solid #8a79b0;
+  box-shadow: 0 4px 12px rgba(146, 131, 182, 0.2);
+}
+.save-btn:hover,
+.primary-btn:hover {
+  background: linear-gradient(135deg, #eaa49c, #f6daa4);
+  color: #222;
 }
 
-.cancel-btn:hover {
-  background: #da190b;
+/* Cancel / Secondary Buttons */
+.cancel-btn,
+.secondary-btn {
+  background: #f7f7f7;
+  border: 1px solid #ddd;
+  color: #333;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
+.cancel-btn:hover,
+.secondary-btn:hover {
+  background: #f6daa4;
+  border-color: #eaa49c;
+  color: #000;
+}
+
 
 .admin-table {
   width: 100%;
@@ -598,7 +645,7 @@
 }
 
 .edit-btn {
-  background: #2196f3;
+  background: #088da5;
   color: white;
 }
 
@@ -607,7 +654,7 @@
 }
 
 .delete-btn {
-  background: #f44336;
+  background: 	#800000;
   color: white;
 }
 
@@ -671,7 +718,11 @@
   padding: 10px 15px;
   border-radius: 8px;
 }
-
+.reports-header,
+.analyst-reports-container .reports-header {
+  background: linear-gradient(135deg, #458b74 0%, #006b3c 100%) !important;
+  color: #fff;
+}
 .date-filter input {
   padding: 8px;
   border: 1px solid #ddd;
@@ -787,7 +838,21 @@
 .report-table td {
   padding: 12px;
   text-align: left;
-  border-bottom: 1px solid #e0e0e0;
+  background: #e1c7b7 !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e1c7b7 !important;
+}
+.admin-portal-container table.admin-table > thead > tr > th {
+  background: #e1c7b7 !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e1c7b7 !important;
+}
+
+/* If you also use .report-table, match it too */
+.admin-portal-container table.report-table > thead > tr > th {
+  background: #e1c7b7 !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e1c7b7 !important;
 }
 
 .report-table th {
@@ -945,11 +1010,17 @@
   margin-bottom:14px;
 }
 .admin-portal-container .admin-tab{
-  appearance:none; border:1px solid #e2e8f0; background:#f3f7f9; color:#0f172a;
+  appearance:none; border:1px solid #ecd6c9; background:	#f3efe9; color:#0f172a;
   border-radius:9999px; padding:.55rem .9rem; font-weight:800; cursor:pointer;
 }
 .admin-portal-container .admin-tab.active{
   background:var(--brand); color:#fff; border-color:var(--brand-darker);
+}
+.admin-portal-container .portal-header {
+  background: linear-gradient(135deg, #9283b6, 	#eaa49c) !important;
+  color: #ffffff !important;
+  border-bottom: none;
+  box-shadow: 0 4px 12px rgba(146, 131, 182, 0.35);
 }
 
 /* Filters card */
@@ -999,8 +1070,8 @@
   border-radius: 25px;
 
   /* colors like the active Membership chip */
-  border: 2px solid #164e63;
-  background: #164e63;
+  border: 2px solid #f6daa4;
+  background: #f6daa4;
   color: #fff;
 
   font-family: 'Montserrat', sans-serif;
@@ -1012,8 +1083,8 @@
   box-shadow: 0 2px 8px rgba(22, 78, 99, 0.25);
 }
 .admin-portal-container .rf-apply:hover{
-  background:#0a3847;
-  border-color:#0a3847;
+  background:#f6daa4;
+  border-color:#f6daa4;
 }
 .admin-portal-container .rf-apply:focus-visible{
   outline: none;
@@ -1072,8 +1143,8 @@
   background-size: 12px;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5L6 6.5L11 1.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 }
-.status-select.is-active   { background-color: #129a62; } /* green */
-.status-select.is-inactive { background-color: #b71c1c; } /* deep red */
+.status-select.is-active   { background-color: 	#006b3c; } /* green */
+.status-select.is-inactive { background-color: 	#900000; } /* deep red */
 .status-select:hover  { filter: brightness(1.05); }
 .status-select:active { transform: translateY(1px); }
 .status-select:focus  { outline: 2px solid rgba(25,102,124,.35); outline-offset: 2px; }
@@ -1463,4 +1534,17 @@
     margin-left: auto;          /* push it to the right */
     margin-top: 22px;           /* align with other controls */
   }
+}
+.modal-like .admin-form > h3 { display: none; }
+.modal-like .admin-form .form-buttons { display: none; }
+
+/* Ensure modal height behaves like the member modal */
+.create-member-card {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.create-member-scroll {
+  overflow: auto;
+  max-height: calc(90vh - 140px);
 }
