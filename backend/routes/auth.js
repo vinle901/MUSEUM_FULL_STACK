@@ -143,7 +143,7 @@ router.post('/register', async (req, res) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
 
@@ -201,6 +201,16 @@ router.post('/login', async (req, res) => {
       })
     }
 
+    // Check and update user's membership status on login
+    await db.query(
+      `UPDATE Membership
+       SET is_active = FALSE
+       WHERE user_id = ?
+         AND expiration_date < CURDATE()
+         AND is_active = TRUE`,
+      [user.user_id],
+    )
+
     // Determine role by checking Employee table
     const roleDetails = await getUserRoleDetails(user.user_id)
 
@@ -220,7 +230,7 @@ router.post('/login', async (req, res) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
 
@@ -300,7 +310,7 @@ router.post('/logout', (req, res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   })
   res.json({ message: 'Logged out successfully' })
 })

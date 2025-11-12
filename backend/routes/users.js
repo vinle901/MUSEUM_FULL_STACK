@@ -26,10 +26,20 @@ router.get('/profile', middleware.requireAuth, async (req, res) => {
 
     const user = users[0]
 
+    // Check and update expired memberships
+    await db.query(
+      `UPDATE Membership
+       SET is_active = FALSE
+       WHERE user_id = ?
+         AND expiration_date < CURDATE()
+         AND is_active = TRUE`,
+      [userId],
+    )
+
     // Get membership info if exists
     const [memberships] = await db.query(
       `SELECT membership_id, membership_type, start_date, expiration_date, is_active
-       FROM Membership WHERE user_id = ? and is_active = 1 ORDER BY start_date DESC LIMIT 1`,
+       FROM Membership WHERE user_id = ? ORDER BY membership_id DESC LIMIT 1`,
       [userId],
     )
 

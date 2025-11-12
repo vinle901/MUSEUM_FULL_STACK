@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { fetchBenefits, getDetailedBenefits, getMembershipImage } from "../services/benefitsService";
 import { authService } from "../services/authService";
 import { ticketService } from "../services/ticketService";
+import { formatDate } from "../utils/dateHelpers";
 
 // Reusable CheckIcon component
 const CheckIcon = ({ className = "w-5 h-5 text-brand flex-shrink-0 mt-0.5" }) => (
@@ -127,7 +128,7 @@ export default function MembershipInfo() {
               You already have an active membership{membership?.membership_type ? ` (${membership.membership_type})` : ''}.
             </p>
             {membership?.expiration_date && (
-              <p className="text-green-800 text-sm mt-1">Expires on {new Date(membership.expiration_date).toLocaleDateString()}.</p>
+              <p className="text-green-800 text-sm mt-1">Expires on {formatDate(membership.expiration_date)}.</p>
             )}
           </div>
         )}
@@ -338,13 +339,13 @@ export default function MembershipInfo() {
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               {/* Discover more could link to your events page or a detail route */}
-              <a
-                href="#"
+              <Link
+                to="/calendar"
                 className="btn btn--light btn--lg"
                 style={{ justifyContent: "center" }}
               >
                 Discover More
-              </a>
+              </Link>
 
               {/* Optional: quick CTA to join */}
               {hasActiveMembership ? (
@@ -367,7 +368,7 @@ export default function MembershipInfo() {
                 </Link>
               ) : (
                 <Link
-                  to="/checkout/membership"
+                  to="/membership"
                   state={{ checkoutType: 'membership' }}
                   className="btn btn--brand btn--lg"
                   style={{ justifyContent: "center" }}

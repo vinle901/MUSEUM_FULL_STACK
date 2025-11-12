@@ -24,6 +24,7 @@ const Checkout = () => {
   
   // Check if this is a membership checkout
   const isMembershipCheckout = location.state?.checkoutType === 'membership'
+  const isRenewal = location.state?.isRenewal || false
   const membershipData = location.state?.membershipData
 
   const [formData, setFormData] = useState({
@@ -31,17 +32,12 @@ const Checkout = () => {
     lastName: '',
     email: '',
     phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
     cardNumber: '',
     cardName: '',
     expiryMonth: '',
     expiryYear: '',
     cvv: '',
     paymentMethod: 'Credit Card',
-    giftMessage: '',
     newsletterSubscribe: false
   })
 
@@ -135,21 +131,14 @@ const Checkout = () => {
 
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) newErrors.email = 'Valid email is required'
-    
+
     const phoneRegex = /^\d{10}$/
     if (!phoneRegex.test(formData.phone.replace(/\D/g, ''))) {
       newErrors.phone = 'Valid 10-digit phone number is required'
     }
-
-    if (!formData.address.trim()) newErrors.address = 'Address is required'
-    if (!formData.city.trim()) newErrors.city = 'City is required'
-    if (!formData.state.trim()) newErrors.state = 'State is required'
-    
-    const zipRegex = /^\d{5}$/
-    if (!zipRegex.test(formData.zipCode)) newErrors.zipCode = 'Valid 5-digit ZIP code is required'
 
     const cardRegex = /^\d{16}$/
     if (!cardRegex.test(formData.cardNumber.replace(/\s/g, ''))) {
@@ -184,8 +173,8 @@ const Checkout = () => {
       return
     }
 
-    // Prevent purchasing a membership when already active
-    if (isMembershipCheckout && hasActiveMembership) {
+    // Prevent purchasing a membership when already active (but allow renewals)
+    if (isMembershipCheckout && hasActiveMembership && !isRenewal) {
       alert('You already have an active membership and cannot purchase another at this time.')
       return
     }
@@ -242,10 +231,6 @@ const Checkout = () => {
             firstName: formData.firstName,
             lastName: formData.lastName,
             phone: formData.phone,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            zipCode: formData.zipCode,
           },
         }
 
@@ -375,15 +360,6 @@ const Checkout = () => {
               </div>
             </div>
 
-            {!isMembership && (
-              <div className="bg-gray-50 rounded-lg p-4 mt-6">
-                <p className="text-sm text-gray-700">
-                  <strong>Shipping Address:</strong><br />
-                  {formData.address}<br />
-                  {formData.city}, {formData.state} {formData.zipCode}
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Information Notice */}
@@ -397,9 +373,9 @@ const Checkout = () => {
                   {isMembership ? 'Your membership is now active' : 'Your order details have been recorded'}
                 </p>
                 <p className="text-sm text-blue-800">
-                  {isMembership 
-                    ? 'You can now enjoy all the benefits of your membership. Visit your profile to view your membership details.' 
-                    : 'You can pick up your items at the museum gift shop. Please bring a valid ID and your order reference.'}
+                  {isMembership
+                    ? 'You can now enjoy all the benefits of your membership. Visit your profile to view your membership details.'
+                    : 'You can pick up your items at the museum gift shop. Please bring a valid ID.'}
                 </p>
               </div>
             </div>
@@ -449,11 +425,11 @@ const Checkout = () => {
       <div className="bg-brand text-white py-16 px-8">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-5xl font-bold">
-            {isMembershipCheckout ? 'Complete Your Membership' : 'Checkout'}
+            {isMembershipCheckout ? (isRenewal ? 'Renew Your Membership' : 'Complete Your Membership') : 'Checkout'}
           </h1>
           {isMembershipCheckout && membershipData && (
             <p className="text-xl mt-2 opacity-90">
-              {membershipData.plan.membership_type} Membership - ${parseFloat(membershipData.plan.annual_fee).toFixed(2)}/year
+              {isRenewal && '🔄 Renewal: '}{membershipData.plan.membership_type} Membership - ${parseFloat(membershipData.plan.annual_fee).toFixed(2)}/year
             </p>
           )}
         </div>
@@ -463,7 +439,14 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-8">
-              {isMembershipCheckout && !orderComplete && hasActiveMembership && (
+              {isMembershipCheckout && !orderComplete && isRenewal && (
+                <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+                  <p className="text-blue-800 font-semibold">
+                    🔄 You are renewing your {membershipData?.plan?.membership_type || 'membership'}. Your membership will be extended by 1 year from your current expiration date.
+                  </p>
+                </div>
+              )}
+              {isMembershipCheckout && !orderComplete && hasActiveMembership && !isRenewal && (
                 <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
                   <p className="text-red-800 font-semibold">
                     You already have an active membership{membership?.membership_type ? ` (${membership.membership_type})` : ''}. Purchasing another is disabled.
@@ -526,71 +509,6 @@ const Checkout = () => {
                       }`}
                     />
                     {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* Shipping Address */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Street Address *</label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                        errors.address ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                      }`}
-                    />
-                    {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">City *</label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.city ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">State *</label>
-                      <input
-                        type="text"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleInputChange}
-                        placeholder="TX"
-                        maxLength="2"
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.state ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">ZIP Code *</label>
-                      <input
-                        type="text"
-                        name="zipCode"
-                        value={formData.zipCode}
-                        onChange={handleInputChange}
-                        placeholder="77001"
-                        maxLength="5"
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.zipCode ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode}</p>}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -711,27 +629,9 @@ const Checkout = () => {
                 </div>
               </div>
 
-              {/* Additional Options */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-6">Additional Options</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Gift Message (Optional)</label>
-                    <textarea
-                      name="giftMessage"
-                      value={formData.giftMessage}
-                      onChange={handleInputChange}
-                      rows="3"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand"
-                      placeholder="Add a special message to your gift..."
-                    />
-                  </div>
-                </div>
-              </div>
-
               <button
                 type="submit"
-                disabled={isProcessing || (isMembershipCheckout && hasActiveMembership)}
+                disabled={isProcessing || (isMembershipCheckout && hasActiveMembership && !isRenewal)}
                 className="w-full bg-brand text-white py-4 rounded-lg font-bold text-xl hover:bg-brand-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {isProcessing ? 'Processing...' : `Complete Purchase - $${total.toFixed(2)}`}
@@ -756,7 +656,7 @@ const Checkout = () => {
                       <p className="text-sm text-gray-600 mb-1">Annual Fee</p>
                       <p className="font-semibold text-brand">${parseFloat(membershipData.plan.annual_fee).toFixed(2)}</p>
                     </div>
-                    {hasActiveMembership && (
+                    {hasActiveMembership && !isRenewal && (
                       <div className="bg-red-50 border border-red-200 rounded-md p-3">
                         <p className="text-sm text-red-800 font-semibold">Active membership detected. Checkout is disabled.</p>
                       </div>

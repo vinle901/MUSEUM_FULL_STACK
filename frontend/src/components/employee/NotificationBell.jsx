@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FaTrash, FaCheck } from 'react-icons/fa'
 import api from '../../services/api'
 import './NotificationBell.css'
 
 function NotificationBell() {
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -26,9 +28,10 @@ function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications()
+    // Real-time polling: check every 3 seconds for new notifications
     // Only poll when dropdown is closed to avoid flicker
     if (!showDropdown) {
-      const interval = setInterval(fetchNotifications, 60000)
+      const interval = setInterval(fetchNotifications, 3000) // 3 seconds for near real-time
       return () => clearInterval(interval)
     }
   }, [filter, showDropdown])
@@ -49,23 +52,18 @@ function NotificationBell() {
     }
   }
 
-  const resolveNotification = async (messageId) => {
-    try {
-      // Optimistic update - update UI immediately without refetch
-      setNotifications(prev => prev.map(notif =>
-        notif.message_id === messageId
-          ? { ...notif, resolved: true, resolved_at: new Date().toISOString() }
-          : notif
-      ))
+  const resolveNotification = (notification) => {
+    // Close dropdown
+    setShowDropdown(false)
 
-      // Then update backend
-      await api.put(`/api/notifications/${messageId}/resolve`)
-    } catch (error) {
-      console.error('Error resolving notification:', error)
-      alert('Failed to resolve notification')
-      // Revert on error
-      fetchNotifications()
-    }
+    // Navigate to admin portal with item info to auto-open edit form
+    navigate('/employee/admin', {
+      state: {
+        openTab: 'giftshop',
+        editItemId: notification.item_id,
+        notificationId: notification.message_id
+      }
+    })
   }
 
   const deleteNotification = async (messageId) => {
@@ -163,8 +161,8 @@ function NotificationBell() {
                     {!notif.resolved && (
                       <button
                         className="resolve-button"
-                        onClick={() => resolveNotification(notif.message_id)}
-                        title="Mark as resolved"
+                        onClick={() => resolveNotification(notif)}
+                        title="Open item in admin portal"
                       >
                         <FaCheck /> Resolve
                       </button>

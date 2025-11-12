@@ -1101,4 +1101,185 @@ router.post('/membership-signups/checkout', async (req, res) => {
 });
 
 
+
+
+
+
+// ---Donations Reports---
+router.get('/donations', async (req, res) => {
+  try {
+    const { startDate: s, endDate: e } = req.query;
+    const { startDate, endDate } = clampDateRange(s, e);
+    
+    // get total donations for the period
+    const [totalDonationsResult] = await db.query(`
+      SELECT 
+        SUM(d.amount) as totalDonations,
+        COUNT(*) as donationCount,
+        AVG(d.amount) as averageDonation,
+        COUNT(CASE WHEN d.is_anonymous = TRUE THEN 1 END) as anonymousCount
+      FROM Donation d
+      JOIN Transactions t ON d.transaction_id = t.transaction_id
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+        AND t.transaction_status = 'Completed'
+    `, [startDate, endDate]);
+
+    // get thedaily donations
+    const [dailyDonations] = await db.query(`
+      SELECT 
+        DATE(t.transaction_date) as date,
+        SUM(d.amount) as donations
+      FROM Donation d
+      JOIN Transactions t ON d.transaction_id = t.transaction_id
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+        AND t.transaction_status = 'Completed'
+      GROUP BY DATE(t.transaction_date)
+      ORDER BY date
+    `, [startDate, endDate]);
+
+    // get the donations type
+    const [donationsByType] = await db.query(`
+      SELECT 
+        d.donation_type as category,
+        SUM(d.amount) as value
+      FROM Donation d
+      JOIN Transactions t ON d.transaction_id = t.transaction_id
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+        AND t.transaction_status = 'Completed'
+      GROUP BY d.donation_type
+      ORDER BY value DESC
+    `, [startDate, endDate]);
+
+    const toFixed2 = v => Number(v).toFixed(2);
+
+    res.json({
+      totalSales: toFixed2(totalDonationsResult[0].totalDonations || 0),
+      transactionCount: totalDonationsResult[0].donationCount || 0,
+      averageOrderValue: toFixed2(totalDonationsResult[0].averageDonation || 0),
+      anonymousCount: totalDonationsResult[0].anonymousCount || 0,
+      dailySales: dailyDonations.map(d => ({
+        date: d.date,
+        sales: toFixed2(d.donations)
+      })),
+      categorySales: donationsByType.map(c => ({
+        category: c.category,
+        value: toFixed2(c.value)
+      }))
+    });
+  } catch (error) {
+    console.error('Donations report error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/reports/donations/transactions - List donation transactions by type
+router.get('/donations/transactions', async (req, res) => {
+  try {
+    const { startDate: s, endDate: e, category } = req.query;
+    const { startDate, endDate } = clampDateRange(s, e);
+
+    if (!category) {
+      return res.status(400).json({ error: 'Category (donation type) is required' });
+    }
+
+    const [rows] = await db.query(`
+      SELECT DISTINCT 
+        t.transaction_id as id,
+        t.transaction_date as date,
+        d.amount as total,
+        d.donation_type,
+        d.is_anonymous,
+        CASE 
+          WHEN d.is_anonymous = TRUE THEN 'Anonymous'
+          ELSE CONCAT(u.first_name, ' ', u.last_name)
+        END as donor_name
+      FROM Donation d
+      JOIN Transactions t ON d.transaction_id = t.transaction_id
+      LEFT JOIN users u ON t.user_id = u.user_id
+      WHERE DATE(t.transaction_date) BETWEEN ? AND ?
+        AND t.transaction_status = 'Completed'
+        AND d.donation_type = ?
+      ORDER BY t.transaction_date DESC
+    `, [startDate, endDate, category]);
+
+    const transactions = rows.map(r => ({
+      id: r.id,
+      date: r.date,
+      total: parseFloat(r.total) || 0,
+      tickets: [],
+      giftShop: [],
+      cafeteria: [],
+      donorName: r.donor_name,
+      donationType: r.donation_type,
+      isAnonymous: !!r.is_anonymous
+    }));
+
+    res.json({
+      category: category,
+      transactions
+    });
+  } catch (error) {
+    console.error('Donations transactions list error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/reports/donations/transaction/:id - Donation transaction detail
+router.get('/donations/transaction/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [txRows] = await db.query(`
+      SELECT 
+        t.transaction_id as id, 
+        t.transaction_date as date, 
+        t.total_price as total, 
+        t.transaction_status as status,
+        d.amount as donation_amount,
+        d.donation_type,
+        d.is_anonymous,
+        d.dedication_message,
+        t.payment_method,
+        CASE 
+          WHEN d.is_anonymous = TRUE THEN 'Anonymous'
+          ELSE CONCAT(u.first_name, ' ', u.last_name)
+        END as donor_name
+      FROM Transactions t
+      JOIN Donation d ON d.transaction_id = t.transaction_id
+      LEFT JOIN users u ON t.user_id = u.user_id
+      WHERE t.transaction_id = ?
+    `, [id]);
+    
+    if (txRows.length === 0) return res.status(404).json({ error: 'Transaction not found' });
+
+    const transaction = {
+      id: txRows[0].id,
+      date: txRows[0].date,
+      total: parseFloat(txRows[0].donation_amount) || 0,
+      status: txRows[0].status,
+    };
+
+    const donationDetails = [{
+      type: 'Donation',
+      name: `${txRows[0].donation_type}${txRows[0].dedication_message ? ' - ' + txRows[0].dedication_message : ''}`,
+      donor: txRows[0].donor_name,
+      amount: parseFloat(txRows[0].donation_amount) || 0,
+      payment_method: txRows[0].payment_method
+    }];
+
+    res.json({
+      transaction,
+      items: {
+        tickets: [],
+        giftShop: [],
+        cafeteria: [],
+        donations: donationDetails
+      }
+    });
+  } catch (error) {
+    console.error('Donation transaction detail error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

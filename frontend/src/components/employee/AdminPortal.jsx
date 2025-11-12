@@ -1,13 +1,16 @@
 // File: src/components/employee/AdminPortal.jsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaKey } from 'react-icons/fa';
+import { useLocation } from 'react-router-dom';
+import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes } from 'react-icons/fa';
 import api from '../../services/api';
 import './EmployeePortal.css';
 import NotificationBell from './NotificationBell';
 
 
 function AdminPortal() {
+  const location = useLocation();
+
   // ---------- core state ----------
   
   const [activeTab, setActiveTab] = useState('employees');
@@ -40,14 +43,9 @@ const generateTempPassword = () => {
   }
   return password;
 };
+  const [pendingEditItemId, setPendingEditItemId] = useState(null);
 
-  // password modal
   const [selectedImageFile, setSelectedImageFile] = useState(null);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordChangeEmployee, setPasswordChangeEmployee] = useState(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
 
   // membership sign-ups report specific
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -289,12 +287,12 @@ const handleCreateMember = async () => {
   };
 
   const tabs = [
-    // Core data - needed by other entities
     { id: 'employees', label: 'Employees', endpoint: '/api/employees' },
     { id: 'artists', label: 'Artists', endpoint: '/api/artists' },
-    
-    // Content that depends on artists/employees
     { id: 'artworks', label: 'Artworks', endpoint: '/api/artworks' },
+    { id: 'giftshop', label: 'Gift Shop Items', endpoint: '/api/giftshop' },
+    { id: 'tickets', label: 'Ticket Types', endpoint: '/api/tickets/types' },
+    { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
     { id: 'exhibitions', label: 'Exhibitions', endpoint: '/api/exhibitions' },
     { id: 'events', label: 'Museum Events', endpoint: '/api/events' },
     
@@ -305,7 +303,41 @@ const handleCreateMember = async () => {
 
     // Reports (read-only)
     { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups' },
+    { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
   ];
+
+  // Handle navigation from notification bell
+  useEffect(() => {
+    if (location.state?.openTab && location.state?.editItemId) {
+      const { openTab, editItemId, notificationId } = location.state;
+
+      // Set the active tab
+      setActiveTab(openTab);
+
+      // Store the item ID to edit after items load
+      setPendingEditItemId(editItemId);
+
+      // Store notification ID to resolve later
+      if (notificationId) {
+        sessionStorage.setItem('pendingNotificationResolve', notificationId);
+      }
+
+      // Clear the location state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  // Auto-open edit form when items are loaded from notification
+  useEffect(() => {
+    if (pendingEditItemId && items.length > 0) {
+      const itemToEdit = items.find(item => item.item_id === pendingEditItemId);
+      if (itemToEdit) {
+        handleEdit(itemToEdit);
+        setPendingEditItemId(null); // Clear after using
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, pendingEditItemId]);
 
   useEffect(() => {
     fetchItems();
@@ -652,49 +684,6 @@ const handleCreateMember = async () => {
     }
   };
 
-  const handlePasswordChangeClick = (employee) => {
-    setPasswordChangeEmployee(employee);
-    setShowPasswordModal(true);
-    setNewPassword('');
-    setConfirmPassword('');
-    setPasswordError('');
-  };
-
-  const handlePasswordChange = async () => {
-    setPasswordError('');
-
-    // Validation
-    if (!newPassword || !confirmPassword) {
-      setPasswordError('Both password fields are required');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters long');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match');
-      return;
-    }
-
-    try {
-      await api.post(`/api/employees/${passwordChangeEmployee.employee_id}/change-password`, {
-        newPassword
-      });
-      
-      alert('Password changed successfully! Employee will be required to change it on next login.');
-      setShowPasswordModal(false);
-      setPasswordChangeEmployee(null);
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      console.error('Error changing password:', error);
-      setPasswordError(error.response?.data?.error || 'Failed to change password');
-    }
-  };
-
   const validateEmployeeForm = () => {
     const errors = [];
 
@@ -880,6 +869,17 @@ const handleCreateMember = async () => {
       setFormData({});
       setSelectedImageFile(null);
       await fetchItems();
+
+      // If this edit came from a notification, resolve it
+      const pendingNotificationId = sessionStorage.getItem('pendingNotificationResolve');
+      if (pendingNotificationId) {
+        try {
+          await api.put(`/api/notifications/${pendingNotificationId}/resolve`);
+          sessionStorage.removeItem('pendingNotificationResolve');
+        } catch (error) {
+          console.error('Error resolving notification:', error);
+        }
+      }
     } catch (error) {
       console.error('Error saving item:', error);
       const errorMsg = error.response?.data?.error || error.message;
@@ -893,6 +893,8 @@ const handleCreateMember = async () => {
     setShowAddForm(false);
     setFormData({});
     setSelectedImageFile(null);
+    // Clear pending notification if user cancels
+    sessionStorage.removeItem('pendingNotificationResolve');
   };
 
   const handleInputChange = (field, value) => {
@@ -1859,7 +1861,33 @@ const handleCreateMember = async () => {
   // ---------- tables ----------
   const renderItemsTable = () => {
     if (loading) return <div className="loading">Loading...</div>;
-    
+
+    // Sort items by their ID field
+    const getSortedItems = () => {
+      const sortedItems = [...items];
+      switch (activeTab) {
+        case 'artworks':
+          return sortedItems.sort((a, b) => a.artwork_id - b.artwork_id);
+        case 'artists':
+          return sortedItems.sort((a, b) => a.artist_id - b.artist_id);
+        case 'employees':
+          return sortedItems.sort((a, b) => a.employee_id - b.employee_id);
+        case 'giftshop':
+        case 'cafeteria':
+          return sortedItems.sort((a, b) => a.item_id - b.item_id);
+        case 'events':
+          return sortedItems.sort((a, b) => a.event_id - b.event_id);
+        case 'exhibitions':
+          return sortedItems.sort((a, b) => a.exhibition_id - b.exhibition_id);
+        case 'tickets':
+          return sortedItems.sort((a, b) => a.ticket_type_id - b.ticket_type_id);
+        default:
+          return sortedItems;
+      }
+    };
+
+    const sortedItems = getSortedItems();
+
     // Membership Sign-ups report (read-only)
     if (activeTab === 'membersignups') {
       const groups = membershipAgg.groups;
@@ -1998,7 +2026,7 @@ const handleCreateMember = async () => {
       );
     }
 
-    if (items.length === 0) {
+    if (sortedItems.length === 0) {
       return <div className="no-items">No items found</div>;
     }
 
@@ -2020,7 +2048,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.artwork_id}>
                   <td>{item.artwork_id}</td>
                   <td>{item.title}</td>
@@ -2057,7 +2085,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.artist_id}>
                   <td>{item.artist_id}</td>
                   <td>{item.name}</td>
@@ -2095,7 +2123,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.employee_id}>
                   <td>{item.employee_id}</td>
                   <td>{item.first_name} {item.last_name}</td>
@@ -2124,14 +2152,6 @@ const handleCreateMember = async () => {
                     <button onClick={() => handleEdit(item)} className="edit-btn">
                       <FaEdit />
                     </button>
-                    <button 
-                      onClick={() => handlePasswordChangeClick(item)} 
-                      className="edit-btn"
-                      title="Change Password"
-                      style={{ backgroundColor: '#fbbf24', marginLeft: '5px' }}
-                    >
-                      <FaKey />
-                    </button>
                     <button onClick={() => handleDelete(item.employee_id)} className="delete-btn">
                       <FaTrash />
                     </button>
@@ -2157,7 +2177,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.item_id}>
                   <td>{item.item_id}</td>
                   <td>{item.item_name}</td>
@@ -2195,7 +2215,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.item_id}>
                   <td>{item.item_id}</td>
                   <td>{item.item_name}</td>
@@ -2234,7 +2254,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.event_id}>
                   <td>{item.event_id}</td>
                   <td>{item.event_name}</td>
@@ -2273,7 +2293,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.exhibition_id}>
                   <td>{item.exhibition_id}</td>
                   <td>{item.exhibition_name}</td>
@@ -2310,7 +2330,7 @@ const handleCreateMember = async () => {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.ticket_type_id}>
                   <td>{item.ticket_type_id}</td>
                   <td>{item.ticket_name}</td>
