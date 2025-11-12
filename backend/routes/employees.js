@@ -430,6 +430,10 @@ router.put('/:id', middleware.requireRole('admin'), async (req, res) => {
       employeeUpdates.push('ssn = ?')
       employeeValues.push(ssn)
     }
+    if (req.body.is_active !== undefined) {
+      employeeUpdates.push('is_active = ?')
+      employeeValues.push(req.body.is_active)
+    }
 
     if (employeeUpdates.length > 0) {
       employeeValues.push(req.params.id)
