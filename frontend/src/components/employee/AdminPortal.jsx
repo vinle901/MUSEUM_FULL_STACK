@@ -1,12 +1,15 @@
 // File: src/components/employee/AdminPortal.jsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes, FaKey } from 'react-icons/fa';
+import { useLocation } from 'react-router-dom';
+import { FaEdit, FaTrash, FaPlus, FaSave, FaTimes } from 'react-icons/fa';
 import api from '../../services/api';
 import './EmployeePortal.css';
 import NotificationBell from './NotificationBell';
 
 function AdminPortal() {
+  const location = useLocation();
+
   // ---------- core state ----------
   const [activeTab, setActiveTab] = useState('employees');
   const [items, setItems] = useState([]);
@@ -17,14 +20,9 @@ function AdminPortal() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [artists, setArtists] = useState([]);
   const [exhibitions, setExhibitions] = useState([]);
+  const [pendingEditItemId, setPendingEditItemId] = useState(null);
 
-  // password modal
   const [selectedImageFile, setSelectedImageFile] = useState(null);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordChangeEmployee, setPasswordChangeEmployee] = useState(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
 
   // membership sign-ups report specific
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -34,23 +32,49 @@ function AdminPortal() {
   const [memberSummary, setMemberSummary] = useState({ signupCount: 0, totalAmount: 0 });
 
   const tabs = [
-    // Core data - needed by other entities
     { id: 'employees', label: 'Employees', endpoint: '/api/employees' },
     { id: 'artists', label: 'Artists', endpoint: '/api/artists' },
-    
-    // Content that depends on artists/employees
     { id: 'artworks', label: 'Artworks', endpoint: '/api/artworks' },
+    { id: 'giftshop', label: 'Gift Shop Items', endpoint: '/api/giftshop' },
+    { id: 'tickets', label: 'Ticket Types', endpoint: '/api/tickets/types' },
+    { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
     { id: 'exhibitions', label: 'Exhibitions', endpoint: '/api/exhibitions' },
     { id: 'events', label: 'Museum Events', endpoint: '/api/events' },
-    
-    // Visitor services
-    { id: 'tickets', label: 'Ticket Types', endpoint: '/api/tickets/types' },
-    { id: 'giftshop', label: 'Gift Shop Items', endpoint: '/api/giftshop' },
-    { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
-
-    // Reports (read-only)
     { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
   ];
+
+  // Handle navigation from notification bell
+  useEffect(() => {
+    if (location.state?.openTab && location.state?.editItemId) {
+      const { openTab, editItemId, notificationId } = location.state;
+
+      // Set the active tab
+      setActiveTab(openTab);
+
+      // Store the item ID to edit after items load
+      setPendingEditItemId(editItemId);
+
+      // Store notification ID to resolve later
+      if (notificationId) {
+        sessionStorage.setItem('pendingNotificationResolve', notificationId);
+      }
+
+      // Clear the location state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  // Auto-open edit form when items are loaded from notification
+  useEffect(() => {
+    if (pendingEditItemId && items.length > 0) {
+      const itemToEdit = items.find(item => item.item_id === pendingEditItemId);
+      if (itemToEdit) {
+        handleEdit(itemToEdit);
+        setPendingEditItemId(null); // Clear after using
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, pendingEditItemId]);
 
   useEffect(() => {
     fetchItems();
@@ -249,49 +273,6 @@ function AdminPortal() {
     }
   };
 
-  const handlePasswordChangeClick = (employee) => {
-    setPasswordChangeEmployee(employee);
-    setShowPasswordModal(true);
-    setNewPassword('');
-    setConfirmPassword('');
-    setPasswordError('');
-  };
-
-  const handlePasswordChange = async () => {
-    setPasswordError('');
-
-    // Validation
-    if (!newPassword || !confirmPassword) {
-      setPasswordError('Both password fields are required');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters long');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Passwords do not match');
-      return;
-    }
-
-    try {
-      await api.post(`/api/employees/${passwordChangeEmployee.employee_id}/change-password`, {
-        newPassword
-      });
-      
-      alert('Password changed successfully! Employee will be required to change it on next login.');
-      setShowPasswordModal(false);
-      setPasswordChangeEmployee(null);
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      console.error('Error changing password:', error);
-      setPasswordError(error.response?.data?.error || 'Failed to change password');
-    }
-  };
-
   const validateEmployeeForm = () => {
     const errors = [];
 
@@ -477,6 +458,17 @@ function AdminPortal() {
       setFormData({});
       setSelectedImageFile(null);
       await fetchItems();
+
+      // If this edit came from a notification, resolve it
+      const pendingNotificationId = sessionStorage.getItem('pendingNotificationResolve');
+      if (pendingNotificationId) {
+        try {
+          await api.put(`/api/notifications/${pendingNotificationId}/resolve`);
+          sessionStorage.removeItem('pendingNotificationResolve');
+        } catch (error) {
+          console.error('Error resolving notification:', error);
+        }
+      }
     } catch (error) {
       console.error('Error saving item:', error);
       const errorMsg = error.response?.data?.error || error.message;
@@ -490,6 +482,8 @@ function AdminPortal() {
     setShowAddForm(false);
     setFormData({});
     setSelectedImageFile(null);
+    // Clear pending notification if user cancels
+    sessionStorage.removeItem('pendingNotificationResolve');
   };
 
   const handleInputChange = (field, value) => {
@@ -1449,7 +1443,33 @@ function AdminPortal() {
   // ---------- tables ----------
   const renderItemsTable = () => {
     if (loading) return <div className="loading">Loading...</div>;
-    
+
+    // Sort items by their ID field
+    const getSortedItems = () => {
+      const sortedItems = [...items];
+      switch (activeTab) {
+        case 'artworks':
+          return sortedItems.sort((a, b) => a.artwork_id - b.artwork_id);
+        case 'artists':
+          return sortedItems.sort((a, b) => a.artist_id - b.artist_id);
+        case 'employees':
+          return sortedItems.sort((a, b) => a.employee_id - b.employee_id);
+        case 'giftshop':
+        case 'cafeteria':
+          return sortedItems.sort((a, b) => a.item_id - b.item_id);
+        case 'events':
+          return sortedItems.sort((a, b) => a.event_id - b.event_id);
+        case 'exhibitions':
+          return sortedItems.sort((a, b) => a.exhibition_id - b.exhibition_id);
+        case 'tickets':
+          return sortedItems.sort((a, b) => a.ticket_type_id - b.ticket_type_id);
+        default:
+          return sortedItems;
+      }
+    };
+
+    const sortedItems = getSortedItems();
+
     // Membership Sign-ups report (read-only)
     if (activeTab === 'membersignups') {
       const groups = membershipAgg.groups;
@@ -1527,7 +1547,7 @@ function AdminPortal() {
       );
     }
 
-    if (items.length === 0) {
+    if (sortedItems.length === 0) {
       return <div className="no-items">No items found</div>;
     }
 
@@ -1549,7 +1569,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.artwork_id}>
                   <td>{item.artwork_id}</td>
                   <td>{item.title}</td>
@@ -1586,7 +1606,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.artist_id}>
                   <td>{item.artist_id}</td>
                   <td>{item.name}</td>
@@ -1624,7 +1644,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.employee_id}>
                   <td>{item.employee_id}</td>
                   <td>{item.first_name} {item.last_name}</td>
@@ -1653,14 +1673,6 @@ function AdminPortal() {
                     <button onClick={() => handleEdit(item)} className="edit-btn">
                       <FaEdit />
                     </button>
-                    <button 
-                      onClick={() => handlePasswordChangeClick(item)} 
-                      className="edit-btn"
-                      title="Change Password"
-                      style={{ backgroundColor: '#fbbf24', marginLeft: '5px' }}
-                    >
-                      <FaKey />
-                    </button>
                     <button onClick={() => handleDelete(item.employee_id)} className="delete-btn">
                       <FaTrash />
                     </button>
@@ -1686,7 +1698,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.item_id}>
                   <td>{item.item_id}</td>
                   <td>{item.item_name}</td>
@@ -1724,7 +1736,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.item_id}>
                   <td>{item.item_id}</td>
                   <td>{item.item_name}</td>
@@ -1763,7 +1775,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.event_id}>
                   <td>{item.event_id}</td>
                   <td>{item.event_name}</td>
@@ -1802,7 +1814,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.exhibition_id}>
                   <td>{item.exhibition_id}</td>
                   <td>{item.exhibition_name}</td>
@@ -1839,7 +1851,7 @@ function AdminPortal() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {sortedItems.map(item => (
                 <tr key={item.ticket_type_id}>
                   <td>{item.ticket_type_id}</td>
                   <td>{item.ticket_name}</td>
@@ -1915,96 +1927,6 @@ function AdminPortal() {
         
         {!showAddForm && !editingItem && renderItemsTable()}
       </div>
-
-      {/* Password Change Modal */}
-      {showPasswordModal && passwordChangeEmployee && (
-        <div className="fixed inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-md w-full border border-gray-200/50">
-            <div className="flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-4" style={{ background: 'linear-gradient(to bottom right, #19667C, #127a86)' }}>
-              <FaKey className="text-white text-2xl" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">
-              Change Password
-            </h2>
-            <p className="text-gray-600 mb-4 text-center">
-              Changing password for <strong>{passwordChangeEmployee.first_name} {passwordChangeEmployee.last_name}</strong>
-            </p>
-            <p className="text-sm text-amber-600 mb-6 text-center bg-amber-50 p-3 rounded-lg border border-amber-200">
-              Employee will be required to change this password on their next login.
-            </p>
-
-            <div className="space-y-4">
-              {passwordError && (
-                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-r shadow-sm">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm">{passwordError}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Password:
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  autoFocus
-                  minLength="8"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                  style={{ '--tw-ring-color': '#19667C' }}
-                />
-                <small className="text-xs text-gray-500 mt-1.5 block">Must be at least 8 characters</small>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm New Password:
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all"
-                  style={{ '--tw-ring-color': '#19667C' }}
-                />
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={handlePasswordChange}
-                  className="flex-1 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                  style={{ background: 'linear-gradient(to right, #19667C, #127a86)' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #145261, #19667C)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'linear-gradient(to right, #19667C, #127a86)'}
-                >
-                  Change Password
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setPasswordChangeEmployee(null);
-                    setNewPassword('');
-                    setConfirmPassword('');
-                    setPasswordError('');
-                  }}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 px-4 rounded-lg transition-all duration-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

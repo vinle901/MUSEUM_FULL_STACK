@@ -32,17 +32,12 @@ const Checkout = () => {
     lastName: '',
     email: '',
     phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
     cardNumber: '',
     cardName: '',
     expiryMonth: '',
     expiryYear: '',
     cvv: '',
     paymentMethod: 'Credit Card',
-    giftMessage: '',
     newsletterSubscribe: false
   })
 
@@ -136,21 +131,14 @@ const Checkout = () => {
 
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) newErrors.email = 'Valid email is required'
-    
+
     const phoneRegex = /^\d{10}$/
     if (!phoneRegex.test(formData.phone.replace(/\D/g, ''))) {
       newErrors.phone = 'Valid 10-digit phone number is required'
     }
-
-    if (!formData.address.trim()) newErrors.address = 'Address is required'
-    if (!formData.city.trim()) newErrors.city = 'City is required'
-    if (!formData.state.trim()) newErrors.state = 'State is required'
-    
-    const zipRegex = /^\d{5}$/
-    if (!zipRegex.test(formData.zipCode)) newErrors.zipCode = 'Valid 5-digit ZIP code is required'
 
     const cardRegex = /^\d{16}$/
     if (!cardRegex.test(formData.cardNumber.replace(/\s/g, ''))) {
@@ -243,10 +231,6 @@ const Checkout = () => {
             firstName: formData.firstName,
             lastName: formData.lastName,
             phone: formData.phone,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            zipCode: formData.zipCode,
           },
         }
 
@@ -376,15 +360,6 @@ const Checkout = () => {
               </div>
             </div>
 
-            {!isMembership && (
-              <div className="bg-gray-50 rounded-lg p-4 mt-6">
-                <p className="text-sm text-gray-700">
-                  <strong>Shipping Address:</strong><br />
-                  {formData.address}<br />
-                  {formData.city}, {formData.state} {formData.zipCode}
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Information Notice */}
@@ -398,9 +373,9 @@ const Checkout = () => {
                   {isMembership ? 'Your membership is now active' : 'Your order details have been recorded'}
                 </p>
                 <p className="text-sm text-blue-800">
-                  {isMembership 
-                    ? 'You can now enjoy all the benefits of your membership. Visit your profile to view your membership details.' 
-                    : 'You can pick up your items at the museum gift shop. Please bring a valid ID and your order reference.'}
+                  {isMembership
+                    ? 'You can now enjoy all the benefits of your membership. Visit your profile to view your membership details.'
+                    : 'You can pick up your items at the museum gift shop. Please bring a valid ID.'}
                 </p>
               </div>
             </div>
@@ -538,71 +513,6 @@ const Checkout = () => {
                 </div>
               </div>
 
-              {/* Shipping Address */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Street Address *</label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                        errors.address ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                      }`}
-                    />
-                    {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">City *</label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.city ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">State *</label>
-                      <input
-                        type="text"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleInputChange}
-                        placeholder="TX"
-                        maxLength="2"
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.state ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2">ZIP Code *</label>
-                      <input
-                        type="text"
-                        name="zipCode"
-                        value={formData.zipCode}
-                        onChange={handleInputChange}
-                        placeholder="77001"
-                        maxLength="5"
-                        className={`w-full px-4 py-2 border-2 rounded-lg focus:outline-none ${
-                          errors.zipCode ? 'border-red-500' : 'border-gray-300 focus:border-brand'
-                        }`}
-                      />
-                      {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode}</p>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Payment Information */}
               <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
                 <h2 className="text-2xl font-bold mb-2">Payment Information</h2>
@@ -715,24 +625,6 @@ const Checkout = () => {
                       />
                       {errors.cvv && <p className="text-red-500 text-sm mt-1">{errors.cvv}</p>}
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Options */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-6">Additional Options</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Gift Message (Optional)</label>
-                    <textarea
-                      name="giftMessage"
-                      value={formData.giftMessage}
-                      onChange={handleInputChange}
-                      rows="3"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand"
-                      placeholder="Add a special message to your gift..."
-                    />
                   </div>
                 </div>
               </div>

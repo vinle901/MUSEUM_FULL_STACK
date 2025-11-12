@@ -14,6 +14,7 @@ router.get('/by-email/:email', async (req, res) => {
       JOIN users u ON m.user_id = u.user_id
       JOIN Benefits b ON m.membership_type = b.membership_type
       WHERE u.email = ? AND m.is_active = TRUE AND m.expiration_date >= CURDATE()
+      ORDER BY membership_id DESC
       LIMIT 1
     `, [email])
 

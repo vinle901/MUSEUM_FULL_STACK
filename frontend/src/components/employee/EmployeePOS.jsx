@@ -53,8 +53,6 @@ function EmployeePOS() {
     fetchAllItems();
   }, []);
 
-  // Remove auto-fetch - we'll use a button instead
-
   const fetchMembership = async () => {
     setMembershipLoading(true);
     setMembershipChecked(true); // Mark that we checked

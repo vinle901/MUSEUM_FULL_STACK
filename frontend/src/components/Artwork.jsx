@@ -8,7 +8,7 @@ import { useArtworkData } from '../hooks/useArtworkData'
 import { useArtworkFilters } from '../hooks/useArtworkFilters'
 import { useScrollPosition } from '../hooks/useScrollPosition'
 import { getArtistName } from '../utils/artworkHelpers'
-import { INITIAL_DISPLAY_LIMIT, MAX_DISPLAY_LIMIT } from '../utils/artworkConstants'
+import { INITIAL_DISPLAY_LIMIT } from '../utils/artworkConstants'
 
 const Artwork = () => {
   const { typeName } = useParams() 
@@ -27,11 +27,11 @@ const Artwork = () => {
     }
   }, [typeName])
 
-  const displayedArtworks = filteredArtworks.slice(0, Math.min(visibleCount, MAX_DISPLAY_LIMIT))
-  const hasMore = visibleCount < Math.min(filteredArtworks.length, MAX_DISPLAY_LIMIT)
+  const displayedArtworks = filteredArtworks.slice(0, visibleCount)
+  const hasMore = visibleCount < filteredArtworks.length
 
   const handleShowMore = () => {
-    setVisibleCount(Math.min(filteredArtworks.length, MAX_DISPLAY_LIMIT))
+    setVisibleCount(filteredArtworks.length)
   }
 
   const handleArtworkClick = (artwork) => {
