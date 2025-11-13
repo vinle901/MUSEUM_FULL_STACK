@@ -26,6 +26,7 @@ import middleware from './utils/middleware.js'
 import reportsRoutes from './routes/reports.js'  // Add with other imports
 import donationsRoutes from './routes/donations.js'
 import notificationRoutes from './routes/notifications.js'
+import membershipSignupsRoutes from './routes/membershipsignups.js'
 import db from './config/database.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -106,8 +107,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Museum API is running :V' })
 })
 
+app.use('/api/reports', reportsRoutes)
+app.use('/api/membershipsignups', membershipSignupsRoutes)
 
-app.use('/api/reports', reportsRoutes);
 // Error handling middleware - MUST be last
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)

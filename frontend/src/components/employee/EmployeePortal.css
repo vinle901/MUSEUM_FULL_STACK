@@ -1548,3 +1548,75 @@
   overflow: auto;
   max-height: calc(90vh - 140px);
 }
+
+/* Membership signups table column widths for proper alignment */
+.admin-portal-container .admin-table.membersignups-table th:nth-child(1),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(1) {
+  width: 80px;
+  min-width: 80px;
+  text-align: left;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(2),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(2) {
+  width: 150px;
+  min-width: 150px;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(3),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(3) {
+  width: 200px;
+  min-width: 200px;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(4),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(4) {
+  width: 130px;
+  min-width: 130px;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(5),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(5) {
+  width: 110px;
+  min-width: 110px;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(6),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(6) {
+  width: 100px;
+  min-width: 100px;
+  text-align: center;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(7),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(7) {
+  width: 110px;
+  min-width: 110px;
+  text-align: right;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(8),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(8) {
+  width: 130px;
+  min-width: 130px;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(9),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(9) {
+  width: 140px;
+  min-width: 140px;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(10),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(10) {
+  width: 110px;
+  min-width: 110px;
+  text-align: center;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:nth-child(11),
+.admin-portal-container .admin-table.membersignups-table td:nth-child(11) {
+  width: 80px;
+  min-width: 80px;
+  text-align: center;
+}

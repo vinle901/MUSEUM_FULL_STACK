@@ -57,6 +57,7 @@ function NotificationBell() {
     setShowDropdown(false)
 
     // Navigate to admin portal with item info to auto-open edit form
+    // The database trigger will auto-resolve the notification when stock is updated
     navigate('/employee/admin', {
       state: {
         openTab: 'giftshop',

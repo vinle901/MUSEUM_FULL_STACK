@@ -99,6 +99,7 @@ const generateTempPassword = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   // --- New Member modal (create) ---
   const [showCreateMember, setShowCreateMember] = useState(false);
+  const [isCreatingMember, setIsCreatingMember] = useState(false);
   const PLAN_PRICES = { Individual: 70, Dual: 95, Family: 115, Patron: 200 };
 
   const oneYearFrom = (iso) => {
@@ -117,7 +118,6 @@ const generateTempPassword = () => {
     membership_type: 'Individual',
     start_date: todayISO,
     expiration_date: oneYearFrom(todayISO),
-    quantity: 1,
     is_active: true,
     birthdate: '',     // "YYYY-MM-DD"
     sex: '',
@@ -128,10 +128,8 @@ const generateTempPassword = () => {
     show: false,
   });
   const newMemberTotal = useMemo(() => {
-    const price = PLAN_PRICES[newMember.membership_type] || 0;
-    const qty = Number(newMember.quantity || 0);
-    return price * qty;
-  }, [newMember.membership_type, newMember.quantity]);
+    return PLAN_PRICES[newMember.membership_type] || 0;
+  }, [newMember.membership_type]);
 
   const openCreateMember = () => {
     const start = todayISO;
@@ -144,23 +142,40 @@ const generateTempPassword = () => {
       membership_type: 'Individual',
       start_date: start,
       expiration_date: oneYearFrom(start),
-      quantity: 1,
       is_active: true,
     });
     setPay({ cardNumber: '', expMonth: '', expYear: '', cvc: '' });
     setShowCreateMember(true);
   };
 
+  // Format dates in local timezone to avoid UTC conversion issues
   const toISO = (v) => {
-  if (!v) return null;
-  if (v instanceof Date) return v.toISOString().slice(0,10);
-  const m = String(v).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  return m ? `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}` : String(v).slice(0,10);
-};
+    if (!v) return null;
+
+    // If it's a Date object, format using local timezone (not UTC)
+    if (v instanceof Date) {
+      const year = v.getFullYear();
+      const month = String(v.getMonth() + 1).padStart(2, '0');
+      const day = String(v.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Handle MM/DD/YYYY or M/D/YYYY format
+    const m = String(v).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (m) {
+      return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    }
+
+    // If it's already in YYYY-MM-DD format, return as-is (first 10 chars)
+    return String(v).slice(0, 10);
+  };
 
 const handleCreateMember = async () => {
+  // Prevent double submissions
+  if (isCreatingMember) return;
+
   try {
-    const qty = Math.max(1, Number(newMember.quantity || 1));
+    setIsCreatingMember(true);
     const generatedTempPw = generateTempPassword();
     const wantsPayment = !!(pay.cardNumber && pay.expMonth && pay.expYear && pay.cvc);
 
@@ -176,7 +191,7 @@ const handleCreateMember = async () => {
     const chosenPassword = pw.value || generatedTempPw;
 
     if (wantsPayment) {
-      await api.post('/api/reports/membership-signups/checkout', {   // NOTE: no leading /api
+      await api.post('/api/membershipsignups/membership-signups/checkout', {
         users: {
           first_name: newMember.first_name,
           last_name: newMember.last_name,
@@ -191,7 +206,6 @@ const handleCreateMember = async () => {
           membership_type: newMember.membership_type,
           start_date: startISO,         // normalized
           expiration_date: endISO,      // normalized
-          quantity: qty,
         },
         payment: {
           amount: newMemberTotal, // server will revalidate anyway
@@ -202,7 +216,7 @@ const handleCreateMember = async () => {
         },
       });
     } else {
-      await api.post('reports/membership-signups/checkout', {
+      await api.post('/api/membershipsignups/membership-signups/checkout', {
         users: {
           first_name: newMember.first_name,
           last_name:  newMember.last_name,
@@ -217,21 +231,55 @@ const handleCreateMember = async () => {
           membership_type: newMember.membership_type,
           start_date: startISO,
           expiration_date: endISO,
-          quantity: qty,
         },
       });
     }
 
-    // show temp password and reset
-    setNewPassword(chosenPassword);  
+    // Close the modal and reset form
+    setShowCreateMember(false);
+
+    // Reset form state
+    setNewMember({
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone_number: '',
+      subscribe_to_newsletter: false,
+      membership_type: 'Individual',
+      start_date: todayISO,
+      expiration_date: oneYearFrom(todayISO),
+      is_active: true,
+      birthdate: '',
+      sex: '',
+    });
+
+    setPay({
+      cardNumber: '',
+      expMonth: '',
+      expYear: '',
+      cvc: '',
+    });
+
+    setPw({
+      value: '',
+      confirm: '',
+      show: false,
+    });
+
+    // show temp password
+    setNewPassword(chosenPassword);
     setConfirmPassword('');
     setShowPasswordModal(true);
+
+    // Refresh the member list
     await fetchItems();
-    alert('Member(s) created successfully');
+    alert('Member created successfully');
   } catch (err) {
     console.error('Create member failed:', err);
     // bubble up exact backend message if available
-    alert(err?.response?.data?.error || err.message || 'Failed to create member(s)');
+    alert(err?.response?.data?.error || err.message || 'Failed to create member');
+  } finally {
+    setIsCreatingMember(false);
   }
 };
 
@@ -356,9 +404,7 @@ const openMemberModal = (r) => {
       payload.sex = sexUpper; // only send valid values
     }
 
-    const url = (api.defaults?.baseURL || '').endsWith('/api')
-      ? '/reports/membership-signups/member'
-      : '/api/reports/membership-signups/member';
+    const url = '/api/membershipsignups/membership-signups/member';
 
     // POST ONCE
     const { data } = await api.post(url, payload);
@@ -394,15 +440,27 @@ const openMemberModal = (r) => {
     { id: 'cafeteria', label: 'Cafeteria Items', endpoint: '/api/cafeteria' },
     { id: 'exhibitions', label: 'Exhibitions', endpoint: '/api/exhibitions' },
     { id: 'events', label: 'Museum Events', endpoint: '/api/events' },
-    { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups' },
+    { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/membershipsignups' },
     //{ id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
   ];
   const handleEdit = (item) => {
-  // close “add new” if it was open
+  // close "add new" if it was open
   setShowAddForm(false);
 
-  // normalize dates for inputs so the fields show values
-  const toYMD = (v) => (v ? new Date(v).toISOString().slice(0, 10) : '');
+  // normalize dates for inputs so the fields show values (use local timezone)
+  const toYMD = (v) => {
+    if (!v) return '';
+    // If already in YYYY-MM-DD format, return as-is
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) {
+      return v.slice(0, 10);
+    }
+    // Use local timezone formatting
+    const d = new Date(v);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const normalized = { ...item };
 
@@ -432,6 +490,9 @@ const openMemberModal = (r) => {
       // Set the active tab
       setActiveTab(openTab);
 
+      // Clear old items to prevent opening edit form with stale data
+      setItems([]);
+
       // Store the item ID to edit after items load
       setPendingEditItemId(editItemId);
 
@@ -440,9 +501,14 @@ const openMemberModal = (r) => {
         sessionStorage.setItem('pendingNotificationResolve', notificationId);
       }
 
+      // Force fetch fresh data from backend to get current stock quantity
+      // Pass the tab explicitly to avoid stale state issues
+      fetchItems({ tabId: openTab });
+
       // Clear the location state
       window.history.replaceState({}, document.title);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
   // Auto-open edit form when items are loaded from notification
@@ -495,17 +561,19 @@ const openMemberModal = (r) => {
   const fetchItems = async (override = {}) => {
     setLoading(true);
     try {
-      const endpoint = tabs.find(tab => tab.id === activeTab).endpoint;
+      // Use override.tabId if provided, otherwise use activeTab from state
+      const tabId = override.tabId || activeTab;
+      const endpoint = tabs.find(tab => tab.id === tabId).endpoint;
 
       // For exhibitions and events, include inactive/cancelled ones in admin view
       let url = endpoint;
-      if (activeTab === 'exhibitions') {
+      if (tabId === 'exhibitions') {
         url = `${endpoint}?include_inactive=true`;
-      } else if (activeTab === 'events') {
+      } else if (tabId === 'events') {
         url = `${endpoint}?include_cancelled=true`;
       }
 
-      if (activeTab === 'membersignups') {
+      if (tabId === 'membersignups') {
         const sRaw = (override.startDate ?? startDate) || '';
         const eRaw = (override.endDate   ?? endDate) || '';
         let s = sRaw, e = eRaw;
@@ -537,6 +605,17 @@ const openMemberModal = (r) => {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  };
+
+  // Consistent date formatting for display (use local timezone, return YYYY-MM-DD)
+  const formatDisplayDate = (dateValue) => {
+    if (!dateValue) return '—';
+    // If already a string in YYYY-MM-DD format, return as-is
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+      return dateValue.slice(0, 10);
+    }
+    // Otherwise format using local timezone
+    return toLocalYMD(dateValue);
   };
   const joinTimes = (dates) => {
   // dates: array of JS Date objects (same day)
@@ -705,7 +784,7 @@ const openMemberModal = (r) => {
     };
 
     try {
-      const res = await api.post('/api/reports/membership-signups/member', payload);
+      const res = await api.post('/api/membershipsignups/membership-signups/member', payload);
 
       // Align with server response if it returns the final membership
       const isActiveFromServer = res?.data?.membership?.is_active;
@@ -988,15 +1067,11 @@ const openMemberModal = (r) => {
       setSelectedImageFile(null);
       await fetchItems();
 
-      // If this edit came from a notification, resolve it
+      // Clear pending notification ID from session storage
+      // The database trigger will auto-resolve when stock is updated from 0 to > 0
       const pendingNotificationId = sessionStorage.getItem('pendingNotificationResolve');
       if (pendingNotificationId) {
-        try {
-          await api.put(`/api/notifications/${pendingNotificationId}/resolve`);
-          sessionStorage.removeItem('pendingNotificationResolve');
-        } catch (error) {
-          console.error('Error resolving notification:', error);
-        }
+        sessionStorage.removeItem('pendingNotificationResolve');
       }
     } catch (error) {
       console.error('Error saving item:', error);
@@ -2086,7 +2161,7 @@ const openMemberModal = (r) => {
                     </div>
                   </div>
                   <div className="table-responsive">
-                    <table className="admin-table">
+                    <table className="admin-table membersignups-table">
                       <thead>
                         <tr>
                           <th>User ID</th>
@@ -2094,7 +2169,6 @@ const openMemberModal = (r) => {
                           <th>Email</th>
                           <th>Phone</th>
                           <th>Plan</th>
-                          <th>Quantity</th>
                           <th>Newsletter</th>
                           <th>Amount</th>
                           <th>Expiration Date</th>
@@ -2111,10 +2185,9 @@ const openMemberModal = (r) => {
                             <td>{r.email}</td>
                             <td>{r.phone_number}</td>
                             <td>{r.membership_type}</td>
-                            <td>{r.count}</td>
                             <td>{r.subscribe_to_newsletter ? 'Yes' : 'No'}</td>
                             <td>{fmtMoney(r.line_total)}</td>
-                            <td>{r.expiration_date ? new Date(r.expiration_date).toLocaleDateString() : '—'}</td>
+                            <td>{formatDisplayDate(r.expiration_date)}</td>
                             <td>{r.purchased_times_text}</td>
                             <td>
                              <select
@@ -2252,7 +2325,7 @@ const openMemberModal = (r) => {
                   <td>{item.email}</td>
                   <td>{item.role}</td>
                   <td>${item.salary ? parseFloat(item.salary).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A'}</td>
-                  <td>{item.hire_date ? new Date(item.hire_date).toLocaleDateString() : 'N/A'}</td>
+                  <td>{item.hire_date ? formatDisplayDate(item.hire_date) : 'N/A'}</td>
                   <td>
                     {item.manager_name || 
                      (item.manager_first_name && item.manager_last_name 
@@ -2381,7 +2454,7 @@ const openMemberModal = (r) => {
                   <td>{item.event_id}</td>
                   <td>{item.event_name}</td>
                   <td>{item.event_type}</td>
-                  <td>{new Date(item.event_date).toLocaleDateString()}</td>
+                  <td>{formatDisplayDate(item.event_date)}</td>
                   <td>{item.event_time}</td>
                   <td>{item.location}</td>
                   <td>{item.max_capacity || 'Unlimited'}</td>
@@ -2421,8 +2494,8 @@ const openMemberModal = (r) => {
                   <td>{item.exhibition_name}</td>
                   <td>{item.exhibition_type}</td>
                   <td>{item.location}</td>
-                  <td>{new Date(item.start_date).toLocaleDateString()}</td>
-                  <td>{item.end_date ? new Date(item.end_date).toLocaleDateString() : 'No End Date'}</td>
+                  <td>{formatDisplayDate(item.start_date)}</td>
+                  <td>{item.end_date ? formatDisplayDate(item.end_date) : 'No End Date'}</td>
                   <td>{item.is_active ? 'Yes' : 'No'}</td>
                   <td>
                     <button onClick={() => handleEdit(item)} className="edit-btn">
@@ -2806,22 +2879,6 @@ const openMemberModal = (r) => {
               </div>
 
               <div>
-                <label className="form-label mb-1">Quantity</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="form-control"
-                  value={newMember.quantity}
-                  onChange={(e) =>
-                    setNewMember(m => ({
-                      ...m,
-                      quantity: Math.max(1, Number(e.target.value || 1))
-                    }))
-                  }
-                />
-              </div>
-
-              <div>
                 <label className="form-label mb-1">Start date</label>
                 <input
                   type="date"
@@ -2925,11 +2982,25 @@ const openMemberModal = (r) => {
               <div className="text-sm text-gray-600">
                 Total preview:&nbsp;
                 <strong>${newMemberTotal.toFixed(2)}</strong>
-                <span className="text-gray-400"> (price auto-calculated by plan × quantity)</span>
+                <span className="text-gray-400"> (price by membership plan)</span>
               </div>
               <div className="flex gap-3">
-                <button onClick={handleCreateMember} className="btn-primary">Save</button>
-                <button onClick={() => setShowCreateMember(false)} className="btn-secondary">Cancel</button>
+                <button
+                  onClick={handleCreateMember}
+                  className="btn-primary"
+                  disabled={isCreatingMember}
+                  style={{ opacity: isCreatingMember ? 0.6 : 1, cursor: isCreatingMember ? 'not-allowed' : 'pointer' }}
+                >
+                  {isCreatingMember ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => setShowCreateMember(false)}
+                  className="btn-secondary"
+                  disabled={isCreatingMember}
+                  style={{ opacity: isCreatingMember ? 0.6 : 1, cursor: isCreatingMember ? 'not-allowed' : 'pointer' }}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
