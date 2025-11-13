@@ -98,7 +98,7 @@ function AnalystReports() {
     giftShopCategory: 'all',
     cafeteriaCategory: 'all',
     dietaryFilter: 'all',
-    topK: '10',
+    topK: '0',
     membershipType: 'all',
     paymentMethod: 'all',
     enableComparison: false
@@ -423,11 +423,11 @@ function AnalystReports() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                    Top Items to Show
+                    Top Items to Show (0 = hide chart)
                   </label>
                   <input
                     type="number"
-                    min="3"
+                    min="0"
                     max="50"
                     value={filters.topK}
                     onChange={(e) => setFilters({...filters, topK: e.target.value})}
@@ -439,6 +439,7 @@ function AnalystReports() {
                       fontSize: '0.9rem',
                       background: 'white'
                     }}
+                    placeholder="0 = hide, 5-20 recommended"
                   />
                 </div>
               </>
@@ -491,11 +492,11 @@ function AnalystReports() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: '#64748b' }}>
-                    Top Items to Show
+                    Top Items to Show (0 = hide chart)
                   </label>
                   <input
                     type="number"
-                    min="3"
+                    min="0"
                     max="50"
                     value={filters.topK}
                     onChange={(e) => setFilters({...filters, topK: e.target.value})}
@@ -507,6 +508,7 @@ function AnalystReports() {
                       fontSize: '0.9rem',
                       background: 'white'
                     }}
+                    placeholder="0 = hide, 5-20 recommended"
                   />
                 </div>
               </>
@@ -715,10 +717,21 @@ function AnalystReports() {
     const changeIndicator = (current, previous) => {
       if (!comparisonData || !previous) return null;
       const change = ((current - previous) / previous * 100).toFixed(1);
-      const color = change >= 0 ? '#10b981' : '#ef4444';
-      const arrow = change >= 0 ? '↑' : '↓';
+      const isPositive = change >= 0;
+      const bgColor = isPositive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+      const textColor = isPositive ? '#059669' : '#dc2626';
+      const arrow = isPositive ? '↑' : '↓';
       return (
-        <span style={{ color, fontSize: '0.85rem', marginLeft: '0.5rem', fontWeight: '600' }}>
+        <span style={{ 
+          color: textColor,
+          backgroundColor: bgColor,
+          fontSize: '0.85rem', 
+          marginLeft: '0.5rem', 
+          fontWeight: '700',
+          padding: '0.25rem 0.5rem',
+          borderRadius: '6px',
+          display: 'inline-block'
+        }}>
           {arrow} {Math.abs(change)}%
         </span>
       );
@@ -908,8 +921,10 @@ function AnalystReports() {
             </div>
           )}
 
-          {/* Bubble Chart for Top Items */}
-          {(generatedFilters.category === 'giftshop' || generatedFilters.category === 'cafeteria') && topItems.length > 0 && (
+          {/* Bubble Chart for Top Items - Only show if topK > 0 */}
+          {(generatedFilters.category === 'giftshop' || generatedFilters.category === 'cafeteria') && 
+           topItems.length > 0 && 
+           parseInt(generatedFilters.topK) > 0 && (
             <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', gridColumn: '1 / -1' }}>
               <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>
                 Top {generatedFilters.topK} {generatedFilters.category === 'giftshop' ? 'Gift Shop' : 'Cafeteria'} Items
@@ -1096,16 +1111,29 @@ function AnalystReports() {
       averageDailyVisitors = 0,
       averageGroupSize = 0,
       dailyAttendance = [],
-      ticketTypeBreakdown = []
+      ticketTypeBreakdown = [],
+      ageDemographics = [],
+      dayOfWeekDistribution = []
     } = data;
 
     const changeIndicator = (current, previous) => {
       if (!comparisonData || !previous) return null;
       const change = ((current - previous) / previous * 100).toFixed(1);
-      const color = change >= 0 ? '#10b981' : '#ef4444';
-      const arrow = change >= 0 ? '↑' : '↓';
+      const isPositive = change >= 0;
+      const bgColor = isPositive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+      const textColor = isPositive ? '#059669' : '#dc2626';
+      const arrow = isPositive ? '↑' : '↓';
       return (
-        <span style={{ color, fontSize: '0.85rem', marginLeft: '0.5rem', fontWeight: '600' }}>
+        <span style={{ 
+          color: textColor,
+          backgroundColor: bgColor,
+          fontSize: '0.85rem', 
+          marginLeft: '0.5rem', 
+          fontWeight: '700',
+          padding: '0.25rem 0.5rem',
+          borderRadius: '6px',
+          display: 'inline-block'
+        }}>
           {arrow} {Math.abs(change)}%
         </span>
       );
@@ -1259,6 +1287,77 @@ function AnalystReports() {
             </div>
           )}
         </div>
+
+        {/* Demographics Section */}
+        {(ageDemographics.length > 0 || dayOfWeekDistribution.length > 0) && (
+          <>
+            <div style={{ marginTop: '2rem', marginBottom: '1rem' }}>
+              <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '600' }}>
+                📊 Visitor Demographics & Patterns
+              </h4>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '2rem' }}>
+              {/* Age Demographics */}
+              {ageDemographics.length > 0 && (
+                <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Age Group Distribution</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={ageDemographics}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ ageGroup, percentage }) => `${ageGroup}: ${percentage}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="visitors"
+                      >
+                        {ageDemographics.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value, name, props) => [
+                          `${value} visitors (${props.payload.percentage}%)`,
+                          'Count'
+                        ]} 
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Day of Week Distribution */}
+              {dayOfWeekDistribution.length > 0 && (
+                <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Visitors by Day of Week</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={dayOfWeekDistribution}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="day" 
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        formatter={(value, name) => [
+                          name === 'visitors' ? `${value} total visitors` : `${value} avg per day`,
+                          name === 'visitors' ? 'Total' : 'Average'
+                        ]}
+                      />
+                      <Legend />
+                      <Bar dataKey="visitors" fill={activeVisualizationTab === 'primary' ? '#149ab8' : '#94a3b8'} name="Total Visitors" />
+                      <Bar dataKey="avgPerDay" fill={activeVisualizationTab === 'primary' ? '#10b981' : '#94a3b8'} name="Avg Per Day" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </>
     );
   };
@@ -1276,10 +1375,21 @@ function AnalystReports() {
     const changeIndicator = (current, previous) => {
       if (!comparisonData || !previous) return null;
       const change = ((current - previous) / previous * 100).toFixed(1);
-      const color = change >= 0 ? '#10b981' : '#ef4444';
-      const arrow = change >= 0 ? '↑' : '↓';
+      const isPositive = change >= 0;
+      const bgColor = isPositive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+      const textColor = isPositive ? '#059669' : '#dc2626';
+      const arrow = isPositive ? '↑' : '↓';
       return (
-        <span style={{ color, fontSize: '0.85rem', marginLeft: '0.5rem', fontWeight: '600' }}>
+        <span style={{ 
+          color: textColor,
+          backgroundColor: bgColor,
+          fontSize: '0.85rem', 
+          marginLeft: '0.5rem', 
+          fontWeight: '700',
+          padding: '0.25rem 0.5rem',
+          borderRadius: '6px',
+          display: 'inline-block'
+        }}>
           {arrow} {Math.abs(change)}%
         </span>
       );
