@@ -539,6 +539,21 @@ const openMemberModal = (r) => {
   const fmtMoney = (n) =>
     Number(n || 0).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 
+  const getAvailabilityStatus = (item) => {
+    const stock = Number(item.stock_quantity || 0);
+    const isAvailable = !!item.is_available;
+
+    if (!isAvailable && stock === 0) {
+      return 'Out of Stock';
+    } else if (!isAvailable && stock > 0) {
+      return 'Temporarily Unavailable';
+    } else if (isAvailable && stock === 0) {
+      return 'Out of Stock';
+    } else {
+      return 'Available';
+    }
+  };
+
   const fetchArtistsAndExhibitions = async () => {
     try {
       const [artistsRes, exhibitionsRes] = await Promise.all([
@@ -827,6 +842,10 @@ const openMemberModal = (r) => {
           return `Cannot delete this artist because they have artworks in the collection.\n\nPlease reassign or remove the artworks first.`;
         } else if (activeTab === 'events') {
           return `Cannot delete this event because it has ticket purchases or registrations.\n\nEvents with attendees cannot be deleted.`;
+        } else if (activeTab === 'giftshop') {
+          return `Cannot delete this gift shop item because it appears in past transactions.\n\nItems that have been purchased cannot be deleted to maintain order history.\n\nTip: Mark the item as "Unavailable" instead so customers can't buy it.`;
+        } else if (activeTab === 'cafeteria') {
+          return `Cannot delete this cafeteria item because it appears in past orders.\n\nItems that have been ordered cannot be deleted to maintain transaction history.\n\nTip: Mark the item as "Unavailable" instead so customers can't order it.`;
         }
         return `Cannot delete this ${itemType} because it is being used elsewhere in the system.\n\nPlease remove any references first.`;
       } else {
@@ -856,8 +875,32 @@ const openMemberModal = (r) => {
   const handleDelete = async (itemId) => {
     const tab = tabs.find((t) => t.id === activeTab);
     if (tab.readonly) return;
-    
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+
+    // Get item name for confirmation message
+    const item = items.find(i => {
+      if (activeTab === 'giftshop' || activeTab === 'cafeteria') return i.item_id === itemId;
+      if (activeTab === 'tickets') return i.ticket_type_id === itemId;
+      if (activeTab === 'events') return i.event_id === itemId;
+      if (activeTab === 'exhibitions') return i.exhibition_id === itemId;
+      if (activeTab === 'artworks') return i.artwork_id === itemId;
+      if (activeTab === 'artists') return i.artist_id === itemId;
+      if (activeTab === 'employees') return i.employee_id === itemId;
+      return false;
+    });
+
+    const itemName = item?.item_name || item?.ticket_name || item?.event_name ||
+                     item?.exhibition_name || item?.title || item?.artist_name ||
+                     (item?.first_name && item?.last_name ? `${item.first_name} ${item.last_name}` : '');
+
+    const confirmMsg = itemName
+      ? `Are you sure you want to delete "${itemName}"?\n\nThis action cannot be undone.${
+          (activeTab === 'giftshop' || activeTab === 'cafeteria')
+            ? '\n\nNote: If this item has been sold/ordered, deletion will fail. Mark it as "Unavailable" instead.'
+            : ''
+        }`
+      : 'Are you sure you want to delete this item?\n\nThis action cannot be undone.';
+
+    if (!window.confirm(confirmMsg)) return;
 
     try {
       let endpoint = tab.endpoint;
@@ -866,7 +909,7 @@ const openMemberModal = (r) => {
 
       await api.delete(endpoint);
       await fetchItems();
-      alert('Item deleted successfully');
+      alert(`${itemName || 'Item'} deleted successfully`);
     } catch (error) {
       console.error('Error deleting item:', error);
       const errorMsg = error.response?.data?.error || error.message;
@@ -1222,6 +1265,17 @@ const openMemberModal = (r) => {
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows="3"
               />
+            </div>
+            <label>
+              <input
+                type="checkbox"
+                checked={!!formData.is_available}
+                onChange={(e) => handleInputChange('is_available', e.target.checked)}
+              />
+              Available for sale
+            </label>
+            <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px', marginBottom: '12px' }}>
+              <em>Note: If unchecked and stock is 0 = "Out of Stock". If unchecked and stock {'>'} 0 = "Temporarily Unavailable"</em>
             </div>
             <div className="image-input-section">
               <label>Image URL (paste external URL or leave blank to upload):</label>
@@ -2373,7 +2427,7 @@ const openMemberModal = (r) => {
                   <td>{item.category}</td>
                   <td>${parseFloat(item.price).toFixed(2)}</td>
                   <td>{item.stock_quantity}</td>
-                  <td>{item.is_available ? 'Yes' : 'No'}</td>
+                  <td>{getAvailabilityStatus(item)}</td>
                   <td>
                     <button onClick={() => handleEdit(item)} className="edit-btn">
                       <FaEdit />

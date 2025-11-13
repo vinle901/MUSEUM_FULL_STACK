@@ -16,6 +16,19 @@ const GiftShopCard = ({ item }) => {
 
   const isAvailable = Boolean(item.is_available && stockQuantity > 0)
 
+  const getAvailabilityStatus = () => {
+    if (!item.is_available && stockQuantity === 0) {
+      return 'Out of Stock';
+    } else if (!item.is_available && stockQuantity > 0) {
+      return 'Temporarily Unavailable';
+    } else if (item.is_available && stockQuantity === 0) {
+      return 'Out of Stock';
+    }
+    return null; // Available
+  };
+
+  const availabilityStatus = getAvailabilityStatus();
+
   const handleAddToCart = () => {
     if (!item.is_available || stockQuantity < 1) return
 
@@ -49,11 +62,13 @@ const GiftShopCard = ({ item }) => {
           </span>
         </div>
 
-        {/* Stock Badge or Out-of-Stock Badge (keep badge above overlay) */}
-        {(!item.is_available || stockQuantity < 1) ? (
+        {/* Stock Badge or Availability Status Badge (keep badge above overlay) */}
+        {availabilityStatus ? (
           <div className="absolute top-3 right-3 z-20">
-            <span className="px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded-full">
-              Out of stock
+            <span className={`px-3 py-1 text-white text-xs font-semibold rounded-full ${
+              availabilityStatus === 'Temporarily Unavailable' ? 'bg-orange-600' : 'bg-red-500'
+            }`}>
+              {availabilityStatus}
             </span>
           </div>
         ) : (stockQuantity < 10 && (

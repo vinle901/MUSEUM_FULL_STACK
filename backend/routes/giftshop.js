@@ -75,13 +75,13 @@ router.post('/upload-image', (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const {
-      item_name, category, price, stock_quantity, description, image_url,
+      item_name, category, price, stock_quantity, description, image_url, is_available,
     } = req.body
 
     const [result] = await db.query(
-      `INSERT INTO Gift_Shop_Items (item_name, category, price, stock_quantity, description, image_url)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [item_name, category, price, stock_quantity || 0, description, image_url],
+      `INSERT INTO Gift_Shop_Items (item_name, category, price, stock_quantity, description, image_url, is_available)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [item_name, category, price, stock_quantity || 0, description, image_url, is_available !== false],
     )
 
     res.status(201).json({ item_id: result.insertId, message: 'Gift shop item created successfully' })
@@ -95,15 +95,15 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const {
-      item_name, category, price, stock_quantity, description, image_url,
+      item_name, category, price, stock_quantity, description, image_url, is_available,
     } = req.body
 
     await db.query(
       `UPDATE Gift_Shop_Items
        SET item_name = ?, category = ?, price = ?, stock_quantity = ?,
-           description = ?, image_url = ?
+           description = ?, image_url = ?, is_available = ?
        WHERE item_id = ?`,
-      [item_name, category, price, stock_quantity, description, image_url, req.params.id],
+      [item_name, category, price, stock_quantity, description, image_url, is_available, req.params.id],
     )
 
     res.json({ message: 'Gift shop item updated successfully' })

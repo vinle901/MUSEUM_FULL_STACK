@@ -877,12 +877,23 @@ function EmployeePOS() {
               const availField = currentDept.availabilityField;
 
               // Check availability based on department
-              let isAvailable = item[availField] === true || item[availField] === 1 || item[availField] === '1';
+              const itemIsAvailableFlag = item[availField] === true || item[availField] === 1 || item[availField] === '1';
+              let isAvailable = itemIsAvailableFlag;
 
               // For gift shop, also check if stock is available
+              let availabilityStatus = null;
               if (activeDepartment === 'giftshop') {
                 const stockQuantity = parseInt(item.stock_quantity) || 0;
-                isAvailable = isAvailable && stockQuantity > 0;
+                isAvailable = itemIsAvailableFlag && stockQuantity > 0;
+
+                // Determine status message
+                if (!itemIsAvailableFlag && stockQuantity === 0) {
+                  availabilityStatus = 'Out of Stock';
+                } else if (!itemIsAvailableFlag && stockQuantity > 0) {
+                  availabilityStatus = 'Temporarily Unavailable';
+                } else if (itemIsAvailableFlag && stockQuantity === 0) {
+                  availabilityStatus = 'Out of Stock';
+                }
               }
 
               // Check if this is a member ticket using Benefits table
@@ -925,7 +936,7 @@ function EmployeePOS() {
                     </span>
                   ) : (
                     <span className="availability unavailable" style={{ marginTop: 4, display: 'block' }}>
-                      {activeDepartment === 'giftshop' && parseInt(item.stock_quantity || 0) === 0 ? 'Out of Stock' : 'Unavailable'}
+                      {activeDepartment === 'giftshop' && availabilityStatus ? availabilityStatus : 'Unavailable'}
                     </span>
                   )}
                   {activeDepartment !== 'tickets' && (
@@ -966,7 +977,20 @@ function EmployeePOS() {
                   <div className="modal-row">
                     <strong>Stock:</strong>
                     <span style={{ color: parseInt(previewItem.stock_quantity || 0) === 0 ? '#c62828' : 'inherit', fontWeight: parseInt(previewItem.stock_quantity || 0) === 0 ? '600' : 'normal' }}>
-                      {parseInt(previewItem.stock_quantity || 0) === 0 ? 'Out of Stock' : previewItem.stock_quantity ?? 'N/A'}
+                      {(() => {
+                        const stockQty = parseInt(previewItem.stock_quantity || 0);
+                        const isAvailableFlag = previewItem.is_available === true || previewItem.is_available === 1 || previewItem.is_available === '1';
+
+                        if (!isAvailableFlag && stockQty === 0) {
+                          return 'Out of Stock';
+                        } else if (!isAvailableFlag && stockQty > 0) {
+                          return `Temporarily Unavailable (${stockQty} in stock)`;
+                        } else if (isAvailableFlag && stockQty === 0) {
+                          return 'Out of Stock';
+                        } else {
+                          return stockQty ?? 'N/A';
+                        }
+                      })()}
                     </span>
                   </div>
                 )}
