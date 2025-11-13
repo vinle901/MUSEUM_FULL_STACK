@@ -37,7 +37,7 @@ const app = express()
 app.use(cors({
   origin: config.CORS_ORIGIN,
   credentials: true,
-}))
+}));
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
@@ -107,7 +107,7 @@ app.get('/api/health', (req, res) => {
 })
 
 
-app.use('/api/reports', reportsRoutes)
+app.use('/api/reports', reportsRoutes);
 // Error handling middleware - MUST be last
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)

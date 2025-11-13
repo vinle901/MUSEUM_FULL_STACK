@@ -241,23 +241,22 @@ function AnalystReports() {
   // ==================== REPORT GENERATION ====================
   
   const generateReport = async () => {
-    if (!reportType) {
-      setErrorMsg('Please select a report type');
+  if (!reportType) {
+    setErrorMsg('Please select a report type');
+    return;
+  }
+
+  if (filters.enableComparison) {
+    if (dateRangesOverlap(
+      dateRange.startDate, 
+      dateRange.endDate, 
+      comparisonDateRange.startDate, 
+      comparisonDateRange.endDate
+    )) {
+      setErrorMsg('Primary and comparison date ranges cannot overlap. Please adjust the dates.');
       return;
     }
-
-    // Validate comparison date ranges don't overlap
-    if (filters.enableComparison) {
-      if (dateRangesOverlap(
-        dateRange.startDate, 
-        dateRange.endDate, 
-        comparisonDateRange.startDate, 
-        comparisonDateRange.endDate
-      )) {
-        setErrorMsg('Primary and comparison date ranges cannot overlap. Please adjust the dates.');
-        return;
-      }
-    }
+  }
 
     setLoading(true);
     setErrorMsg('');
@@ -272,67 +271,77 @@ function AnalystReports() {
     setGeneratedComparisonDateRange({ ...comparisonDateRange });
     setGeneratedFilters({ ...filters });
 
-    try {
-      let params = {
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      };
+  try {
+    // base params
+    const params = {
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    };
 
-      // Add filters based on report type
-      if (reportType === 'sales') {
-        params.category = filters.category;
-        params.paymentMethod = filters.paymentMethod;
-        params.topK = filters.topK;
-        
-        if (filters.category === 'tickets') {
-          params.ticketType = filters.ticketType;
-        } else if (filters.category === 'giftshop') {
-          params.giftShopCategory = filters.giftShopCategory;
-        } else if (filters.category === 'cafeteria') {
-          params.cafeteriaCategory = filters.cafeteriaCategory;
-          params.dietaryFilter = filters.dietaryFilter;
-        }
-      } else if (reportType === 'attendance') {
+    // add report-type-specific params, omitting “all”
+    if (reportType === 'sales') {
+      if (filters.category !== 'all') params.category = filters.category;
+      if (filters.paymentMethod !== 'all') params.paymentMethod = filters.paymentMethod;
+      const topKNum = Number(filters.topK || 10);
+      if (!Number.isNaN(topKNum)) params.topK = topKNum;
+
+      if (filters.category === 'tickets' && filters.ticketType !== 'all') {
         params.ticketType = filters.ticketType;
-      } else if (reportType === 'membership') {
-        params.membershipType = filters.membershipType;
       }
-
-      const response = await api.get(`/api/reports/${reportType}`, { params });
-      setReportData(response.data);
-      
-      // Get raw data
-      const rawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params });
-      setRawData(rawResponse.data.data || []);
-
-      // Load comparison data if enabled
-      if (filters.enableComparison) {
-        try {
-          const compParams = {
-            ...params,
-            startDate: comparisonDateRange.startDate,
-            endDate: comparisonDateRange.endDate
-          };
-          
-          const compResponse = await api.get(`/api/reports/${reportType}`, { params: compParams });
-          setComparisonData(compResponse.data);
-
-          // Get comparison raw data
-          const compRawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params: compParams });
-          setComparisonRawData(compRawResponse.data.data || []);
-        } catch (err) {
-          console.error('Failed to load comparison data:', err);
-          setErrorMsg('Warning: Failed to load comparison data. Showing primary data only.');
-        }
+      if (filters.category === 'giftshop' && filters.giftShopCategory !== 'all') {
+        params.giftShopCategory = filters.giftShopCategory;
       }
-
-    } catch (error) {
-      console.error('Report generation error:', error);
-      setErrorMsg(error.response?.data?.error || 'Failed to generate report');
-    } finally {
-      setLoading(false);
+      if (filters.category === 'cafeteria') {
+        if (filters.cafeteriaCategory !== 'all') params.cafeteriaCategory = filters.cafeteriaCategory;
+        if (filters.dietaryFilter !== 'all') params.dietaryFilter = filters.dietaryFilter;
+      }
+    } else if (reportType === 'attendance') {
+      if (filters.ticketType !== 'all') params.ticketType = filters.ticketType;
+    } else if (reportType === 'membership') {
+      if (filters.membershipType !== 'all') params.membershipType = filters.membershipType;
     }
-  };
+
+    // main summary data (must exist)
+    const response = await api.get(`/api/reports/${reportType}`, { params });
+    setReportData(response.data);
+
+    // raw data is OPTIONAL — don’t fail the page if backend hasn’t implemented it
+    try {
+      const rawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params });
+      setRawData(Array.isArray(rawResponse.data?.data) ? rawResponse.data.data : []);
+    } catch (rawErr) {
+      console.warn('Raw-data unavailable (continuing):', rawErr?.response?.status || rawErr);
+      setRawData([]); // just show charts
+    }
+
+    // comparison (optional)
+    if (filters.enableComparison) {
+      const compParams = { ...params, startDate: comparisonDateRange.startDate, endDate: comparisonDateRange.endDate };
+      try {
+        const compResp = await api.get(`/api/reports/${reportType}`, { params: compParams });
+        setComparisonData(compResp.data);
+      } catch (e) {
+        console.warn('Comparison summary unavailable:', e?.response?.status || e);
+        setComparisonData(null);
+      }
+      try {
+        const compRaw = await api.get(`/api/reports/${reportType}/raw-data`, { params: compParams });
+        setComparisonRawData(Array.isArray(compRaw.data?.data) ? compRaw.data.data : []);
+      } catch (e) {
+        console.warn('Comparison raw-data unavailable:', e?.response?.status || e);
+        setComparisonRawData([]);
+      }
+    }
+  } catch (error) {
+    console.error('Report generation error:', error);
+    // Show more helpful error text if we have it
+    const msg = error.response?.data?.error || error.response?.statusText || error.message || 'Failed to generate report';
+    setErrorMsg(msg);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ==================== FILTER OPTIONS RENDERING ====================
   

@@ -6,4 +6,4 @@ const { PORT } = env
 
 app.listen(PORT, () => {
   logger.info(`Museum API server running on port ${PORT}`)
-})
+});
