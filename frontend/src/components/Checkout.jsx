@@ -50,7 +50,10 @@ const Checkout = () => {
   })
 
   // Calculate totals from current cart with membership rules
-  const discountPercentage = membership?.discount_percentage || 0
+  // Only apply discount if membership exists AND is active
+  const discountPercentage = (membership && (membership.is_active === true || membership.is_active === 1))
+    ? (membership.discount_percentage || 0)
+    : 0
   const priceOf = (p) => (typeof p === 'string' ? parseFloat(p) : (p || 0))
   const giftItems = cart.filter(item => item.cart_type !== 'ticket')
   const ticketItems = cart.filter(item => item.cart_type === 'ticket')
@@ -88,10 +91,14 @@ const Checkout = () => {
           try {
             const membershipRes = await api.get(`/api/memberships/user/${currentUser.user_id}`)
             if (membershipRes.data && membershipRes.data.length > 0) {
-              // Get the first active membership
-              const activeMembership = membershipRes.data[0]
-              setMembership(activeMembership)
-              console.log('User membership:', activeMembership)
+              // Get the first ACTIVE membership only
+              const activeMembership = membershipRes.data.find(m => m.is_active === true || m.is_active === 1)
+              if (activeMembership) {
+                setMembership(activeMembership)
+                console.log('User active membership:', activeMembership)
+              } else {
+                console.log('No active membership found (all memberships are inactive)')
+              }
             }
           } catch (membershipError) {
             console.log('No active membership found:', membershipError)
@@ -208,7 +215,10 @@ const Checkout = () => {
       }
 
   // Calculate final totals BEFORE clearing cart (frontend display only)
-  const finalDiscountPercentage = membership?.discount_percentage || 0
+  // Only apply discount if membership exists AND is active
+  const finalDiscountPercentage = (membership && (membership.is_active === true || membership.is_active === 1))
+    ? (membership.discount_percentage || 0)
+    : 0
   const _priceOf = (p) => (typeof p === 'string' ? parseFloat(p) : (p || 0))
   const _giftItems = cart.filter(item => item.cart_type !== 'ticket')
   const _ticketItems = cart.filter(item => item.cart_type === 'ticket')
@@ -406,9 +416,9 @@ const Checkout = () => {
             
             {/* Price Breakdown */}
             <div className="bg-white border-2 border-gray-200 rounded-lg p-4 mb-6">
-              {orderDiscountPercent > 0 && ocGiftSubtotalBefore > 0 && (
+              {orderDiscountPercent > 0 && ocGiftSubtotalBefore > 0 && orderMembershipType && (
                 <p className="text-sm font-semibold text-green-800 mb-3">
-                  ✓ Member Discount Applied ({orderMembershipType})
+                  ✓ Active Member Discount Applied ({orderMembershipType})
                 </p>
               )}
               <div className="space-y-2 text-sm">
@@ -819,7 +829,7 @@ const Checkout = () => {
                   <span>Subtotal:</span>
                   <span className="font-semibold">${subtotalBeforeDiscount.toFixed(2)}</span>
                 </div>
-                {membership && discountPercentage > 0 && giftSubtotalBefore > 0 && (
+                {membership && (membership.is_active === true || membership.is_active === 1) && discountPercentage > 0 && giftSubtotalBefore > 0 && (
                   <div className="flex justify-between text-lg text-green-600">
                     <span>Member Discount on Gift Items ({discountPercentage}%):</span>
                     <span className="font-semibold">-${giftDiscountAmount.toFixed(2)}</span>
