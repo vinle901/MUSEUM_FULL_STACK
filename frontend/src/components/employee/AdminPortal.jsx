@@ -535,12 +535,6 @@ const openMemberModal = (r) => {
     setSelectedImageFile(null);
   }, [activeTab]);
 
-  // Re-run report when date range changes (only on membership tab)
-  useEffect(() => {
-    if (activeTab === 'membersignups') fetchItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate]);
-
   // ---------- helpers ----------
   const fmtMoney = (n) =>
     Number(n || 0).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
@@ -2052,7 +2046,7 @@ const openMemberModal = (r) => {
     setStartDate('');
     setEndDate('');
     setActiveFilter('all');
-    // No need to call fetchItems(): the useEffect on [startDate, endDate] will run.
+    fetchItems();
   };
   
   // ---------- tables ----------

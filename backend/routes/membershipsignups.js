@@ -195,7 +195,7 @@ router.get('/', async (req, res) => {
           m.\`start_date\`,
           m.\`expiration_date\`,
           COALESCE(mp.\`line_total\`, 0) AS line_total,
-          t.\`transaction_date\`         AS purchased_at
+          t.\`transaction_date\` AS purchased_at
         FROM ${MEMBERSHIP_TABLE} m
         JOIN ${USERS_TABLE} u                ON u.\`user_id\`        = m.\`user_id\`
         JOIN ${MEMBERSHIP_PURCHASE_TABLE} mp ON mp.\`membership_id\` = m.\`membership_id\`
