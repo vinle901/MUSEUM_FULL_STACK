@@ -41,7 +41,16 @@ function AnalystReports() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
-    const date = new Date(dateStr);
+    // Extract date part from datetime strings (handles "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ss")
+    const datePart = dateStr.split('T')[0].split(' ')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    
+    // Validate the parsed values
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      return 'N/A';
+    }
+    
+    const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric', 
@@ -103,6 +112,11 @@ function AnalystReports() {
   const [activeRawDataTab, setActiveRawDataTab] = useState('primary');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Save the actual date ranges used when report was generated
+  const [generatedDateRange, setGeneratedDateRange] = useState(null);
+  const [generatedComparisonDateRange, setGeneratedComparisonDateRange] = useState(null);
+  const [generatedFilters, setGeneratedFilters] = useState(null);
 
   // ==================== CLEAR DATA ON REPORT TYPE CHANGE ====================
   
@@ -183,8 +197,15 @@ function AnalystReports() {
         start = new Date(today.getFullYear(), today.getMonth(), 1);
         break;
       case 'lastMonth':
-        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        // Calculate last month's range (handles year boundary)
+        const lastMonthIndex = today.getMonth() - 1;
+        const lastMonthYear = lastMonthIndex < 0 ? today.getFullYear() - 1 : today.getFullYear();
+        const adjustedMonthIndex = lastMonthIndex < 0 ? 11 : lastMonthIndex;
+        
+        start = new Date(lastMonthYear, adjustedMonthIndex, 1);
+        // Get last day of last month: day 0 of the following month
+        const endOfLastMonth = new Date(lastMonthYear, adjustedMonthIndex + 1, 0);
+        
         if (isComparison) {
           setComparisonDateRange({
             startDate: toLocalDateString(start),
@@ -220,23 +241,22 @@ function AnalystReports() {
   // ==================== REPORT GENERATION ====================
   
   const generateReport = async () => {
-    if (!reportType) {
-      setErrorMsg('Please select a report type');
+  if (!reportType) {
+    setErrorMsg('Please select a report type');
+    return;
+  }
+
+  if (filters.enableComparison) {
+    if (dateRangesOverlap(
+      dateRange.startDate, 
+      dateRange.endDate, 
+      comparisonDateRange.startDate, 
+      comparisonDateRange.endDate
+    )) {
+      setErrorMsg('Primary and comparison date ranges cannot overlap. Please adjust the dates.');
       return;
     }
-
-    // Validate comparison date ranges don't overlap
-    if (filters.enableComparison) {
-      if (dateRangesOverlap(
-        dateRange.startDate, 
-        dateRange.endDate, 
-        comparisonDateRange.startDate, 
-        comparisonDateRange.endDate
-      )) {
-        setErrorMsg('Primary and comparison date ranges cannot overlap. Please adjust the dates.');
-        return;
-      }
-    }
+  }
 
     setLoading(true);
     setErrorMsg('');
@@ -245,68 +265,83 @@ function AnalystReports() {
     setRawData([]);
     setComparisonRawData([]);
     setActiveVisualizationTab('primary');
+    
+    // Save the date ranges and filters being used for this report generation
+    setGeneratedDateRange({ ...dateRange });
+    setGeneratedComparisonDateRange({ ...comparisonDateRange });
+    setGeneratedFilters({ ...filters });
 
-    try {
-      let params = {
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      };
+  try {
+    // base params
+    const params = {
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    };
 
-      // Add filters based on report type
-      if (reportType === 'sales') {
-        params.category = filters.category;
-        params.paymentMethod = filters.paymentMethod;
-        params.topK = filters.topK;
-        
-        if (filters.category === 'tickets') {
-          params.ticketType = filters.ticketType;
-        } else if (filters.category === 'giftshop') {
-          params.giftShopCategory = filters.giftShopCategory;
-        } else if (filters.category === 'cafeteria') {
-          params.cafeteriaCategory = filters.cafeteriaCategory;
-          params.dietaryFilter = filters.dietaryFilter;
-        }
-      } else if (reportType === 'attendance') {
+    // add report-type-specific params, omitting “all”
+    if (reportType === 'sales') {
+      if (filters.category !== 'all') params.category = filters.category;
+      if (filters.paymentMethod !== 'all') params.paymentMethod = filters.paymentMethod;
+      const topKNum = Number(filters.topK || 10);
+      if (!Number.isNaN(topKNum)) params.topK = topKNum;
+
+      if (filters.category === 'tickets' && filters.ticketType !== 'all') {
         params.ticketType = filters.ticketType;
-      } else if (reportType === 'membership') {
-        params.membershipType = filters.membershipType;
       }
-
-      const response = await api.get(`/api/reports/${reportType}`, { params });
-      setReportData(response.data);
-      
-      // Get raw data
-      const rawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params });
-      setRawData(rawResponse.data.data || []);
-
-      // Load comparison data if enabled
-      if (filters.enableComparison) {
-        try {
-          const compParams = {
-            ...params,
-            startDate: comparisonDateRange.startDate,
-            endDate: comparisonDateRange.endDate
-          };
-          
-          const compResponse = await api.get(`/api/reports/${reportType}`, { params: compParams });
-          setComparisonData(compResponse.data);
-
-          // Get comparison raw data
-          const compRawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params: compParams });
-          setComparisonRawData(compRawResponse.data.data || []);
-        } catch (err) {
-          console.error('Failed to load comparison data:', err);
-          setErrorMsg('Warning: Failed to load comparison data. Showing primary data only.');
-        }
+      if (filters.category === 'giftshop' && filters.giftShopCategory !== 'all') {
+        params.giftShopCategory = filters.giftShopCategory;
       }
-
-    } catch (error) {
-      console.error('Report generation error:', error);
-      setErrorMsg(error.response?.data?.error || 'Failed to generate report');
-    } finally {
-      setLoading(false);
+      if (filters.category === 'cafeteria') {
+        if (filters.cafeteriaCategory !== 'all') params.cafeteriaCategory = filters.cafeteriaCategory;
+        if (filters.dietaryFilter !== 'all') params.dietaryFilter = filters.dietaryFilter;
+      }
+    } else if (reportType === 'attendance') {
+      if (filters.ticketType !== 'all') params.ticketType = filters.ticketType;
+    } else if (reportType === 'membership') {
+      if (filters.membershipType !== 'all') params.membershipType = filters.membershipType;
     }
-  };
+
+    // main summary data (must exist)
+    const response = await api.get(`/api/reports/${reportType}`, { params });
+    setReportData(response.data);
+
+    // raw data is OPTIONAL — don’t fail the page if backend hasn’t implemented it
+    try {
+      const rawResponse = await api.get(`/api/reports/${reportType}/raw-data`, { params });
+      setRawData(Array.isArray(rawResponse.data?.data) ? rawResponse.data.data : []);
+    } catch (rawErr) {
+      console.warn('Raw-data unavailable (continuing):', rawErr?.response?.status || rawErr);
+      setRawData([]); // just show charts
+    }
+
+    // comparison (optional)
+    if (filters.enableComparison) {
+      const compParams = { ...params, startDate: comparisonDateRange.startDate, endDate: comparisonDateRange.endDate };
+      try {
+        const compResp = await api.get(`/api/reports/${reportType}`, { params: compParams });
+        setComparisonData(compResp.data);
+      } catch (e) {
+        console.warn('Comparison summary unavailable:', e?.response?.status || e);
+        setComparisonData(null);
+      }
+      try {
+        const compRaw = await api.get(`/api/reports/${reportType}/raw-data`, { params: compParams });
+        setComparisonRawData(Array.isArray(compRaw.data?.data) ? compRaw.data.data : []);
+      } catch (e) {
+        console.warn('Comparison raw-data unavailable:', e?.response?.status || e);
+        setComparisonRawData([]);
+      }
+    }
+  } catch (error) {
+    console.error('Report generation error:', error);
+    // Show more helpful error text if we have it
+    const msg = error.response?.data?.error || error.response?.statusText || error.message || 'Failed to generate report';
+    setErrorMsg(msg);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ==================== FILTER OPTIONS RENDERING ====================
   
@@ -651,11 +686,11 @@ function AnalystReports() {
   // ==================== VISUALIZATION RENDERING ====================
   
   const renderVisualization = () => {
-    if (!reportData) return null;
+    if (!reportData || !generatedDateRange) return null;
 
     // Determine which data to display based on active tab
     const activeData = activeVisualizationTab === 'primary' ? reportData : comparisonData;
-    const activeDateRange = activeVisualizationTab === 'primary' ? dateRange : comparisonDateRange;
+    const activeDateRange = activeVisualizationTab === 'primary' ? generatedDateRange : generatedComparisonDateRange;
 
     if (!activeData) return null;
 
@@ -714,9 +749,9 @@ function AnalystReports() {
         <div style={{ marginBottom: '2rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.75rem' }}>{title}</h3>
           <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>
-            Primary: {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
-            {filters.enableComparison && comparisonData && (
-              <> | Comparison: {formatDate(comparisonDateRange.startDate)} - {formatDate(comparisonDateRange.endDate)}</>
+            Primary: {formatDate(generatedDateRange.startDate)} - {formatDate(generatedDateRange.endDate)}
+            {generatedFilters.enableComparison && comparisonData && generatedComparisonDateRange && (
+              <> | Comparison: {formatDate(generatedComparisonDateRange.startDate)} - {formatDate(generatedComparisonDateRange.endDate)}</>
             )}
           </p>
         </div>
@@ -729,9 +764,9 @@ function AnalystReports() {
               ${(reportData?.totalSales || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               {changeIndicator(reportData?.totalSales || 0, comparisonData?.totalSales)}
             </div>
-            {filters.category !== 'all' && (
+            {generatedFilters.category !== 'all' && (
               <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.9 }}>
-                Category: {filters.category === 'giftshop' ? 'Gift Shop' : filters.category === 'cafeteria' ? 'Cafeteria' : 'Tickets'}
+                Category: {generatedFilters.category === 'giftshop' ? 'Gift Shop' : generatedFilters.category === 'cafeteria' ? 'Cafeteria' : 'Tickets'}
               </div>
             )}
           </div>
@@ -754,12 +789,12 @@ function AnalystReports() {
 
           <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', padding: '1.5rem', borderRadius: '12px' }}>
             <div style={{ fontSize: '0.85rem', opacity: 0.9, marginBottom: '0.5rem' }}>
-              {filters.category === 'tickets' ? 'Top Ticket Type' : 'Top Item/Category'}
+              {generatedFilters.category === 'tickets' ? 'Top Ticket Type' : 'Top Item/Category'}
             </div>
             <div style={{ fontSize: '1.2rem', fontWeight: '700' }}>
-              {filters.category === 'tickets' ? 
+              {generatedFilters.category === 'tickets' ? 
                 (categoryDetails[0]?.type || 'N/A') : 
-                filters.category === 'all' ? 
+                generatedFilters.category === 'all' ? 
                   (categorySales[0]?.category || 'N/A') : 
                   (topItems[0]?.name || 'N/A')
               }
@@ -768,7 +803,7 @@ function AnalystReports() {
         </div>
 
         {/* Period Toggle Tabs */}
-        {filters.enableComparison && comparisonData && (
+        {generatedFilters.enableComparison && comparisonData && (
           <div style={{ 
             display: 'flex', 
             gap: '0.5rem', 
@@ -857,7 +892,7 @@ function AnalystReports() {
           </div>
 
           {/* Category Distribution - only for "all" categories */}
-          {filters.category === 'all' && categorySales.length > 0 && (
+          {generatedFilters.category === 'all' && categorySales.length > 0 && (
             <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
               <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Sales by Category</h4>
               <ResponsiveContainer width="100%" height={300}>
@@ -883,10 +918,10 @@ function AnalystReports() {
           )}
 
           {/* Bubble Chart for Top Items */}
-          {(filters.category === 'giftshop' || filters.category === 'cafeteria') && topItems.length > 0 && (
+          {(generatedFilters.category === 'giftshop' || generatedFilters.category === 'cafeteria') && topItems.length > 0 && (
             <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', gridColumn: '1 / -1' }}>
               <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>
-                Top {filters.topK} {filters.category === 'giftshop' ? 'Gift Shop' : 'Cafeteria'} Items
+                Top {generatedFilters.topK} {generatedFilters.category === 'giftshop' ? 'Gift Shop' : 'Cafeteria'} Items
               </h4>
               <ResponsiveContainer width="100%" height={Math.max(400, bubbleData.length * 35)}>
                 <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
@@ -938,6 +973,33 @@ function AnalystReports() {
                       return null;
                     }}
                   />
+                  <Legend 
+                    verticalAlign="top" 
+                    height={36}
+                    content={({ payload }) => (
+                      <div style={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: '1rem', 
+                        justifyContent: 'center',
+                        marginBottom: '1rem'
+                      }}>
+                        {bubbleData.map((item, index) => (
+                          <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ 
+                              width: '12px', 
+                              height: '12px', 
+                              borderRadius: '50%', 
+                              background: item.color 
+                            }} />
+                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                              {item.name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  />
                   <Scatter name="Items" data={bubbleData} fill="#149ab8">
                     {bubbleData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -949,7 +1011,7 @@ function AnalystReports() {
           )}
 
           {/* Category Details for Gift Shop */}
-          {filters.category === 'giftshop' && (!filters.giftShopCategory || filters.giftShopCategory === 'all') && categoryDetails.length > 0 && (
+          {generatedFilters.category === 'giftshop' && (!generatedFilters.giftShopCategory || generatedFilters.giftShopCategory === 'all') && categoryDetails.length > 0 && (
             <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
               <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Gift Shop Category Breakdown</h4>
               <ResponsiveContainer width="100%" height={300}>
@@ -967,7 +1029,7 @@ function AnalystReports() {
           )}
 
           {/* Category Details for Cafeteria */}
-          {filters.category === 'cafeteria' && (!filters.cafeteriaCategory || filters.cafeteriaCategory === 'all') && categoryDetails.length > 0 && (
+          {generatedFilters.category === 'cafeteria' && (!generatedFilters.cafeteriaCategory || generatedFilters.cafeteriaCategory === 'all') && categoryDetails.length > 0 && (
             <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
               <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Cafeteria Category Breakdown</h4>
               <ResponsiveContainer width="100%" height={300}>
@@ -985,7 +1047,7 @@ function AnalystReports() {
           )}
 
           {/* Ticket Type Details */}
-          {filters.category === 'tickets' && categoryDetails.length > 0 && (
+          {generatedFilters.category === 'tickets' && categoryDetails.length > 0 && (
             <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem' }}>
               <h4 style={{ margin: '0 0 1rem 0', color: '#0f172a' }}>Ticket Type Breakdown</h4>
               <ResponsiveContainer width="100%" height={300}>
@@ -1063,9 +1125,9 @@ function AnalystReports() {
         <div style={{ marginBottom: '2rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.75rem' }}>{title}</h3>
           <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>
-            Primary: {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
-            {filters.enableComparison && comparisonData && (
-              <> | Comparison: {formatDate(comparisonDateRange.startDate)} - {formatDate(comparisonDateRange.endDate)}</>
+            Primary: {formatDate(generatedDateRange.startDate)} - {formatDate(generatedDateRange.endDate)}
+            {generatedFilters.enableComparison && comparisonData && (
+              <> | Comparison: {formatDate(generatedComparisonDateRange.startDate)} - {formatDate(generatedComparisonDateRange.endDate)}</>
             )}
           </p>
         </div>
@@ -1100,7 +1162,7 @@ function AnalystReports() {
         </div>
 
         {/* Period Toggle Tabs */}
-        {filters.enableComparison && comparisonData && (
+        {generatedFilters.enableComparison && comparisonData && (
           <div style={{ 
             display: 'flex', 
             gap: '0.5rem', 
@@ -1237,9 +1299,9 @@ function AnalystReports() {
         <div style={{ marginBottom: '2rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: '#0f172a', fontSize: '1.75rem' }}>{title}</h3>
           <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>
-            Primary: {formatDate(dateRange.startDate)} - {formatDate(dateRange.endDate)}
-            {filters.enableComparison && comparisonData && (
-              <> | Comparison: {formatDate(comparisonDateRange.startDate)} - {formatDate(comparisonDateRange.endDate)}</>
+            Primary: {formatDate(generatedDateRange.startDate)} - {formatDate(generatedDateRange.endDate)}
+            {generatedFilters.enableComparison && comparisonData && (
+              <> | Comparison: {formatDate(generatedComparisonDateRange.startDate)} - {formatDate(generatedComparisonDateRange.endDate)}</>
             )}
           </p>
         </div>
@@ -1284,7 +1346,7 @@ function AnalystReports() {
         </div>
 
         {/* Period Toggle Tabs */}
-        {filters.enableComparison && comparisonData && (
+        {generatedFilters.enableComparison && comparisonData && (
           <div style={{ 
             display: 'flex', 
             gap: '0.5rem', 
