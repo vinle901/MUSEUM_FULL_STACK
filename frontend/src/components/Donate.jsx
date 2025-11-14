@@ -26,6 +26,8 @@ function Donate() {
     cvv: '',
   })
 
+  const presetAmounts = [25, 50, 100, 250, 500]
+
   useEffect(() => {
     // Require login for donations (per requirement: require login if user_id is null)
     (async () => {
@@ -108,9 +110,21 @@ function Donate() {
               {/* Donation Details */}
               <div className="bg-white border-2 border-gray-200 rounded-lg p-6">
                 <h2 className="text-2xl font-bold mb-6">Donation</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                   <div>
                     <label className="block text-sm font-semibold mb-2">Amount (USD) *</label>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {presetAmounts.map(a => (
+                        <button
+                          key={a}
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, amount: String(a) }))}
+                          className={`px-3 py-1.5 rounded-md border ${Number(form.amount) === a ? 'bg-brand text-white border-brand' : 'bg-white text-gray-700 border-gray-200'}`}
+                        >
+                          {'$' + a}
+                        </button>
+                      ))}
+                    </div>
                     <input
                       type="number"
                       name="amount"

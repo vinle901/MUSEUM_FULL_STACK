@@ -537,11 +537,11 @@ body {
 /* hero header (teal gradient like the other pages) */
 .hero{ padding:48px 0; }
 .hero--teal{
-  background: linear-gradient(180deg, var(--color-brand, #19667C), #127a86);
+  background: linear-gradient(180deg, var(--color-brand, #053a49), #208d99);
   color:#fff;
   box-shadow: 0 8px 24px rgba(0,0,0,.08);
-  border-bottom: 2px solid var(--color-brand-darker, #08323E);
-}
+  border-bottom: 1px solid var(--color-brand-darker, #165060);
+} 
 .hero__inner{ display:flex; flex-direction:column; gap:.35rem; }
 .hero__title{
   font-family:'Montserrat', sans-serif;

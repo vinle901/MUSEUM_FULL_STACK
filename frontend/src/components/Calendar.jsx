@@ -58,8 +58,52 @@ const Calendar = () => {
     const itemDate = new Date(item[dateField])
     const start = startDate ? new Date(startDate) : null
     const end = endDate ? new Date(endDate) : null
+    // normalize start to beginning of day and end to end of day so filters are inclusive
+    if (start) start.setHours(0, 0, 0, 0)
+    if (end) end.setHours(23, 59, 59, 999)
     if (start && itemDate < start) return false
     if (end && itemDate > end) return false
+    return true
+  }
+
+  // Filter for exhibitions which have start_date / end_date ranges
+  const filterExhibitionByDate = (ex) => {
+    // If no filters, show everything
+    if (!startDate && !endDate) return true
+
+    const exStart = isDate(ex.start_date) || isDate(ex.startDate)
+    const exEnd = isDate(ex.end_date) || isDate(ex.endDate)
+
+    // Permanent exhibitions should always appear 
+    const isPermanent = !exEnd
+    if (isPermanent) return true
+
+    const startFilter = startDate ? isDate(startDate) : null
+    const endFilter = endDate ? isDate(endDate) : null
+
+    // Both start and end filters: include if ranges overlap
+    if (startFilter && endFilter) {
+      // overlap if exhibition starts on/before endFilter and ends on/after startFilter
+      if (!exStart && !exEnd) return true
+      if (exStart && exStart > endFilter) return false
+      if (exEnd && exEnd < startFilter) return false
+      return true
+    }
+
+    // Only end filter: include exhibitions that are running on the selected end date
+    if (!startFilter && endFilter) {
+      if (exStart && exStart > endFilter) return false
+      if (exEnd && exEnd < endFilter) return false
+      return true
+    }
+
+    // Only start filter: include exhibitions that are active at or after the startFilter
+    if (startFilter && !endFilter) {
+      // exclude exhibitions that already ended before the startFilter
+      if (exEnd && exEnd < startFilter) return false
+      return true
+    }
+
     return true
   }
 
@@ -70,7 +114,7 @@ const Calendar = () => {
 
   const filteredEvents = events
     .filter(ev => filterByDate(ev, 'event_date'))
-    .filter(() => filterByCategory('Event'))
+    .filter(ev => filterByCategory('Event'))
 
   const isDate = (d) => {
     if (!d) return null
@@ -119,10 +163,19 @@ const Calendar = () => {
     return true
   }
 
-  const filteredExhibitions = exhibitions
-    .filter(ex => filterByDate(ex, 'start_date'))
-    .filter(() => filterByCategory('Exhibition'))
-    .filter(ex => filterByExhibitionTime(ex))
+  let filteredExhibitions = []
+
+  // always show past exhibitions in past section
+  if (exhibitionFilter === 'Past') {
+    filteredExhibitions = exhibitions
+      .filter(ex => filterByCategory('Exhibition'))
+      .filter(ex => isPastExhibition(ex))
+  } else {
+    filteredExhibitions = exhibitions
+      .filter(ex => filterExhibitionByDate(ex))
+      .filter(ex => filterByCategory('Exhibition'))
+      .filter(ex => filterByExhibitionTime(ex))
+  }
 
   if (loading) return <p className="text-center py-16">Loading...</p>
   if (error) return <p className="text-center py-16 text-red-600">{error}</p>

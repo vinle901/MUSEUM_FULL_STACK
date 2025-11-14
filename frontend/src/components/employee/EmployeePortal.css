@@ -2,17 +2,15 @@
 
 /* Common Employee Portal Styles */
 .employee-pos-container,
-.admin-portal-container,
-.analyst-reports-container {
+.admin-portal-container {
   min-height: 100vh;
-  background-color: #f5f5f5;
   padding: 20px;
 }
 
 .pos-header,
 .portal-header,
 .reports-header {
-  background: linear-gradient(135deg, #088da5 0%, 	#c4e6ff 100%);
+  background: linear-gradient(135deg, #088da5 0%, 	#91bedf 100%);
   color: white;
   padding: 30px;
   border-radius: 10px;
@@ -32,7 +30,7 @@
 
 .pos-employee-info {
   font-weight: 500;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
 }
 
 /* POS System Specific Styles */
@@ -720,7 +718,7 @@
 }
 .reports-header,
 .analyst-reports-container .reports-header {
-  background: linear-gradient(135deg, #458b74 0%, #006b3c 100%) !important;
+  background: linear-gradient(135deg, #56b18b 0%, #057b5b 100%) !important;
   color: #fff;
 }
 .date-filter input {

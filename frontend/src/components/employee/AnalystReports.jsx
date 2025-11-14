@@ -1773,7 +1773,7 @@ function AnalystReports() {
   // ==================== MAIN RENDER ====================
   
   return (
-    <div className="reports-container" style={{ padding: '2rem', background: '#f8fafc', minHeight: '100vh' }}>
+    <div className="reports-container" style={{padding: '1rem 2rem', minHeight: '100vh' }}>
       <div className="reports-header">
         <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '2rem', fontWeight: '700' }}>Analytics & Reports</h2>
         <p style={{ margin: 0, opacity: 0.9, fontSize: '1rem' }}>
