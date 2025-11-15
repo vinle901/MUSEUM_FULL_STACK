@@ -333,7 +333,7 @@
 .process-order-btn {
   width: 100%;
   padding: 15px;
-  background: linear-gradient(135deg, 		#088da5 0%, 	#b0e0e6 100%);
+  background: linear-gradient(135deg, #088da5 0%,#b0e0e6 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -357,11 +357,13 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
   padding: 16px;
 }
 
@@ -372,6 +374,26 @@
   max-width: 560px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   overflow: hidden;
+}
+
+/* Edit member modal overlay: ensure it sits above the header and is offset below it */
+.member-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px; 
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  z-index: 2000; /* above header */
+}
+
+.member-modal-overlay .member-modal-card {
+  margin: auto;
+  max-height: 90vh; 
+  overflow: auto;   
 }
 
 .modal-header {
@@ -1464,31 +1486,23 @@
 .create-member-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient( to bottom right,
-    rgba(209,250,229,.65),
-    rgba(207,250,254,.65),
-    rgba(219,234,254,.65)
-  );
-  backdrop-filter: blur(6px);
   display: flex;
-  /* Start below the site header instead of centered at very top */
-  align-items: flex-start;
+  /* Center the modal vertically and horizontally */
+  align-items: center;
   justify-content: center;
-
-  /* Create room for the app header */
-  padding-top: var(--app-header-h);
-  padding-left: 1rem;
-  padding-right: 1rem;
-
-  /* Keep the overlay below the site header’s z-index if needed */
-  z-index: 50;
+  padding: 16px;
+  /* Dark, blurred backdrop */
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
 }
 
 /* The modal card */
 .create-member-card {
   width: 100%;
   max-width: 48rem;                 /* ~768px */
-  max-height: calc(100vh - var(--app-header-h) - 2rem); /* shorter so header shows */
+  max-height: 90vh;                /* ensure card never touches bottom */
   border-radius: 20px;
   overflow: hidden;
   background: #fff;
@@ -1503,17 +1517,17 @@
 .create-member-card .header { position: sticky; top: 0; background:#fff; z-index: 2; }
 .create-member-card .create-member-scroll { overflow-y: auto; flex: 1; padding: 1.25rem 1.5rem; }
 .create-member-card .create-member-footer { position: sticky; bottom: 0; background:#fff; z-index: 2; }
-/* Add New Member FAB for the report toolbar */
+
 .add-member-fab {
   position: absolute;
-  top: 50%;            /* vertically center within the toolbar row */
-  right: 0;            /* hug the right edge of the white content area */
+  top: 50%;          
+  right: 0;            
   transform: translateY(-50%);
   height: 38px;
   padding: 0 14px;
   border: none;
   border-radius: 6px;
-  background: #16a34a; /* same green “success” vibe */
+  background: #16a34a; 
   color: #fff;
   font-weight: 600;
   cursor: pointer;
@@ -1524,19 +1538,17 @@
   filter: brightness(0.95);
 }
 
-/* Keep it usable on narrow screens */
 @media (max-width: 900px) {
   .add-member-fab {
-    position: static;           /* fall back into the flow */
+    position: static;       
     transform: none;
-    margin-left: auto;          /* push it to the right */
-    margin-top: 22px;           /* align with other controls */
+    margin-left: auto;         
+    margin-top: 22px;           
   }
 }
 .modal-like .admin-form > h3 { display: none; }
 .modal-like .admin-form .form-buttons { display: none; }
 
-/* Ensure modal height behaves like the member modal */
 .create-member-card {
   max-height: 90vh;
   display: flex;
@@ -1547,74 +1559,70 @@
   max-height: calc(90vh - 140px);
 }
 
-/* Membership signups table column widths for proper alignment */
-.admin-portal-container .admin-table.membersignups-table th:nth-child(1),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(1) {
-  width: 80px;
-  min-width: 80px;
-  text-align: left;
+.admin-portal-container .table-responsive {
+  width: 100%;
+  overflow-x: auto; /* allow horizontal scrolling on small screens */
+  -webkit-overflow-scrolling: touch;
 }
 
-.admin-portal-container .admin-table.membersignups-table th:nth-child(2),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(2) {
-  width: 150px;
-  min-width: 150px;
+.admin-portal-container .admin-table.membersignups-table {
+  table-layout: fixed; 
+  width: 100%;
+  min-width: 900px; /* allow horizontal scroll instead of compressing headers */
+}
+
+.admin-portal-container .admin-table.membersignups-table th,
+.admin-portal-container .admin-table.membersignups-table td {
+  padding: 13px 8px;
+  font-size: 0.92rem;
+  vertical-align: middle;
+}
+
+.admin-portal-container .admin-table.membersignups-table thead th {
+  white-space: wrap;
+  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-portal-container .admin-table.membersignups-table tbody td {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.admin-portal-container .admin-table.membersignups-table th { font-weight: 700; }
+
+.admin-portal-container .admin-table.membersignups-table th:last-child,
+.admin-portal-container .admin-table.membersignups-table td:last-child {
+  width: 110px;
+  max-width: 130px;
+  text-align: center;
+}
+
+.admin-portal-container .admin-table.membersignups-table th:first-child,
+.admin-portal-container .admin-table.membersignups-table td:first-child {
+  width: 90px;
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
 }
 
 .admin-portal-container .admin-table.membersignups-table th:nth-child(3),
 .admin-portal-container .admin-table.membersignups-table td:nth-child(3) {
-  width: 200px;
-  min-width: 200px;
+  width: 240px;
+  max-width: 300px;
+  white-space: nowrap; 
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.admin-portal-container .admin-table.membersignups-table th:nth-child(4),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(4) {
-  width: 130px;
-  min-width: 130px;
-}
-
-.admin-portal-container .admin-table.membersignups-table th:nth-child(5),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(5) {
-  width: 110px;
-  min-width: 110px;
-}
-
-.admin-portal-container .admin-table.membersignups-table th:nth-child(6),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(6) {
-  width: 100px;
-  min-width: 100px;
-  text-align: center;
-}
-
-.admin-portal-container .admin-table.membersignups-table th:nth-child(7),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(7) {
-  width: 110px;
-  min-width: 110px;
-  text-align: right;
-}
-
-.admin-portal-container .admin-table.membersignups-table th:nth-child(8),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(8) {
-  width: 130px;
-  min-width: 130px;
-}
-
-.admin-portal-container .admin-table.membersignups-table th:nth-child(9),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(9) {
-  width: 140px;
-  min-width: 140px;
-}
-
-.admin-portal-container .admin-table.membersignups-table th:nth-child(10),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(10) {
-  width: 110px;
-  min-width: 110px;
-  text-align: center;
-}
-
-.admin-portal-container .admin-table.membersignups-table th:nth-child(11),
-.admin-portal-container .admin-table.membersignups-table td:nth-child(11) {
-  width: 80px;
-  min-width: 80px;
-  text-align: center;
+@media (max-width: 900px) {
+  .admin-portal-container .admin-table.membersignups-table th,
+  .admin-portal-container .admin-table.membersignups-table td {
+    font-size: 0.9rem;
+    padding: 8px 6px;
+  }
 }

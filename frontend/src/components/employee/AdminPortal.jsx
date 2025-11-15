@@ -632,10 +632,9 @@ const openMemberModal = (r) => {
     const times = dates
       .sort((a, b) => a - b)
       .map(d => d.toLocaleTimeString()); // keep your current locale format
-    if (times.length <= 1) return times[0] || '';
-    if (times.length === 2) return `${times[0]} and ${times[1]}`;
-    // 3+ -> "a, b, c and d"
-    return `${times.slice(0, -1).join(', ')} and ${times[times.length - 1]}`;
+    // Return a simple comma-separated list (no conjunction) per request.
+    // Joining an empty array returns an empty string, which is fine.
+    return times.join(', ');
   };
   // membership sign-ups aggregation by day (client-side grouping)
   const membershipAgg = useMemo(() => {
@@ -2144,7 +2143,7 @@ const openMemberModal = (r) => {
       return (
         <>
           <div className="admin-filter-group" style={{ marginBottom: '2rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
               <div className="filter-field">
                 <label className="form-label mb-1">Active</label>
                 <select
@@ -2182,16 +2181,19 @@ const openMemberModal = (r) => {
                 >
                   Reset
                 </button>
-              <div style={{ marginLeft: 'auto', fontWeight: '700', textAlign: 'right', marginRight: '30px', fontSize: '1.1rem', lineHeight: '1.2' }}>
-                Overall Total: {fmtMoney(overall)} &nbsp;•&nbsp; Sign-ups: {memberSummary.signupCount}
+              <div style={{ marginLeft: '40px', display: 'flex', alignItems: 'center', gap: '40px'}}>
+                <div style={{ fontWeight: '700', fontSize: '1.1rem'}}>
+                  Overall Total: {fmtMoney(overall)} &nbsp;•&nbsp; Sign-ups: {memberSummary.signupCount}
+                </div>
+                <button
+                  className="add-item-btn"
+                  onClick={openCreateMember}
+                  title="Add New Member"
+                  style={{ alignSelf: 'flex-end' }}
+                >
+                  + Add New Member
+                </button>
               </div>
-              <button
-                className="add-item-btn"
-                onClick={openCreateMember}
-                title="Add New Member"
-              >
-                + Add New Member
-              </button>
 
             </div>
           </div>
@@ -2223,7 +2225,7 @@ const openMemberModal = (r) => {
                           <th>Expiration Date</th>
                           <th>Purchased At</th>
                           <th>Active</th>
-                          <th>Actions</th>
+                          <th>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3059,7 +3061,7 @@ const openMemberModal = (r) => {
       )}
 
       {showMemberModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="member-modal-overlay fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="member-modal-card">
             {/* Header */}
             <div className="member-modal-header">
