@@ -469,7 +469,8 @@ const openMemberModal = (r) => {
     normalized.hire_date = toYMD(item.hire_date);
   } else if (activeTab === 'artworks') {
     normalized.acquisition_date = toYMD(item.acquisition_date);
-    normalized.creation_date   = toYMD(item.creation_date);
+    // creation_date is a YEAR field, not a DATE - keep it as-is (number)
+    normalized.creation_date = item.creation_date || '';
   } else if (activeTab === 'events') {
     // if you keep date-only in DB this is fine; adjust if it’s datetime
     normalized.event_date = toYMD(item.event_date);
