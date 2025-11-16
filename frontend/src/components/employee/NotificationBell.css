@@ -42,7 +42,7 @@
 
 .bell-icon.has-notifications {
   animation: ring 2s ease-in-out infinite;
-  color: #fbbf24;
+  color: #ffd700;
 }
 
 @keyframes ring {
