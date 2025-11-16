@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ticketService } from '../services/ticketService';
 import '../components/Visit.css';
+import parkingInfo from '../assets/parking-info.jpg';
 
 function Visit() {
   const navigate = useNavigate();
@@ -173,9 +174,9 @@ function Visit() {
               </div>
             </div>
 
-            <img 
-              src="src/assets/parking-info.jpg" 
-              alt="Museum parking map" 
+            <img
+              src={parkingInfo}
+              alt="Museum parking map"
               className="parking-map"
             />
           </div>

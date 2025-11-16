@@ -9,58 +9,76 @@
   background: rgba(255, 255, 255, 0.15);
   border: 2px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  padding: 10px 14px;
+  padding: 12px 16px;
   font-size: 24px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  border-radius: 14px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .notification-bell-button:hover {
   background: rgba(255, 255, 255, 0.25);
   border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.notification-bell-button:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .bell-icon {
-  font-size: 24px;
+  font-size: 22px;
   color: white;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  transition: all 0.3s ease;
+}
+
+.bell-icon.has-notifications {
+  animation: ring 2s ease-in-out infinite;
+  color: #fbbf24;
+}
+
+@keyframes ring {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  10%, 30% {
+    transform: rotate(-15deg);
+  }
+  20%, 40% {
+    transform: rotate(15deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
 }
 
 .notification-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
   color: white;
   border-radius: 50%;
-  padding: 2px 6px;
+  padding: 0;
   font-size: 11px;
-  font-weight: bold;
-  min-width: 22px;
-  height: 22px;
+  font-weight: 700;
+  min-width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: pulse 2s infinite;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.6);
-  border: 2px solid #164e63;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.6);
-  }
-  50% {
-    transform: scale(1.15);
-    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.8);
-  }
+  box-shadow: 0 2px 8px rgba(255, 68, 68, 0.5);
+  border: 2.5px solid white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.5px;
 }
 
 /* Dropdown */

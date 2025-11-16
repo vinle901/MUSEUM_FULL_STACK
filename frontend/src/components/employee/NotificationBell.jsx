@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaTrash, FaCheck } from 'react-icons/fa'
+import { FaTrash, FaCheck, FaBell } from 'react-icons/fa'
 import api from '../../services/api'
 import './NotificationBell.css'
 
@@ -95,7 +95,7 @@ function NotificationBell() {
         onClick={() => setShowDropdown(!showDropdown)}
         aria-label="Notifications"
       >
-        <span className="bell-icon">🔔</span>
+        <FaBell className={`bell-icon ${unresolvedCount > 0 ? 'has-notifications' : ''}`} />
         {unresolvedCount > 0 && (
           <span className="notification-badge">{unresolvedCount}</span>
         )}

@@ -25,6 +25,8 @@ function AdminPortal() {
   const [artists, setArtists] = useState([]);
   const [exhibitions, setExhibitions] = useState([]);
   const [showTempPw, setShowTempPw] = useState(false);
+  const [createdEmployeePassword, setCreatedEmployeePassword] = useState(null);
+  const [showCreatedPasswordModal, setShowCreatedPasswordModal] = useState(false);
   // Open the modal for a given employee row (object with first_name/last_name/id)
   const openPasswordModal = (employee) => {
     setPasswordChangeEmployee(employee || null);
@@ -441,7 +443,6 @@ const openMemberModal = (r) => {
     { id: 'exhibitions', label: 'Exhibitions', endpoint: '/api/exhibitions' },
     { id: 'events', label: 'Museum Events', endpoint: '/api/events' },
     { id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/membershipsignups' },
-    //{ id: 'membersignups', label: 'Membership Sign-ups', endpoint: '/api/reports/membership-signups', readonly: true },
   ];
   const handleEdit = (item) => {
   // close "add new" if it was open
@@ -534,6 +535,7 @@ const openMemberModal = (r) => {
     setShowAddForm(false);
     setEditingItem(null);
     setSelectedImageFile(null);
+    setShowTempPw(false);
   }, [activeTab]);
 
   // ---------- helpers ----------
@@ -1092,16 +1094,27 @@ const openMemberModal = (r) => {
         alert('Item updated successfully');
       } else {
         // Add new item
+        // Store password for new employees before clearing form
+        const savedPassword = activeTab === 'employees' ? dataToSave.password : null;
+
         // Use special endpoint for creating employees with account
         const createEndpoint = activeTab === 'employees' ? '/api/employees/create-with-account' : endpoint;
         await api.post(createEndpoint, dataToSave);
-        alert('Item added successfully');
+
+        // Show password modal for new employees
+        if (activeTab === 'employees' && savedPassword) {
+          setCreatedEmployeePassword(savedPassword);
+          setShowCreatedPasswordModal(true);
+        } else {
+          alert('Item added successfully');
+        }
       }
 
       setEditingItem(null);
       setShowAddForm(false);
       setFormData({});
       setSelectedImageFile(null);
+      setShowTempPw(false);
       await fetchItems();
 
       // Clear pending notification ID from session storage
@@ -1123,6 +1136,7 @@ const openMemberModal = (r) => {
     setShowAddForm(false);
     setFormData({});
     setSelectedImageFile(null);
+    setShowTempPw(false);
     // Clear pending notification if user cancels
     sessionStorage.removeItem('pendingNotificationResolve');
   };
@@ -1881,12 +1895,58 @@ const openMemberModal = (r) => {
               <>
                 <div>
                   <label>Initial Password: *</label>
-                  <input
-                    type="password"
-                    placeholder="Enter temporary password"
-                    value={formData.password || ''}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                  />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <input
+                        type={showTempPw ? 'text' : 'password'}
+                        placeholder="Enter temporary password"
+                        value={formData.password || ''}
+                        onChange={(e) => handleInputChange('password', e.target.value)}
+                        style={{ width: '100%', paddingRight: formData.password ? '55px' : '8px' }}
+                      />
+                      {formData.password && (
+                        <button
+                          type="button"
+                          onClick={() => setShowTempPw(!showTempPw)}
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            padding: '2px 6px',
+                            color: '#3b82f6',
+                          }}
+                        >
+                          {showTempPw ? 'Hide' : 'Show'}
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tempPw = generateTempPassword();
+                        handleInputChange('password', tempPw);
+                        setShowTempPw(true);
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#164e63',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        fontSize: '14px',
+                        whiteSpace: 'nowrap',
+                      }}
+                      onMouseOver={(e) => e.target.style.background = '#0a3847'}
+                      onMouseOut={(e) => e.target.style.background = '#164e63'}
+                    >
+                      Generate Temp Password
+                    </button>
+                  </div>
                   <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
                     Employee must change this password on first login
                   </small>
@@ -1911,7 +1971,6 @@ const openMemberModal = (r) => {
                 <option value="" disabled>
                   Select Sex
                 </option>
-                <option value="">Select</option>
                 <option value="M">Male</option>
                 <option value="F">Female</option>
                 <option value="Non-Binary">Non-Binary</option>
@@ -2790,6 +2849,91 @@ const openMemberModal = (r) => {
           </div>
         </div>
       )}
+
+      {/* Created Employee Password Modal */}
+      {showCreatedPasswordModal && createdEmployeePassword && (
+        <div className="fixed inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-md w-full border border-gray-200/50">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-4" style={{ background: '#164e63' }}>
+              <svg className="text-white text-2xl w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+              Employee Created Successfully!
+            </h2>
+            <p className="text-gray-600 mb-4 text-center">
+              Save this temporary password securely
+            </p>
+            <p className="text-sm text-amber-600 mb-6 text-center bg-amber-50 p-3 rounded-lg border border-amber-200">
+              Employee must change this password on first login
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Temporary Password:
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={createdEmployeePassword}
+                    readOnly
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                    style={{ '--tw-ring-color': '#19667C', paddingRight: '80px' }}
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(createdEmployeePassword);
+                        alert('Password copied to clipboard!');
+                      } catch (err) {
+                        console.error('Failed to copy:', err);
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: '#164e63',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                    }}
+                    onMouseOver={(e) => e.target.style.background = '#0a3847'}
+                    onMouseOut={(e) => e.target.style.background = '#164e63'}
+                  >
+                    Copy
+                  </button>
+                </div>
+                <small className="text-xs text-gray-500 mt-1.5 block">Click the field to select all, or use the Copy button</small>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowCreatedPasswordModal(false);
+                    setCreatedEmployeePassword(null);
+                  }}
+                  className="flex-1 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  style={{ background: '#164e63' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#0a3847'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#164e63'}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Member Modal */}
 
       {showCreateMember && (

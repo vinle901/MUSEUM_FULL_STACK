@@ -1,4 +1,4 @@
-import artworkBanner from '/artwork_banner.jpeg'
+import artworkBanner from '../assets/artwork_banner.jpeg'
 
 const HeroBanner = ({ scrollY, title, description, backgroundImage = artworkBanner }) => {
   return (
